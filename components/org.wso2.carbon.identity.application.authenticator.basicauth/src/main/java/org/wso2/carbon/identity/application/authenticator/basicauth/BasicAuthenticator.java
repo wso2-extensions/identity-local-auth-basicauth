@@ -181,9 +181,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
 
         } catch (IOException e) {
-            throw new AuthenticationFailedException(e.getMessage(), AuthenticatedUser
-                    .createLocalAuthenticatedUserFromSubjectIdentifier(
-                            request.getParameter(BasicAuthenticatorConstants.USER_NAME)), e);
+            throw new AuthenticationFailedException(e.getMessage(), e);
         }
     }
 
@@ -206,21 +204,18 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 userStoreManager = (UserStoreManager) userRealm.getUserStoreManager();
                 isAuthenticated = userStoreManager.authenticate(MultitenantUtils.getTenantAwareUsername(username), password);
             } else {
-                throw new AuthenticationFailedException("Cannot find the user realm for the given tenant: " +
-                        tenantId, AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username));
+                throw new AuthenticationFailedException("Cannot find the user realm for the given tenant: " + tenantId);
             }
         } catch (IdentityRuntimeException e) {
             if(log.isDebugEnabled()){
                 log.debug("BasicAuthentication failed while trying to get the tenant ID of the user " + username, e);
             }
-            throw new AuthenticationFailedException(e.getMessage(), AuthenticatedUser
-                    .createLocalAuthenticatedUserFromSubjectIdentifier(username), e);
+            throw new AuthenticationFailedException(e.getMessage(), e);
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
             if(log.isDebugEnabled()){
                 log.debug("BasicAuthentication failed while trying to authenticate", e);
             }
-            throw new AuthenticationFailedException(e.getMessage(), AuthenticatedUser
-                    .createLocalAuthenticatedUserFromSubjectIdentifier(username), e);
+            throw new AuthenticationFailedException(e.getMessage(), e);
         }
 
         if (!isAuthenticated) {
@@ -228,8 +223,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 log.debug("User authentication failed due to invalid credentials");
             }
 
-            throw new InvalidCredentialsException("User authentication failed due to invalid credentials",
-                    AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username));
+            throw new InvalidCredentialsException("User authentication failed due to invalid credentials");
         }
 
         Map<String, Object> authProperties = context.getProperties();
