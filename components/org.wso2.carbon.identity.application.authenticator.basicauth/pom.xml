@@ -104,7 +104,7 @@
                         <Export-Package>
                             !org.wso2.carbon.identity.application.authenticator.basicauth.internal,
                             org.wso2.carbon.identity.application.authenticator.basicauth.*;
-                            version="${carbon.identity.package.export.version}"
+                            version="${identity.application.auth.basicauth.package.export.version}"
                         </Export-Package>
                     </instructions>
                 </configuration>
