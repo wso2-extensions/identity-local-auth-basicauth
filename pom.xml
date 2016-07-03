@@ -26,7 +26,7 @@
 
     <groupId>org.wso2.carbon.identity</groupId>
     <modelVersion>4.0.0</modelVersion>
-    <version>5.1.1-SNAPSHOT</version>
+    <version>5.2.0-SNAPSHOT</version>
     <artifactId>identity-application-auth-basicauth</artifactId>
     <packaging>pom</packaging>
     <name>WSO2 Carbon - BasicAuth Identity Application Authenticator Module</name>
