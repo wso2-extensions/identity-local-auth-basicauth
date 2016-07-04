@@ -26,7 +26,7 @@
 
     <groupId>org.wso2.carbon.identity</groupId>
     <modelVersion>4.0.0</modelVersion>
-    <version>5.2.0-SNAPSHOT</version>
+    <version>5.2.0-m1</version>
     <artifactId>identity-application-auth-basicauth</artifactId>
     <packaging>pom</packaging>
     <name>WSO2 Carbon - BasicAuth Identity Application Authenticator Module</name>
@@ -39,7 +39,7 @@
         <url>https://github.com/wso2-extensions/identity-local-auth-basicauth.git</url>
         <developerConnection>scm:git:https://github.com/wso2-extensions/identity-local-auth-basicauth.git</developerConnection>
         <connection>scm:git:https://github.com/wso2-extensions/identity-local-auth-basicauth.git</connection>
-        <tag>HEAD</tag>
+        <tag>v5.2.0-m1</tag>
     </scm>
 
     <dependencyManagement>
