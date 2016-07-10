@@ -67,12 +67,12 @@
             <dependency>
                 <groupId>org.wso2.carbon.identity</groupId>
                 <artifactId>org.wso2.carbon.identity.core</artifactId>
-                <version>${identity.framework.version}</version>
+                <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity</groupId>
                 <artifactId>org.wso2.carbon.identity.base</artifactId>
-                <version>${identity.framework.version}</version>
+                <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.analytics-common</groupId>
@@ -82,12 +82,12 @@
             <dependency>
                 <groupId>org.wso2.carbon.identity</groupId>
                 <artifactId>org.wso2.carbon.identity.application.authentication.framework</artifactId>
-                <version>${identity.framework.version}</version>
+                <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity</groupId>
                 <artifactId>org.wso2.carbon.identity.application.common</artifactId>
-                <version>${identity.framework.version}</version>
+                <version>${carbon.identity.framework.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -249,12 +249,15 @@
     </modules>
 
     <properties>
-        <carbon.kernel.version>4.4.5</carbon.kernel.version>
+        <identity.application.auth.basicauth.version>${project.version}</identity.application.auth.basicauth.version>
+        <identity.application.auth.basicauth.package.export.version>${identity.application.auth.basicauth.version}</identity.application.auth.basicauth.package.export.version>
+
+        <carbon.kernel.version>4.4.7</carbon.kernel.version>
         <carbon.kernel.package.import.version.range>[4.4.0, 5.0.0)</carbon.kernel.package.import.version.range>
-        <identity.framework.version>5.1.1-SNAPSHOT</identity.framework.version>
-        <identity.application.auth.basicauth.package.export.version>5.1.1-SNAPSHOT</identity.application.auth.basicauth.package.export.version>
-        <carbon.identity.package.import.version.range>[5.0.0, 6.0.0)</carbon.identity.package.import.version.range>
-        <carbon.identity.framework.package.import.version.range>[5.0.0, 6.0.0)</carbon.identity.framework.package.import.version.range>
+
+        <carbon.identity.framework.version>5.2.0</carbon.identity.framework.version>
+        <carbon.identity.framework.imp.pkg.version.range>[5.0.0, 6.0.0)</carbon.identity.framework.imp.pkg.version.range>
+
         <carbon.analytics-common.version>5.0.11</carbon.analytics-common.version>
         <carbon.analytics-common.imp.pkg.version.range>[5.0.0,6.0.0)</carbon.analytics-common.imp.pkg.version.range>
         <carbon.p2.plugin.version>1.5.3</carbon.p2.plugin.version>
