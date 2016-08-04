@@ -251,7 +251,7 @@
     <properties>
         <carbon.kernel.version>4.4.5</carbon.kernel.version>
         <carbon.kernel.package.import.version.range>[4.4.0, 5.0.0)</carbon.kernel.package.import.version.range>
-        <identity.framework.version>5.5.0-SNAPSHOT</identity.framework.version>
+        <identity.framework.version>5.5.0-m3</identity.framework.version>
         <identity.application.auth.basicauth.package.export.version>5.2.0-SNAPSHOT
         </identity.application.auth.basicauth.package.export.version>
         <carbon.identity.package.import.version.range>[5.0.0, 6.0.0)</carbon.identity.package.import.version.range>
