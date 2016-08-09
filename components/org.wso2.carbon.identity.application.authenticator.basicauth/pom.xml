@@ -87,24 +87,21 @@
                             org.osgi.framework; version="${osgi.framework.imp.pkg.version.range}",
                             org.osgi.service.component; version="${osgi.service.component.imp.pkg.version.range}",
 
-                            org.wso2.carbon.identity.application.authentication.framework.*;
-                            version="${carbon.identity.package.import.version.range}",
-                            org.wso2.carbon.identity.base; version="${carbon.identity.package.import.version.range}",
-                            org.wso2.carbon.identity.core.model;
-                            version="${carbon.identity.package.import.version.range}",
-                            org.wso2.carbon.identity.core.util;
-                            version="${carbon.identity.package.import.version.range}",
+                            org.wso2.carbon.identity.application.authentication.framework.*;version="${carbon.identity.framework.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.base;version="${carbon.identity.framework.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.core.model;version="${carbon.identity.framework.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.core.util;version="${carbon.identity.framework.imp.pkg.version.range}",
 
                             org.wso2.carbon.user.api; version="${carbon.user.api.imp.pkg.version.range}",
-                            org.wso2.carbon.user.core; version="${carbon.kernel.package.import.version.range}",
-                            org.wso2.carbon.user.core.service; version="${carbon.kernel.package.import.version.range}",
-                            org.wso2.carbon.user.core.util; version="${carbon.kernel.package.import.version.range}",
-                            org.wso2.carbon.utils.multitenancy; version="${carbon.kernel.package.import.version.range}"
+
+                            org.wso2.carbon.user.core; version="${carbon.kernel.imp.pkg.version.range}",
+                            org.wso2.carbon.user.core.service; version="${carbon.kernel.imp.pkg.version.range}",
+                            org.wso2.carbon.user.core.util; version="${carbon.kernel.imp.pkg.version.range}",
+                            org.wso2.carbon.utils.multitenancy; version="${carbon.kernel.imp.pkg.version.range}"
                         </Import-Package>
                         <Export-Package>
                             !org.wso2.carbon.identity.application.authenticator.basicauth.internal,
-                            org.wso2.carbon.identity.application.authenticator.basicauth.*;
-                            version="${identity.application.auth.basicauth.package.export.version}"
+                            org.wso2.carbon.identity.application.authenticator.basicauth.*;version="${identity.application.auth.basicauth.exp.pkg.version}"
                         </Export-Package>
                     </instructions>
                 </configuration>
