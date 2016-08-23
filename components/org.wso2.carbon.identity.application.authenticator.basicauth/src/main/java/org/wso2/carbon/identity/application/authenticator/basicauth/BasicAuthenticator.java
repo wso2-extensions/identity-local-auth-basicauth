@@ -30,6 +30,7 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.L
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
+import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
@@ -181,9 +182,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
 
         } catch (IOException e) {
-            throw new AuthenticationFailedException(e.getMessage(), AuthenticatedUser
-                    .createLocalAuthenticatedUserFromSubjectIdentifier(
-                            request.getParameter(BasicAuthenticatorConstants.USER_NAME)), e);
+            throw new AuthenticationFailedException(e.getMessage(), User.getUserFromUserName(request.getParameter
+                    (BasicAuthenticatorConstants.USER_NAME)), e);
         }
     }
 
@@ -207,20 +207,18 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 isAuthenticated = userStoreManager.authenticate(MultitenantUtils.getTenantAwareUsername(username), password);
             } else {
                 throw new AuthenticationFailedException("Cannot find the user realm for the given tenant: " +
-                        tenantId, AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username));
+                        tenantId, User.getUserFromUserName(username));
             }
         } catch (IdentityRuntimeException e) {
             if(log.isDebugEnabled()){
                 log.debug("BasicAuthentication failed while trying to get the tenant ID of the user " + username, e);
             }
-            throw new AuthenticationFailedException(e.getMessage(), AuthenticatedUser
-                    .createLocalAuthenticatedUserFromSubjectIdentifier(username), e);
+            throw new AuthenticationFailedException(e.getMessage(), User.getUserFromUserName(username), e);
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
             if(log.isDebugEnabled()){
                 log.debug("BasicAuthentication failed while trying to authenticate", e);
             }
-            throw new AuthenticationFailedException(e.getMessage(), AuthenticatedUser
-                    .createLocalAuthenticatedUserFromSubjectIdentifier(username), e);
+            throw new AuthenticationFailedException(e.getMessage(), User.getUserFromUserName(username), e);
         }
 
         if (!isAuthenticated) {
@@ -229,7 +227,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
 
             throw new InvalidCredentialsException("User authentication failed due to invalid credentials",
-                    AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username));
+                    User.getUserFromUserName(username));
         }
 
         Map<String, Object> authProperties = context.getProperties();
