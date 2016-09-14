@@ -24,7 +24,7 @@
         <version>1</version>
     </parent>
 
-    <groupId>org.wso2.carbon.identity</groupId>
+    <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
     <modelVersion>4.0.0</modelVersion>
     <version>5.2.0-SNAPSHOT</version>
     <artifactId>identity-application-auth-basicauth</artifactId>
@@ -73,22 +73,22 @@
 
             <!-- Identity Framework dependencies -->
             <dependency>
-                <groupId>org.wso2.carbon.identity</groupId>
+                <groupId>org.wso2.carbon.identity.framework</groupId>
                 <artifactId>org.wso2.carbon.identity.core</artifactId>
                 <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.wso2.carbon.identity</groupId>
+                <groupId>org.wso2.carbon.identity.framework</groupId>
                 <artifactId>org.wso2.carbon.identity.base</artifactId>
                 <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.wso2.carbon.identity</groupId>
+                <groupId>org.wso2.carbon.identity.framework</groupId>
                 <artifactId>org.wso2.carbon.identity.application.authentication.framework</artifactId>
                 <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.wso2.carbon.identity</groupId>
+                <groupId>org.wso2.carbon.identity.framework</groupId>
                 <artifactId>org.wso2.carbon.identity.application.common</artifactId>
                 <version>${carbon.identity.framework.version}</version>
             </dependency>
@@ -100,7 +100,7 @@
             </dependency>
 
             <dependency>
-                <groupId>org.wso2.carbon.identity</groupId>
+                <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
                 <artifactId>org.wso2.carbon.identity.application.authenticator.basicauth</artifactId>
                 <version>${project.version}</version>
             </dependency>
