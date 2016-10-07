@@ -57,6 +57,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         implements LocalApplicationAuthenticator {
 
     private static final long serialVersionUID = 1819664539416029785L;
+    private static final String PASSWORD_PROPERTY = "PASSWORD_PROPERTY";
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
 
     @Override
@@ -98,6 +99,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String loginPage = ConfigurationFacade.getInstance().getAuthenticationEndpointURL();
         String retryPage = ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL();
         String queryParams = context.getContextIdIncludedQueryParams();
+        String password = (String) context.getProperty(PASSWORD_PROPERTY);
 
         try {
             String retryParam = "";
@@ -127,6 +129,20 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                          BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter(
                             BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.ERROR_CODE + errorCode
                                          + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
+                    response.sendRedirect(redirectURL);
+
+                }else if (errorCode.equals(IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE)) {
+                    retryParam = "&authFailure=true&authFailureMsg=password.reset.pending";
+                    String redirectURL = response.encodeRedirectURL(loginPage + ("?" + queryParams)) +
+                            BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter(
+                            BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.ERROR_CODE + errorCode
+                            + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
+                    response.sendRedirect(redirectURL);
+
+                }else if (errorCode.equals(IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE)) {
+                    String username= request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+
+                    String redirectURL = response.encodeRedirectURL( ("accountrecoveryendpoint/confirmrecovery.do?" + queryParams)) + BasicAuthenticatorConstants.USER_NAME +"="+ URLEncoder.encode(username)+ "&confirmation="+password;
                     response.sendRedirect(redirectURL);
 
                 }else if (showAuthFailureReason != null && "true".equals(showAuthFailureReason)) {
@@ -218,6 +234,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
 
+        Map<String, Object> authProperties = context.getProperties();
+        if (authProperties == null) {
+            authProperties = new HashMap<String, Object>();
+            context.setProperties(authProperties);
+        }
+
+        authProperties.put(PASSWORD_PROPERTY, password);
+
         boolean isAuthenticated;
         UserStoreManager userStoreManager;
         // Check the authentication
@@ -252,13 +276,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     User.getUserFromUserName(username));
         }
 
-        Map<String, Object> authProperties = context.getProperties();
-        String tenantDomain = MultitenantUtils.getTenantDomain(username);
 
-        if (authProperties == null) {
-            authProperties = new HashMap<String, Object>();
-            context.setProperties(authProperties);
-        }
+        String tenantDomain = MultitenantUtils.getTenantDomain(username);
 
         //TODO: user tenant domain has to be an attribute in the AuthenticationContext
         authProperties.put("user-tenant-domain", tenantDomain);
