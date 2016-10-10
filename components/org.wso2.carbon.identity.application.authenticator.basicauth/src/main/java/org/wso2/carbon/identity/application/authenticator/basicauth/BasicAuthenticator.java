@@ -201,7 +201,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         response.sendRedirect(response.encodeRedirectURL(loginPage + ("?" + queryParams))
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam);
-                    } else {
+                    } else if (errorCode.equals(IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE)) {
+                        retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
+                        String redirectURL = response.encodeRedirectURL(loginPage + ("?" + queryParams)) +
+                                BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter(
+                                BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.ERROR_CODE + errorCode
+                                + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
+                        response.sendRedirect(redirectURL);
+                    }  else {
                         if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
                             String redirectURL = retryPage;
                             redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
@@ -211,6 +218,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
                         }
                     }
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Unknown identity error code.");
+                    }
+                    response.sendRedirect(response.encodeRedirectURL(loginPage + ("?" + queryParams))
+                            + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam);
+
                 }
             } else {
                 if (log.isDebugEnabled()) {
