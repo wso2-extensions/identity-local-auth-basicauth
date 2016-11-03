@@ -159,7 +159,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         retryParam = retryParam + BasicAuthenticatorConstants.ERROR_CODE + errorCode
                                 + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8);
                         response.sendRedirect(response.encodeRedirectURL(loginPage + ("?" + queryParams))
-                            + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam);
+                                + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam);
+                    } else {
+                        retryParam = retryParam + BasicAuthenticatorConstants.ERROR_CODE + errorCode
+                                + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8);
+                        response.sendRedirect(response.encodeRedirectURL(loginPage + ("?" + queryParams))
+                                + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam);
                     }
                 } else {
                     response.sendRedirect(response.encodeRedirectURL(loginPage + ("?" + queryParams))
