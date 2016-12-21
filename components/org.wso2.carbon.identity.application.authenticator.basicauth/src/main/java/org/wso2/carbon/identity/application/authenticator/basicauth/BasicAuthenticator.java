@@ -60,6 +60,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String PASSWORD_PROPERTY = "PASSWORD_PROPERTY";
     private static final String PASSWORD_RESET_ENDPOINT = "accountrecoveryendpoint/confirmrecovery.do?";
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
+    private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -285,7 +286,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (log.isDebugEnabled()) {
                 log.debug("User authentication failed due to invalid credentials");
             }
-
+            if (IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN) != null) {
+                username = IdentityUtil.addDomainToName(username, IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN)
+                        .toString());
+            }
+            IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
             throw new InvalidCredentialsException("User authentication failed due to invalid credentials",
                     User.getUserFromUserName(username));
         }
