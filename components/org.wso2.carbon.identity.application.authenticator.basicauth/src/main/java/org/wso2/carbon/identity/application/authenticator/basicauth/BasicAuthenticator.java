@@ -128,9 +128,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
                 if (errorCode.equals(IdentityCoreConstants.USER_ACCOUNT_NOT_CONFIRMED_ERROR_CODE)) {
                     retryParam = "&authFailure=true&authFailureMsg=account.confirmation.pending";
+                    String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+                    Object domain = IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN);
+                    if (domain != null) {
+                        username = IdentityUtil.addDomainToName(username, domain.toString());
+                    }
+
                     String redirectURL = response.encodeRedirectURL(loginPage + ("?" + queryParams))
-                            + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter
-                            (BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) +
+                            + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants
                             .AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
                     response.sendRedirect(redirectURL);
