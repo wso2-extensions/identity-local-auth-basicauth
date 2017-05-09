@@ -43,12 +43,12 @@ import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Username Password based Authenticator
@@ -134,23 +134,29 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         username = IdentityUtil.addDomainToName(username, domain.toString());
                     }
 
-                    String redirectURL = response.encodeRedirectURL(loginPage + ("?" + queryParams))
-                            + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
+                    String redirectURL = loginPage + ("?" + queryParams) + BasicAuthenticatorConstants.FAILED_USERNAME
+                            + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants
                             .AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
                     response.sendRedirect(redirectURL);
 
-                } else if (errorCode.equals(IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE)) {
+                } else if (errorCode.equals(
+                        IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE)) {
                     retryParam = "&authFailure=true&authFailureMsg=password.reset.pending";
-                    String redirectURL = response.encodeRedirectURL(loginPage + ("?" + queryParams)) +
+                    String redirectURL = loginPage + ("?" + queryParams) +
                             BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter(
-                            BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.ERROR_CODE + errorCode
-                            + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
+                            BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) +
+                            BasicAuthenticatorConstants.ERROR_CODE + errorCode +
+                            BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
+                            BasicAuthenticatorConstants.LOCAL + retryParam;
                     response.sendRedirect(redirectURL);
 
-                } else if (errorCode.equals(IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE)) {
+                } else if (errorCode.equals(
+                        IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE)) {
                     String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
-                    String redirectURL = response.encodeRedirectURL((PASSWORD_RESET_ENDPOINT + queryParams)) + BasicAuthenticatorConstants.USER_NAME + "=" + URLEncoder.encode(username) + "&confirmation=" + password;
+                    String redirectURL = (PASSWORD_RESET_ENDPOINT + queryParams) +
+                            BasicAuthenticatorConstants.USER_NAME + "=" + URLEncoder.encode(username) +
+                            "&confirmation=" + password;
                     response.sendRedirect(redirectURL);
 
                 } else if (showAuthFailureReason != null && "true".equals(showAuthFailureReason)) {
@@ -171,13 +177,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                 .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
                                         BasicAuthenticatorConstants.UTF_8)
                                 + "&remainingAttempts=" + remainingAttempts;
-                        response.sendRedirect(response.encodeRedirectURL(loginPage + ("?" + queryParams))
+                        response.sendRedirect(loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam);
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
                         String redirectURL = retryPage;
                         if (remainingAttempts == 0) {
-                            redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
+                            redirectURL = redirectURL + ("?" + queryParams) +
                                     BasicAuthenticatorConstants.ERROR_CODE + errorCode +
                                     BasicAuthenticatorConstants.FAILED_USERNAME +
                                     URLEncoder
@@ -185,40 +191,46 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                     , BasicAuthenticatorConstants.UTF_8) +
                                     "&remainingAttempts=0";
                         } else {
-                            redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
+                            redirectURL = redirectURL + ("?" + queryParams) +
                                     BasicAuthenticatorConstants.ERROR_CODE + errorCode +
                                     BasicAuthenticatorConstants.FAILED_USERNAME +
-                                    URLEncoder
-                                            .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8);
+                                    URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
+                                            BasicAuthenticatorConstants.UTF_8);
                         }
                         response.sendRedirect(redirectURL);
 
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST)) {
                         retryParam = retryParam + BasicAuthenticatorConstants.ERROR_CODE + errorCode
                                 + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder
-                                .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8);
-                        response.sendRedirect(response.encodeRedirectURL(loginPage + ("?" + queryParams))
+                                .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
+                                        BasicAuthenticatorConstants.UTF_8);
+                        response.sendRedirect(loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam);
                     } else if (errorCode.equals(IdentityCoreConstants.USER_ACCOUNT_DISABLED_ERROR_CODE)) {
                         retryParam = retryParam + BasicAuthenticatorConstants.ERROR_CODE + errorCode
                                 + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder
-                                .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8);
-                        response.sendRedirect(response.encodeRedirectURL(loginPage + ("?" + queryParams))
+                                .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
+                                        BasicAuthenticatorConstants.UTF_8);
+                        response.sendRedirect(loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam);
-                    } else if (errorCode.equals(IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE)) {
+                    } else if (errorCode.equals(
+                            IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE)) {
                         retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
-                        String redirectURL = response.encodeRedirectURL(loginPage + ("?" + queryParams)) +
+                        String redirectURL = loginPage + ("?" + queryParams) +
                                 BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter(
-                                BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.ERROR_CODE + errorCode
-                                + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
+                                BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.ERROR_CODE + errorCode
+                                + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
+                                BasicAuthenticatorConstants.LOCAL + retryParam;
                         response.sendRedirect(redirectURL);
                     } else {
                         retryParam = retryParam + BasicAuthenticatorConstants.ERROR_CODE + errorCode
                                 + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder
-                                .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8);
-                        response.sendRedirect(response.encodeRedirectURL(loginPage + ("?" + queryParams))
+                                .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
+                                        BasicAuthenticatorConstants.UTF_8);
+                        response.sendRedirect(loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":"
                                 + BasicAuthenticatorConstants.LOCAL + retryParam);
                     }
@@ -226,16 +238,18 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     if (log.isDebugEnabled()) {
                         log.debug("Unknown identity error code.");
                     }
-                    response.sendRedirect(response.encodeRedirectURL(loginPage + ("?" + queryParams))
-                            + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam);
+                    response.sendRedirect(loginPage + ("?" + queryParams)
+                            + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
+                            BasicAuthenticatorConstants.LOCAL + retryParam);
 
                 }
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("Identity error message context is null");
                 }
-                response.sendRedirect(response.encodeRedirectURL(loginPage + ("?" + queryParams))
-                        + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam);
+                response.sendRedirect(loginPage + ("?" + queryParams)
+                        + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
+                        BasicAuthenticatorConstants.LOCAL + retryParam);
             }
 
 
@@ -270,7 +284,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             UserRealm userRealm = BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(tenantId);
             if (userRealm != null) {
                 userStoreManager = (UserStoreManager) userRealm.getUserStoreManager();
-                isAuthenticated = userStoreManager.authenticate(MultitenantUtils.getTenantAwareUsername(username), password);
+                isAuthenticated = userStoreManager.authenticate(
+                        MultitenantUtils.getTenantAwareUsername(username), password);
             } else {
                 throw new AuthenticationFailedException("Cannot find the user realm for the given tenant: " +
                         tenantId, User.getUserFromUserName(username));
@@ -292,8 +307,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 log.debug("User authentication failed due to invalid credentials");
             }
             if (IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN) != null) {
-                username = IdentityUtil.addDomainToName(username, IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN)
-                        .toString());
+                username = IdentityUtil.addDomainToName(
+                        username, IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN).toString());
             }
             IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
             throw new InvalidCredentialsException("User authentication failed due to invalid credentials",
@@ -314,8 +329,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 boolean multipleAttributeEnable;
                 String domain = UserCoreUtil.getDomainFromThreadLocal();
                 if (domain != null && domain.trim().length() > 0) {
-                    multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.getSecondaryUserStoreManager(domain).
-                            getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
+                    multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.getSecondaryUserStoreManager(domain)
+                            .getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
                 } else {
                     multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.
                             getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
