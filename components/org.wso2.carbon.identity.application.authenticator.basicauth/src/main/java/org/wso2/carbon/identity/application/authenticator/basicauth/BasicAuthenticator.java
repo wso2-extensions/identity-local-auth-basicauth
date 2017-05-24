@@ -166,9 +166,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             errorContext.getMaximumLoginAttempts() - errorContext.getFailedLoginAttempts();
 
                     if (log.isDebugEnabled()) {
-                        log.debug("errorCode : " + errorCode);
-                        log.debug("username : " + request.getParameter(BasicAuthenticatorConstants.USER_NAME));
-                        log.debug("remainingAttempts : " + remainingAttempts);
+                        StringBuilder debugString = new StringBuilder();
+                        debugString.append("Error details are as follows.");
+                        debugString.append("errorCode : " + errorCode + "\n");
+                        debugString.append("username : " + request.getParameter(BasicAuthenticatorConstants
+                                .USER_NAME) + "\n");
+                        debugString.append("remainingAttempts : " + remainingAttempts);
+                        log.debug(debugString.toString());
                     }
 
                     if (errorCode.equals(UserCoreConstants.ErrorCode.INVALID_CREDENTIAL)) {
