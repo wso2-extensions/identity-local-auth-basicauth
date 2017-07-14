@@ -17,6 +17,7 @@
  */
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator;
@@ -161,7 +162,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
                 } else if (showAuthFailureReason != null && "true".equals(showAuthFailureReason)) {
 
-
+                    String reason = null;
+                    if (errorCode.contains(":")) {
+                        String[] errorCodeReason = errorCode.split(":");
+                        if (errorCodeReason.length > 1) {
+                            errorCode = errorCodeReason[0];
+                            reason = errorCodeReason[1];
+                        }
+                    }
                     int remainingAttempts =
                             errorContext.getMaximumLoginAttempts() - errorContext.getFailedLoginAttempts();
 
@@ -183,19 +191,30 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
                         String redirectURL = retryPage;
                         if (remainingAttempts == 0) {
-                            redirectURL = redirectURL + ("?" + queryParams) +
-                                    BasicAuthenticatorConstants.ERROR_CODE + errorCode +
-                                    BasicAuthenticatorConstants.FAILED_USERNAME +
-                                    URLEncoder
-                                            .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME)
-                                                    , BasicAuthenticatorConstants.UTF_8) +
-                                    "&remainingAttempts=0";
+                            if (StringUtils.isBlank(reason)) {
+                                redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
+                                        BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants.FAILED_USERNAME +
+                                        URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) +
+                                        "&remainingAttempts=0";
+                            } else {
+                                redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
+                                        BasicAuthenticatorConstants.ERROR_CODE + errorCode + "&lockedReason="
+                                        + reason + BasicAuthenticatorConstants.FAILED_USERNAME +
+                                        URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
+                                                BasicAuthenticatorConstants.UTF_8) + "&remainingAttempts=0";
+                            }
                         } else {
-                            redirectURL = redirectURL + ("?" + queryParams) +
-                                    BasicAuthenticatorConstants.ERROR_CODE + errorCode +
-                                    BasicAuthenticatorConstants.FAILED_USERNAME +
-                                    URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
-                                            BasicAuthenticatorConstants.UTF_8);
+                            if (StringUtils.isBlank(reason)) {
+                                redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
+                                        BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants.FAILED_USERNAME +
+                                        URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8);
+                            } else {
+                                redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
+                                        BasicAuthenticatorConstants.ERROR_CODE + errorCode + "&lockedReason="
+                                        + reason + BasicAuthenticatorConstants.FAILED_USERNAME +
+                                        URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
+                                                BasicAuthenticatorConstants.UTF_8);
+                            }
                         }
                         response.sendRedirect(redirectURL);
 
