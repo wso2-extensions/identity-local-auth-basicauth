@@ -67,10 +67,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     public boolean canHandle(HttpServletRequest request) {
         String userName = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
-        if (userName != null && password != null) {
-            return true;
-        }
-        return false;
+        return userName != null && password != null;
     }
 
     @Override

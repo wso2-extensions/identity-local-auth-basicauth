@@ -105,6 +105,41 @@
                 <artifactId>org.wso2.carbon.identity.application.authenticator.basicauth</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.jacoco</groupId>
+                <artifactId>org.jacoco.agent</artifactId>
+                <classifier>runtime</classifier>
+                <scope>test</scope>
+                <version>${jacoco.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testng</groupId>
+                <artifactId>testng</artifactId>
+                <scope>test</scope>
+                <version>${testng.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.powermock</groupId>
+                <artifactId>powermock-module-testng</artifactId>
+                <scope>test</scope>
+                <version>${org.powermock.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.powermock</groupId>
+                <artifactId>powermock-api-mockito</artifactId>
+                <scope>test</scope>
+                <version>${org.powermock.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-log4j12</artifactId>
+                <version>${org.slf4j.verison}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${org.slf4j.verison}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -267,7 +302,7 @@
         </identity.application.auth.basicauth.imp.pkg.version.range>
 
         <!-- Carbon Kernel version -->
-        <carbon.kernel.version>4.4.5</carbon.kernel.version>
+        <carbon.kernel.version>4.4.11</carbon.kernel.version>
         <carbon.kernel.imp.pkg.version.range>[4.4.0, 5.0.0)</carbon.kernel.imp.pkg.version.range>
         <carbon.user.api.imp.pkg.version.range>[1.0.1, 2.0.0)</carbon.user.api.imp.pkg.version.range>
 
@@ -291,6 +326,12 @@
         <!-- Maven plugin version -->
         <carbon.p2.plugin.version>1.5.3</carbon.p2.plugin.version>
         <maven.buildnumber.plugin.version>1.4</maven.buildnumber.plugin.version>
+
+        <testng.version>6.9.10</testng.version>
+        <jacoco.version>0.7.9</jacoco.version>
+        <maven.surefire.plugin.version>2.18.1</maven.surefire.plugin.version>
+        <org.slf4j.verison>1.6.1</org.slf4j.verison>
+        <org.powermock.version>1.6.6</org.powermock.version>
     </properties>
 
 </project>
