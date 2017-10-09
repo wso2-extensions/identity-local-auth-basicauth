@@ -162,8 +162,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     String reason = null;
                     if (errorCode.contains(":")) {
                         String[] errorCodeReason = errorCode.split(":");
+                        errorCode = errorCodeReason[0];
                         if (errorCodeReason.length > 1) {
-                            errorCode = errorCodeReason[0];
                             reason = errorCodeReason[1];
                         }
                     }
