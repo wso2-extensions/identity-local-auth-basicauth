@@ -83,7 +83,7 @@
         </dependency>
         <dependency>
             <groupId>org.wso2.carbon.identity.framework</groupId>
-            <artifactId>org.wso2.carbon.identity.test-util</artifactId>
+            <artifactId>org.wso2.carbon.identity.testutil</artifactId>
         </dependency>
     </dependencies>
     <build>

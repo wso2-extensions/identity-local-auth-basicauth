@@ -170,8 +170,8 @@
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity.framework</groupId>
-                <artifactId>org.wso2.carbon.identity.test-util</artifactId>
-                <version>${org.wso2.carbon.identity.test.util.version}</version>
+                <artifactId>org.wso2.carbon.identity.testutil</artifactId>
+                <version>${org.wso2.carbon.identity.testutil.version}</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
@@ -366,7 +366,7 @@
         <maven.surefire.plugin.version>2.18.1</maven.surefire.plugin.version>
         <org.slf4j.verison>1.6.1</org.slf4j.verison>
         <org.powermock.version>1.6.6</org.powermock.version>
-        <org.wso2.carbon.identity.test.util.version>5.9.0</org.wso2.carbon.identity.test.util.version>
+        <org.wso2.carbon.identity.testutil.version>5.10.0</org.wso2.carbon.identity.testutil.version>
     </properties>
 
 </project>
