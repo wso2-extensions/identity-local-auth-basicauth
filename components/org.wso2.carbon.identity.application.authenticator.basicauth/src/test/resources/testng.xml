@@ -21,7 +21,16 @@
 
 <suite name="Identity-basicauth-test-suite">
 
-    <test name="basic-authenticator-tests" preserve-order="true" parallel="false">
+    <test name="basic-authenticator-tests-with-debug-logs" preserve-order="true" parallel="false">
+        <parameter name="log-level" value="debug"/>
+        <classes>
+            <class name="org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorTestCase"/>
+            <class name="org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponentTestCase"/>
+        </classes>
+    </test>
+
+    <test name="basic-authenticator-tests-with-info-logs" preserve-order="true" parallel="false">
+        <parameter name="log-level" value="info"/>
         <classes>
             <class name="org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorTestCase"/>
             <class name="org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponentTestCase"/>
