@@ -17,11 +17,9 @@
  */
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
-import org.apache.commons.logging.Log;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
@@ -43,6 +41,7 @@ import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
+import org.wso2.carbon.identity.testutil.powermock.PowerMockIdentityBaseTest;
 import org.wso2.carbon.user.api.RealmConfiguration;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
@@ -54,9 +53,7 @@ import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Modifier;
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
@@ -80,7 +77,7 @@ import static org.testng.Assert.assertTrue;
 @PrepareForTest({IdentityTenantUtil.class, BasicAuthenticatorServiceComponent.class, User
         .class, MultitenantUtils.class, FrameworkUtils.class, FileBasedConfigurationBuilder.class,
         IdentityUtil.class, UserCoreUtil.class})
-public class BasicAuthenticatorTestCase extends PowerMockTestCase {
+public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
     private HttpServletRequest mockRequest;
     private HttpServletResponse mockResponse;
@@ -90,7 +87,6 @@ public class BasicAuthenticatorTestCase extends PowerMockTestCase {
     private UserStoreManager mockUserStoreManager;
     private FileBasedConfigurationBuilder mockFileBasedConfigurationBuilder;
     private IdentityErrorMsgContext mockIdentityErrorMsgContext;
-    private Log mockLog;
     private User mockUser;
     private RealmConfiguration mockRealmConfiguration;
 
@@ -106,7 +102,6 @@ public class BasicAuthenticatorTestCase extends PowerMockTestCase {
     private int dummyTenantId = -1234;
     private String dummyVal = "dummyVal";
     private String dummyDomainName = "dummyDomain";
-    private String debugMsg;
     private String dummyUserNameValue = "dummyusernameValue";
 
     private BasicAuthenticator basicAuthenticator;
@@ -321,17 +316,6 @@ public class BasicAuthenticatorTestCase extends PowerMockTestCase {
             }
         }).when(mockAuthnCtxt).setRememberMe(anyBoolean());
 
-        mockLog = mock(Log.class);
-        enableDebugLogs(mockLog, Boolean.parseBoolean(debugEnabled));
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-
-                debugMsg = (String) invocation.getArguments()[0];
-                return null;
-            }
-        }).when(mockLog).debug(anyString());
-
         basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
 
         if (userNameValue
@@ -343,19 +327,6 @@ public class BasicAuthenticatorTestCase extends PowerMockTestCase {
         }
         if (Boolean.valueOf(chkRemember)) {
             assertEquals(isrememberMe, (Boolean) true);
-        }
-        if (Boolean.parseBoolean(debugEnabled) && userNameUri != null && userNameUri.trim().length() > 0) {
-            if (Boolean.valueOf(multipleAttributeEnable) && userNameValue != null &&
-                    userNameValue.trim().length() > 0) {
-                assertEquals(debugMsg, "UserNameAttribute is found for user. Value is :  " +  dummyDomainName +
-                        CarbonConstants.DOMAIN_SEPARATOR + userNameValue + "@" + "dummyTenantDomain");
-            } else if (Boolean.valueOf(multipleAttributeEnable)) {
-                assertEquals(debugMsg, "Searching for UserNameAttribute value for user " + userNameUri +
-                        " for claim uri : " + userNameUri);
-            } else {
-                assertEquals(debugMsg, "MultipleAttribute is not enabled for user store domain : " + domainName + " " +
-                        "Therefore UserNameAttribute is not retrieved");
-            }
         }
     }
 
@@ -489,22 +460,8 @@ public class BasicAuthenticatorTestCase extends PowerMockTestCase {
         mockStatic(IdentityUtil.class);
         when(IdentityUtil.getIdentityErrorMsg()).thenReturn(mockIdentityErrorMsgContext);
 
-        mockLog = mock(Log.class);
-        enableDebugLogs(mockLog, Boolean.parseBoolean(statusProvider));
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-
-                debugMsg = (String) invocation.getArguments()[0];
-                return null;
-            }
-        }).when(mockLog).debug(anyString());
-
         basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
 
-        if (Boolean.parseBoolean(statusProvider)) {
-            assertEquals(debugMsg, "Unknown identity error code.");
-        }
         if (Boolean.valueOf(statusProvider) && !Boolean.valueOf(cntxpropUserTenantDomainMismatch)) {
             assertEquals(redirect, dummyLoginPage + "?" + dummyQueryParam
                     + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
@@ -575,21 +532,7 @@ public class BasicAuthenticatorTestCase extends PowerMockTestCase {
             AuthenticationFailedException, IOException, NoSuchFieldException, IllegalAccessException {
 
         initiateAuthenticationRequest();
-        enableDebugLogs(mockLog, isDebugEnabled);
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-
-                debugMsg = (String) invocation.getArguments()[0];
-                return null;
-            }
-        }).when(mockLog).debug(anyString());
-
         basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
-
-        if (isDebugEnabled) {
-            assertEquals(debugMsg, "Identity error message context is null");
-        }
         assertEquals(isUserTenantDomainMismatch, (Boolean) false);
         assertEquals(redirect, dummyLoginPage + "?" + dummyQueryParam
                 + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
@@ -753,35 +696,8 @@ public class BasicAuthenticatorTestCase extends PowerMockTestCase {
             }
         }).when(mockResponse).sendRedirect(anyString());
 
-        mockLog = mock(Log.class);
-        enableDebugLogs(mockLog, true);
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-
-                debugMsg = (String) invocation.getArguments()[0];
-                return null;
-            }
-        }).when(mockLog).debug(anyString());
-
         basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
-
-        if (errorCode.equals(IdentityCoreConstants.USER_ACCOUNT_NOT_CONFIRMED_ERROR_CODE) && debugMsg != null) {
-            assertEquals(debugMsg, "Identity error message context is not null");
-        }
         assertEquals(redirect, expected);
-    }
-
-    private void enableDebugLogs(final Log mockedLog, boolean isDebugEnabled) throws NoSuchFieldException,
-            IllegalAccessException {
-
-        when(mockedLog.isDebugEnabled()).thenReturn(isDebugEnabled);
-        Field field = BasicAuthenticator.class.getDeclaredField("log");
-        field.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-        field.set(null, mockedLog);
     }
 
     private void initiateAuthenticationRequest() throws IOException {
@@ -817,8 +733,6 @@ public class BasicAuthenticatorTestCase extends PowerMockTestCase {
                 return null;
             }
         }).when(mockResponse).sendRedirect(anyString());
-
-        mockLog = mock(Log.class);
     }
 
     @ObjectFactory
