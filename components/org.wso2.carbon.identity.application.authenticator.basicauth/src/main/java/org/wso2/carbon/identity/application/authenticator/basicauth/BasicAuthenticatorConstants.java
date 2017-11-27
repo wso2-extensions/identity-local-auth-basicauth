@@ -31,7 +31,10 @@ public abstract class BasicAuthenticatorConstants {
     public static final String AUTHENTICATORS = "&authenticators=";
     public static final String LOCAL = "LOCAL";
     public static final String UTF_8 = "UTF-8";
-
+    public static final String USER_NAME_PARAM = "&username=";
+    public static final String TENANT_DOMAIN_PARAM = "&tenantdomain=";
+    public static final String CONFIRMATION_PARAM = "&confirmation=";
+    
     private BasicAuthenticatorConstants() {
     }
 }

@@ -96,6 +96,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     private String redirect;
 
     private String dummyUserName = "dummyUserName";
+    private String super_tenant = "carbon.super";
     private String dummyQueryParam = "dummyQueryParams";
     private String dummyLoginPage = "dummyLoginPageurl";
     private String dummyPassword = "dummyPassword";
@@ -195,7 +196,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
     @Test(dataProvider = "realmProvider")
     public void processAuthenticationResponseTestCaseForException(Object realm, Object expected, Object
-            recapchaUserDomain ) throws Exception {
+            recapchaUserDomain) throws Exception {
 
         mockAuthnCtxt = mock(AuthenticationContext.class);
         when(mockAuthnCtxt.getProperties()).thenReturn(new HashMap<String, Object>());
@@ -292,7 +293,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                 .thenReturn(userNameValue);
 
         when(MultitenantUtils.getTenantDomain(dummyUserName)).thenReturn("dummyTenantDomain");
-        when(FrameworkUtils.prependUserStoreDomainToName(userNameValue)).thenReturn( dummyDomainName +
+        when(FrameworkUtils.prependUserStoreDomainToName(userNameValue)).thenReturn(dummyDomainName +
                 CarbonConstants.DOMAIN_SEPARATOR + userNameValue);
 
         mockStatic(IdentityUtil.class);
@@ -645,8 +646,9 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                 },
                 {
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE, "accountrecoveryendpoint/confirmrecovery.do?" + dummyQueryParam +
-                        BasicAuthenticatorConstants.USER_NAME + "=" + URLEncoder.encode(dummyUserName) +
-                        "&confirmation=" + dummyPassword, "1", "1"
+                        BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
+                        BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM + URLEncoder.encode(super_tenant, BasicAuthenticatorConstants.UTF_8) +
+                        BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(dummyPassword, BasicAuthenticatorConstants.UTF_8), "1", "1"
                 }
         };
     }
