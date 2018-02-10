@@ -17,6 +17,7 @@
  */
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
+import org.apache.commons.lang.StringUtils;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -63,10 +64,10 @@ import javax.servlet.http.HttpServletResponse;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
+import static org.powermock.api.mockito.PowerMockito.doAnswer;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.powermock.api.mockito.PowerMockito.when;
-import static org.powermock.api.mockito.PowerMockito.doAnswer;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -88,7 +89,6 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     private FileBasedConfigurationBuilder mockFileBasedConfigurationBuilder;
     private IdentityErrorMsgContext mockIdentityErrorMsgContext;
     private User mockUser;
-    private RealmConfiguration mockRealmConfiguration;
 
     private AuthenticatedUser authenticatedUser;
     private Boolean isrememberMe = false;
@@ -96,14 +96,12 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     private String redirect;
 
     private String dummyUserName = "dummyUserName";
-    private String super_tenant = "carbon.super";
     private String dummyQueryParam = "dummyQueryParams";
     private String dummyLoginPage = "dummyLoginPageurl";
     private String dummyPassword = "dummyPassword";
     private int dummyTenantId = -1234;
     private String dummyVal = "dummyVal";
     private String dummyDomainName = "dummyDomain";
-    private String dummyUserNameValue = "dummyusernameValue";
 
     private BasicAuthenticator basicAuthenticator;
 
@@ -240,6 +238,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     @DataProvider(name = "multipleAttributeprovider")
     public Object[][] getMultipleAttributeProvider() {
 
+        String dummyUserNameValue = "dummyusernameValue";
         return new String[][]{
                 {null, dummyUserName, null, null, "true", "false"},
                 {null, dummyUserName, null, "", "true", "false"},
@@ -276,9 +275,9 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         mockStatic(UserCoreUtil.class);
         when(UserCoreUtil.getDomainFromThreadLocal()).thenReturn(domainName);
 
-        mockRealmConfiguration = mock(RealmConfiguration.class);
+        RealmConfiguration mockRealmConfiguration = mock(RealmConfiguration.class);
 
-        if (domainName != null && domainName.trim().length() > 0) {
+        if (StringUtils.isNotBlank(domainName)) {
             when(mockUserStoreManager.getSecondaryUserStoreManager(dummyDomainName)).thenReturn(mockUserStoreManager);
         }
 
@@ -319,8 +318,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
 
-        if (userNameValue
-                != null && userNameValue.trim().length() > 0) {
+        if (StringUtils.isNotBlank(userNameValue)) {
             assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), dummyDomainName +
                     CarbonConstants.DOMAIN_SEPARATOR + userNameValue + "@" + "dummyTenantDomain");
         } else {
@@ -432,7 +430,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         mockResponse = mock(HttpServletResponse.class);
 
         AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig();
-        HashMap<String, String> paramMap = new HashMap<>();
+        Map<String, String> paramMap = new HashMap<>();
         paramMap.put("showAuthFailureReason", showAuthFailureReason);
 
         authenticatorConfig.setParameterMap(paramMap);
@@ -544,6 +542,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     @DataProvider(name = "errorCodeProvider")
     public Object[][] getErrorcodes() throws UnsupportedEncodingException {
 
+        String super_tenant = "carbon.super";
         return new String[][]{
                 {
                         IdentityCoreConstants.USER_ACCOUNT_NOT_CONFIRMED_ERROR_CODE,

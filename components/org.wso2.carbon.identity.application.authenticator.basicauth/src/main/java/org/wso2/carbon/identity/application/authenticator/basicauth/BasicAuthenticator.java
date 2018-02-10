@@ -343,10 +343,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         if (getAuthenticatorConfig().getParameterMap() != null) {
             String userNameUri = getAuthenticatorConfig().getParameterMap().get("UserNameAttributeClaimUri");
-            if (userNameUri != null && userNameUri.trim().length() > 0) {
+            if (StringUtils.isNotBlank(userNameUri)) {
                 boolean multipleAttributeEnable;
                 String domain = UserCoreUtil.getDomainFromThreadLocal();
-                if (domain != null && domain.trim().length() > 0) {
+                if (StringUtils.isNotBlank(domain)) {
                     multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.getSecondaryUserStoreManager(domain)
                             .getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
                 } else {
@@ -361,7 +361,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         }
                         String usernameValue = userStoreManager.
                                 getUserClaimValue(MultitenantUtils.getTenantAwareUsername(username), userNameUri, null);
-                        if (usernameValue != null && usernameValue.trim().length() > 0) {
+                        if (StringUtils.isNotBlank(usernameValue)) {
                             tenantDomain = MultitenantUtils.getTenantDomain(username);
                             usernameValue = FrameworkUtils.prependUserStoreDomainToName(usernameValue);
                             username = usernameValue + "@" + tenantDomain;
