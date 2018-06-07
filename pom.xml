@@ -45,6 +45,7 @@
 
     <modules>
         <module>components/org.wso2.carbon.identity.application.authenticator.basicauth</module>
+        <module>components/org.wso2.carbon.identity.application.authenticator.identifierauth</module>
         <module>features/org.wso2.carbon.identity.application.authenticator.basicauth.server.feature</module>
         <module>components/org.wso2.carbon.identity.application.authenticator.basicauth.jwt</module>
     </modules>
