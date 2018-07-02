@@ -296,6 +296,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         boolean isAuthenticated;
         UserStoreManager userStoreManager;
+        // Reset RE_CAPTCHA_USER_DOMAIN thread local variable before the authentication
+        IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
         // Check the authentication
         try {
             int tenantId = IdentityTenantUtil.getTenantIdOfUser(username);
