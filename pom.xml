@@ -361,7 +361,7 @@
         <!-- Identity Local Auth BasicAuth version -->
         <identity.application.auth.basicauth.exp.pkg.version>${project.version}
         </identity.application.auth.basicauth.exp.pkg.version>
-        <identity.application.auth.basicauth.imp.pkg.version.range>[5.0.0, 6.0.0)
+        <identity.application.auth.basicauth.imp.pkg.version.range>[5.0.0, 7.0.0)
         </identity.application.auth.basicauth.imp.pkg.version.range>
 
         <!-- Carbon Kernel version -->
