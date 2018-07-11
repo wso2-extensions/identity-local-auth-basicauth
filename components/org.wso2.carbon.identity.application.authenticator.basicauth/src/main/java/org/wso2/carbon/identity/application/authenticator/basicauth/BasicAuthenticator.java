@@ -103,12 +103,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String password = (String) context.getProperty(PASSWORD_PROPERTY);
         context.getProperties().remove(PASSWORD_PROPERTY);
 
-        Map<String, String> runtimeParams = context.getAuthenticatorParams(FrameworkConstants.JSAttributes.JS_COMMON_OPTIONS);
+        Map<String, String> runtimeParams = getRuntimeParams(context);
         String inputType = null;
         if (runtimeParams != null) {
-            String usernameFromContext = runtimeParams.get("username");
-            String inputTypeFromContext = runtimeParams.get("inputType");
-            if ("identifierFirst".equalsIgnoreCase(inputTypeFromContext)) {
+            String usernameFromContext = runtimeParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME);
+            if (usernameFromContext != null) {
                 inputType = FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST;
             }
             if (FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST.equalsIgnoreCase(inputType)) {
