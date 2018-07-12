@@ -29,6 +29,7 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.A
 import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.application.common.model.User;
@@ -102,6 +103,20 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String password = (String) context.getProperty(PASSWORD_PROPERTY);
         context.getProperties().remove(PASSWORD_PROPERTY);
 
+        Map<String, String> runtimeParams = getRuntimeParams(context);
+        String inputType = null;
+        if (runtimeParams != null) {
+            String usernameFromContext = runtimeParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME);
+            if (usernameFromContext != null) {
+                inputType = FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST;
+            }
+            if (FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST.equalsIgnoreCase(inputType)) {
+                queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE +"=" + inputType;
+                //TODO remove this from url and add to the new endpoint.
+                queryParams += "&username=" + usernameFromContext;
+            }
+        }
+
         try {
             String retryParam = "";
 
@@ -159,7 +174,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(password, BasicAuthenticatorConstants.UTF_8);
                     response.sendRedirect(redirectURL);
 
-                } else if (showAuthFailureReason != null && "true".equals(showAuthFailureReason)) {
+                } else if ("true".equals(showAuthFailureReason)) {
 
                     String reason = null;
                     if (errorCode.contains(":")) {
@@ -288,7 +303,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         Map<String, Object> authProperties = context.getProperties();
         if (authProperties == null) {
-            authProperties = new HashMap<String, Object>();
+            authProperties = new HashMap<>();
             context.setProperties(authProperties);
         }
 
@@ -388,7 +403,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         context.setSubject(AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username));
         String rememberMe = request.getParameter("chkRemember");
 
-        if (rememberMe != null && "on".equals(rememberMe)) {
+        if ("on".equals(rememberMe)) {
             context.setRememberMe(true);
         }
     }
