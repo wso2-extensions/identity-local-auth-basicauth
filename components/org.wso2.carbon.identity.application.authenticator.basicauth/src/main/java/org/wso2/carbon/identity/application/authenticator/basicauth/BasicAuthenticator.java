@@ -112,8 +112,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
             if (FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST.equalsIgnoreCase(inputType)) {
                 queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE +"=" + inputType;
-                //TODO remove this from url and add to the new endpoint.
-                queryParams += "&username=" + usernameFromContext;
+                context.addEndpointParam(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, usernameFromContext);
             }
         }
 
