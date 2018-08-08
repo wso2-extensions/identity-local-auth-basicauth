@@ -104,8 +104,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         context.getProperties().remove(PASSWORD_PROPERTY);
 
         Map<String, String> runtimeParams = getRuntimeParams(context);
-        String inputType = null;
         if (runtimeParams != null) {
+            String inputType = null;
             String usernameFromContext = runtimeParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME);
             if (usernameFromContext != null) {
                 inputType = FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST;
@@ -304,6 +304,18 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         if (authProperties == null) {
             authProperties = new HashMap<>();
             context.setProperties(authProperties);
+        }
+
+        Map<String, String> runtimeParams = getRuntimeParams(context);
+        if (runtimeParams != null) {
+            String usernameFromContext = runtimeParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME);
+            if (usernameFromContext != null && !usernameFromContext.equals(username)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Username set for identifier first login: " + usernameFromContext + " and username " +
+                            "submitted from login page" + username + " does not match.");
+                }
+                throw new InvalidCredentialsException("Credential mismatch.");
+            }
         }
 
         authProperties.put(PASSWORD_PROPERTY, password);
