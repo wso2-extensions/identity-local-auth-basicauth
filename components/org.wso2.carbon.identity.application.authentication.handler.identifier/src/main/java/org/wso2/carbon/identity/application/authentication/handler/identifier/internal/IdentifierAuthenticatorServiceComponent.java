@@ -16,17 +16,17 @@
  *  under the License.
  */
 
-package org.wso2.carbon.identity.application.authenticator.identifierauth.internal;
+package org.wso2.carbon.identity.application.authentication.handler.identifier.internal;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.osgi.service.component.ComponentContext;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
-import org.wso2.carbon.identity.application.authenticator.identifierauth.IdentifierAuthenticator;
+import org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandler;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
- * @scr.component name="identity.application.authenticator.identifierauth.component" immediate="true"
+ * @scr.component name="identity.application.handler.identifier.component" immediate="true"
  * @scr.reference name="realm.service"
  * interface="org.wso2.carbon.user.core.service.RealmService"cardinality="1..1"
  * policy="dynamic" bind="setRealmService" unbind="unsetRealmService"
@@ -48,10 +48,10 @@ public class IdentifierAuthenticatorServiceComponent {
 
     protected void activate(ComponentContext ctxt) {
         try {
-            IdentifierAuthenticator basicAuth = new IdentifierAuthenticator();
+            IdentifierHandler basicAuth = new IdentifierHandler();
             ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), basicAuth, null);
             if (log.isDebugEnabled()) {
-                log.info("IdentifierAuthenticator bundle is activated");
+                log.info("IdentifierHandler bundle is activated");
             }
         } catch (Throwable e) {
             log.error("SAMLSSO Authenticator bundle activation Failed", e);
@@ -60,7 +60,7 @@ public class IdentifierAuthenticatorServiceComponent {
 
     protected void deactivate(ComponentContext ctxt) {
         if (log.isDebugEnabled()) {
-            log.info("IdentifierAuthenticator bundle is deactivated");
+            log.info("IdentifierHandler bundle is deactivated");
         }
     }
 

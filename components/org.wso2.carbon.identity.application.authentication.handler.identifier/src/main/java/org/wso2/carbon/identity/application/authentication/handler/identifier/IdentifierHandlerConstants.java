@@ -16,25 +16,22 @@
  *  under the License.
  */
 
-package org.wso2.carbon.identity.application.authenticator.identifierauth;
+package org.wso2.carbon.identity.application.authentication.handler.identifier;
 
 /**
- * Constants used by the IdentifierAuthenticator
+ * Constants used by the IdentifierHandler
  */
-public abstract class IdentifierAuthenticatorConstants {
+public abstract class IdentifierHandlerConstants {
 
-    public static final String AUTHENTICATOR_NAME = "IdentifierExecutor";
-    public static final String AUTHENTICATOR_FRIENDLY_NAME = "Identifier";
+    public static final String HANDLER_NAME = "IdentifierExecutor";
+    public static final String HANDLER_FRIENDLY_NAME = "identifier";
     public static final String USER_NAME = "username";
     public static final String FAILED_USERNAME = "&failedUsername=";
     public static final String ERROR_CODE = "&errorCode=";
     public static final String AUTHENTICATORS = "&authenticators=";
     public static final String LOCAL = "LOCAL";
     public static final String UTF_8 = "UTF-8";
-    public static final String USER_NAME_PARAM = "&username=";
-    public static final String TENANT_DOMAIN_PARAM = "&tenantdomain=";
-    public static final String CONFIRMATION_PARAM = "&confirmation=";
 
-    private IdentifierAuthenticatorConstants() {
+    private IdentifierHandlerConstants() {
     }
 }

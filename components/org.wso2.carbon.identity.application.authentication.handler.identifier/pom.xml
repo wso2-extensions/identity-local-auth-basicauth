@@ -25,13 +25,13 @@
     <parent>
         <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
         <artifactId>identity-application-auth-basicauth</artifactId>
-        <version>5.3.8-SNAPSHOT</version>
+        <version>6.0.5-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
-    <artifactId>org.wso2.carbon.identity.application.authenticator.identifierauth</artifactId>
+    <artifactId>org.wso2.carbon.identity.application.authentication.handler.identifier</artifactId>
     <packaging>bundle</packaging>
-    <name>WSO2 Carbon - Identifier Auth Identity Application Authenticator</name>
+    <name>WSO2 Carbon - Identifier Auth Identity Application Authentication handler</name>
     <dependencies>
         <dependency>
             <groupId>org.wso2.carbon</groupId>
@@ -106,7 +106,7 @@
                         <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
                         <Bundle-Name>${project.artifactId}</Bundle-Name>
                         <Private-Package>
-                            org.wso2.carbon.identity.application.authenticator.identifierauth.internal
+                            org.wso2.carbon.identity.application.authentication.handler.identifier.internal
                         </Private-Package>
                         <Import-Package>
                             javax.servlet.http; version="${imp.pkg.version.javax.servlet}",
@@ -131,22 +131,12 @@
                             org.wso2.carbon.utils.multitenancy; version="${carbon.kernel.imp.pkg.version.range}"
                         </Import-Package>
                         <Export-Package>
-                            !org.wso2.carbon.identity.application.authenticator.identifierauth.internal,
-                            org.wso2.carbon.identity.application.authenticator.identifierauth.*;version="${identity.application.auth.basicauth.exp.pkg.version}"
+                            !org.wso2.carbon.identity.application.authentication.handler.identifier.internal,
+                            org.wso2.carbon.identity.application.authentication.handler.identifier.*;version="${identity.application.auth.basicauth.exp.pkg.version}"
                         </Export-Package>
                     </instructions>
                 </configuration>
             </plugin>
-            <!--<plugin>-->
-                <!--<groupId>org.apache.maven.plugins</groupId>-->
-                <!--<artifactId>maven-surefire-plugin</artifactId>-->
-                <!--<version>${maven.surefire.plugin.version}</version>-->
-                <!--<configuration>-->
-                    <!--<suiteXmlFiles>-->
-                        <!--<suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>-->
-                    <!--</suiteXmlFiles>-->
-                <!--</configuration>-->
-            <!--</plugin>-->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
