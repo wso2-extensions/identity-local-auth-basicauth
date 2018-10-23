@@ -69,7 +69,7 @@ public class IdentifierAuthenticatorServiceComponent {
                 log.info("IdentifierHandler bundle is activated");
             }
         } catch (Throwable e) {
-            log.error("SAMLSSO Authenticator bundle activation Failed", e);
+            log.error("IdentifierHandler Authenticator bundle activation Failed", e);
         }
     }
 
