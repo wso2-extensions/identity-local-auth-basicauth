@@ -25,15 +25,18 @@ import org.wso2.carbon.identity.application.authentication.framework.AbstractApp
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticationFlowHandler;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
 import org.wso2.carbon.identity.application.authentication.framework.config.ConfigurationFacade;
+import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedIdPData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
-import org.wso2.carbon.identity.application.authentication.handler.identifier.internal
-        .IdentifierAuthenticatorServiceComponent;
+import org.wso2.carbon.identity.application.authentication.handler.identifier.internal.IdentifierAuthenticatorServiceComponent;
+import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
+import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
@@ -52,6 +55,8 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.IDENTIFIER_CONSENT;
+
 /**
  * Identifier based handler.
  */
@@ -60,12 +65,17 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
     private static final long serialVersionUID = 1819664539416029785L;
     private static final Log log = LogFactory.getLog(IdentifierHandler.class);
+    private static final String PROMPT_CONFIRMATION_WINDOW = "promptConfirmationWindow";
+    private static final String CONTINUE = "continue";
+    private static final String RESET = "reset";
     private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
+
         String userName = request.getParameter(IdentifierHandlerConstants.USER_NAME);
-        return userName != null;
+        String identifierConsent = request.getParameter(IDENTIFIER_CONSENT);
+        return userName != null || identifierConsent != null;
     }
 
     @Override
@@ -76,6 +86,49 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         if (context.isLogoutRequest()) {
             return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
         } else {
+            if (context.getPreviousAuthenticatedIdPs().get(BasicAuthenticatorConstants.LOCAL) != null) {
+                AuthenticatedIdPData local = context.getPreviousAuthenticatedIdPs().get(BasicAuthenticatorConstants.LOCAL);
+                if (local.getAuthenticators().size() > 0) {
+                    for (AuthenticatorConfig authenticatorConfig : local.getAuthenticators()) {
+                        if (authenticatorConfig.getApplicationAuthenticator() instanceof BasicAuthenticator) {
+                            boolean isPrompt = Boolean.parseBoolean(context.getAuthenticatorParams(this
+                                    .getName()).get(PROMPT_CONFIRMATION_WINDOW));
+
+                            if (isPrompt) {
+                                String identifierConsent = request.getParameter(IDENTIFIER_CONSENT);
+                                if (identifierConsent != null && CONTINUE.equals(identifierConsent)) {
+                                    context.setSubject(local.getUser());
+                                    return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
+                                } else if (identifierConsent != null && RESET.equals(identifierConsent)) {
+                                    initiateAuthenticationRequest(request, response, context);
+                                    return AuthenticatorFlowStatus.INCOMPLETE;
+                                } else if (request.getParameter(IdentifierHandlerConstants.USER_NAME) != null) {
+                                    processAuthenticationResponse(request, response, context);
+                                    return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
+                                } else {
+                                    String identifierFirstConfirmationURL = ConfigurationFacade.getInstance().getIdentifierFirstConfirmationURL();
+                                    String queryParams = context.getContextIdIncludedQueryParams();
+                                    try {
+                                        queryParams = queryParams + "&username=" + local.getUser()
+                                                .toFullQualifiedUsername();
+                                        response.sendRedirect(identifierFirstConfirmationURL + ("?" + queryParams));
+                                        return AuthenticatorFlowStatus.INCOMPLETE;
+                                    } catch (IOException e) {
+                                        throw new AuthenticationFailedException(e.getMessage(), e);
+                                    }
+                                }
+                            } else {
+                                context.setSubject(local.getUser());
+                                return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
+                            }
+                        }
+                    }
+                }
+            } else if (request.getParameter(IDENTIFIER_CONSENT) != null) {
+                //submit from the confirmation page.
+                initiateAuthenticationRequest(request, response, context);
+                return AuthenticatorFlowStatus.INCOMPLETE;
+            }
             return super.process(request, response, context);
         }
     }
@@ -234,8 +287,6 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         + IdentifierHandlerConstants.AUTHENTICATORS + getName() + ":" +
                         IdentifierHandlerConstants.LOCAL + retryParam);
             }
-
-
         } catch (IOException e) {
             throw new AuthenticationFailedException(e.getMessage(), User.getUserFromUserName(request.getParameter
                     (IdentifierHandlerConstants.USER_NAME)), e);
@@ -313,6 +364,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         identifierParams.put(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, username);
         Map<String, Map<String, String>> contextParams =  new HashMap<>();
         contextParams.put(FrameworkConstants.JSAttributes.JS_COMMON_OPTIONS, identifierParams);
+        //Identifier first is the first authenticator.
+        context.getPreviousAuthenticatedIdPs().clear();
         context.addAuthenticatorParams(contextParams);
         context.setSubject(AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username));
     }
