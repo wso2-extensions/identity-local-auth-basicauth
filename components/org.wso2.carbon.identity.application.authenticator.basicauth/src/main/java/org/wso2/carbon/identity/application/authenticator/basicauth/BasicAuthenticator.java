@@ -340,12 +340,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (log.isDebugEnabled()) {
                 log.debug("BasicAuthentication failed while trying to get the tenant ID of the user " + username, e);
             }
-            throw new AuthenticationFailedException(e.getMessage(), User.getUserFromUserName(username), e);
+            throw new AuthenticationFailedException(e.getMessage(), e);
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
             if (log.isDebugEnabled()) {
                 log.debug("BasicAuthentication failed while trying to authenticate", e);
             }
-            throw new AuthenticationFailedException(e.getMessage(), User.getUserFromUserName(username), e);
+            throw new AuthenticationFailedException(e.getMessage(), e);
         }
 
         if (!isAuthenticated) {
