@@ -343,7 +343,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             throw new AuthenticationFailedException(e.getMessage(), e);
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
             if (log.isDebugEnabled()) {
-                log.debug("BasicAuthentication failed while trying to authenticate", e);
+                log.debug("BasicAuthentication failed while trying to authenticate the user " + username, e);
             }
             throw new AuthenticationFailedException(e.getMessage(), e);
         }
