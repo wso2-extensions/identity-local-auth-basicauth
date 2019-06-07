@@ -23,14 +23,16 @@ import org.osgi.service.component.ComponentContext;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
 import org.wso2.carbon.user.core.service.RealmService;
+import org.osgi.service.component.annotations.Activate;
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Deactivate;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.osgi.service.component.annotations.ReferencePolicy;
 
-
-/**
- * @scr.component name="identity.application.authenticator.basicauth.component" immediate="true"
- * @scr.reference name="realm.service"
- * interface="org.wso2.carbon.user.core.service.RealmService"cardinality="1..1"
- * policy="dynamic" bind="setRealmService" unbind="unsetRealmService"
- */
+@Component(
+         name = "identity.application.authenticator.basicauth.component", 
+         immediate = true)
 public class BasicAuthenticatorServiceComponent {
 
     private static Log log = LogFactory.getLog(BasicAuthenticatorServiceComponent.class);
@@ -41,11 +43,18 @@ public class BasicAuthenticatorServiceComponent {
         return realmService;
     }
 
+    @Reference(
+             name = "realm.service", 
+             service = org.wso2.carbon.user.core.service.RealmService.class, 
+             cardinality = ReferenceCardinality.MANDATORY, 
+             policy = ReferencePolicy.DYNAMIC, 
+             unbind = "unsetRealmService")
     protected void setRealmService(RealmService realmService) {
         log.debug("Setting the Realm Service");
         BasicAuthenticatorServiceComponent.realmService = realmService;
     }
 
+    @Activate
     protected void activate(ComponentContext ctxt) {
         try {
             BasicAuthenticator basicAuth = new BasicAuthenticator();
@@ -58,6 +67,7 @@ public class BasicAuthenticatorServiceComponent {
         }
     }
 
+    @Deactivate
     protected void deactivate(ComponentContext ctxt) {
         if (log.isDebugEnabled()) {
             log.info("BasicAuthenticator bundle is deactivated");
@@ -68,5 +78,5 @@ public class BasicAuthenticatorServiceComponent {
         log.debug("UnSetting the Realm Service");
         BasicAuthenticatorServiceComponent.realmService = null;
     }
-
 }
+

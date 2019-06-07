@@ -15,7 +15,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.wso2.carbon.identity.application.authenticator.basicauth.jwt.internal;
 
 import org.apache.commons.logging.Log;
@@ -24,20 +23,22 @@ import org.osgi.service.component.ComponentContext;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authenticator.basicauth.jwt.JWTBasicAuthenticator;
 import org.wso2.carbon.user.core.service.RealmService;
+import org.osgi.service.component.annotations.Activate;
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Deactivate;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.osgi.service.component.annotations.ReferencePolicy;
 
-
-/**
- * @scr.component name="identity.application.authenticator.basicauth.jwt.component" immediate="true"
- * @scr.reference name="realm.service"
- * interface="org.wso2.carbon.user.core.service.RealmService"cardinality="1..1"
- * policy="dynamic" bind="setRealmService" unbind="unsetRealmService"
- */
+@Component(
+         name = "identity.application.authenticator.basicauth.jwt.component", 
+         immediate = true)
 public class JWTBasicAuthenticatorServiceComponent {
 
     private static Log log = LogFactory.getLog(JWTBasicAuthenticatorServiceComponent.class);
 
+    @Activate
     protected void activate(ComponentContext ctxt) {
-
         try {
             JWTBasicAuthenticator jwtBasicAuth = new JWTBasicAuthenticator();
             ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), jwtBasicAuth, null);
@@ -49,15 +50,20 @@ public class JWTBasicAuthenticatorServiceComponent {
         }
     }
 
+    @Deactivate
     protected void deactivate(ComponentContext ctxt) {
-
         if (log.isDebugEnabled()) {
             log.info("JWTBasicAuthenticator bundle is deactivated");
         }
     }
 
+    @Reference(
+             name = "realm.service", 
+             service = org.wso2.carbon.user.core.service.RealmService.class, 
+             cardinality = ReferenceCardinality.MANDATORY, 
+             policy = ReferencePolicy.DYNAMIC, 
+             unbind = "unsetRealmService")
     protected void setRealmService(RealmService realmService) {
-
         if (log.isDebugEnabled()) {
             log.debug("Setting the Realm Service in JWTBasicAuthenticator");
         }
@@ -65,7 +71,6 @@ public class JWTBasicAuthenticatorServiceComponent {
     }
 
     protected void unsetRealmService(RealmService realmService) {
-
         log.debug("UnSetting the Realm Service in JWTBasicAuthenticator");
         JWTBasicAuthenticatorServiceComponentDataHolder.getInstance().setRealmService(null);
     }

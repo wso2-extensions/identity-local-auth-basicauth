@@ -215,6 +215,11 @@
                 <version>${org.wso2.carbon.identity.testutil.version}</version>
                 <scope>test</scope>
             </dependency>
+        <dependency>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>org.apache.felix.scr.ds-annotations</artifactId>
+                <version>${apache.felix.scr.ds.annotations.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -295,19 +300,7 @@
     <build>
         <pluginManagement>
             <plugins>
-                <plugin>
-                    <groupId>org.apache.felix</groupId>
-                    <artifactId>maven-scr-plugin</artifactId>
-                    <version>1.7.2</version>
-                    <executions>
-                        <execution>
-                            <id>generate-scr-scrdescriptor</id>
-                            <goals>
-                                <goal>scr</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
+                
                 <plugin>
                     <groupId>org.apache.felix</groupId>
                     <artifactId>maven-bundle-plugin</artifactId>
@@ -336,6 +329,19 @@
                         <doCheck>false</doCheck>
                         <doUpdate>false</doUpdate>
                     </configuration>
+                </plugin>
+            <plugin>
+                    <groupId>org.apache.felix</groupId>
+                    <artifactId>maven-scr-plugin</artifactId>
+                    <version>${maven.scr.plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>generate-scr-scrdescriptor</id>
+                            <goals>
+                                <goal>scr</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -419,6 +425,8 @@
         <org.slf4j.verison>1.6.1</org.slf4j.verison>
         <org.powermock.version>1.6.6</org.powermock.version>
         <org.wso2.carbon.identity.testutil.version>5.10.0</org.wso2.carbon.identity.testutil.version>
+    <apache.felix.scr.ds.annotations.version>1.2.4</apache.felix.scr.ds.annotations.version>
+        <maven.scr.plugin.version>1.16.0</maven.scr.plugin.version>
     </properties>
 
 </project>
