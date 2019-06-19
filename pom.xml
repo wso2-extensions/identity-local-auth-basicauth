@@ -383,14 +383,14 @@
         </identity.application.auth.basicauth.imp.pkg.version.range>
 
         <!-- Carbon Kernel version -->
-        <carbon.kernel.version>4.4.11</carbon.kernel.version>
-        <carbon.kernel.imp.pkg.version.range>[4.4.0, 5.0.0)</carbon.kernel.imp.pkg.version.range>
+        <carbon.kernel.version>4.5.0-m1</carbon.kernel.version>
+        <carbon.kernel.imp.pkg.version.range>[4.5.0, 5.0.0)</carbon.kernel.imp.pkg.version.range>
         <carbon.user.api.imp.pkg.version.range>[1.0.1, 2.0.0)</carbon.user.api.imp.pkg.version.range>
         <carbon.base.imp.pkg.version.range>[1.0.0, 2.0.0)</carbon.base.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>5.12.181</carbon.identity.framework.version>
-        <carbon.identity.framework.imp.pkg.version.range>[5.7.0, 6.0.0)
+        <carbon.identity.framework.version>5.13.0</carbon.identity.framework.version>
+        <carbon.identity.framework.imp.pkg.version.range>[5.13.0, 6.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 
         <!-- Carbon Analytics version -->
