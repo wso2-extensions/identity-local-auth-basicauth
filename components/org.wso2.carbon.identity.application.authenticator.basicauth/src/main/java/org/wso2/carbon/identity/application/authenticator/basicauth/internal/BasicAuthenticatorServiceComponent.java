@@ -20,19 +20,19 @@ package org.wso2.carbon.identity.application.authenticator.basicauth.internal;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.osgi.service.component.ComponentContext;
-import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
-import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
-import org.wso2.carbon.user.core.service.RealmService;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
+import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
+import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
+import org.wso2.carbon.user.core.service.RealmService;
 
 @Component(
-         name = "identity.application.authenticator.basicauth.component", 
-         immediate = true)
+        name = "identity.application.authenticator.basicauth.component",
+        immediate = true)
 public class BasicAuthenticatorServiceComponent {
 
     private static Log log = LogFactory.getLog(BasicAuthenticatorServiceComponent.class);
@@ -40,22 +40,25 @@ public class BasicAuthenticatorServiceComponent {
     private static RealmService realmService;
 
     public static RealmService getRealmService() {
+
         return realmService;
     }
 
     @Reference(
-             name = "realm.service", 
-             service = org.wso2.carbon.user.core.service.RealmService.class, 
-             cardinality = ReferenceCardinality.MANDATORY, 
-             policy = ReferencePolicy.DYNAMIC, 
-             unbind = "unsetRealmService")
+            name = "realm.service",
+            service = org.wso2.carbon.user.core.service.RealmService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetRealmService")
     protected void setRealmService(RealmService realmService) {
+
         log.debug("Setting the Realm Service");
         BasicAuthenticatorServiceComponent.realmService = realmService;
     }
 
     @Activate
     protected void activate(ComponentContext ctxt) {
+
         try {
             BasicAuthenticator basicAuth = new BasicAuthenticator();
             ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), basicAuth, null);
@@ -69,14 +72,15 @@ public class BasicAuthenticatorServiceComponent {
 
     @Deactivate
     protected void deactivate(ComponentContext ctxt) {
+
         if (log.isDebugEnabled()) {
             log.info("BasicAuthenticator bundle is deactivated");
         }
     }
 
     protected void unsetRealmService(RealmService realmService) {
+
         log.debug("UnSetting the Realm Service");
         BasicAuthenticatorServiceComponent.realmService = null;
     }
 }
-

@@ -215,12 +215,12 @@
                 <version>${org.wso2.carbon.identity.testutil.version}</version>
                 <scope>test</scope>
             </dependency>
-        <dependency>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>org.apache.felix.scr.ds-annotations</artifactId>
-                <version>${apache.felix.scr.ds.annotations.version}</version>
-            </dependency>
-        </dependencies>
+            <dependency>
+                    <groupId>org.apache.felix</groupId>
+                    <artifactId>org.apache.felix.scr.ds-annotations</artifactId>
+                    <version>${apache.felix.scr.ds.annotations.version}</version>
+                </dependency>
+            </dependencies>
     </dependencyManagement>
 
     <repositories>
@@ -425,7 +425,7 @@
         <org.slf4j.verison>1.6.1</org.slf4j.verison>
         <org.powermock.version>1.6.6</org.powermock.version>
         <org.wso2.carbon.identity.testutil.version>5.10.0</org.wso2.carbon.identity.testutil.version>
-    <apache.felix.scr.ds.annotations.version>1.2.4</apache.felix.scr.ds.annotations.version>
+        <apache.felix.scr.ds.annotations.version>1.2.4</apache.felix.scr.ds.annotations.version>
         <maven.scr.plugin.version>1.16.0</maven.scr.plugin.version>
     </properties>
 
