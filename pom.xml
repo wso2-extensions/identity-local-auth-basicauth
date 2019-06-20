@@ -396,10 +396,10 @@
         <commons-lang.wso2.version>2.6.0.wso2v1</commons-lang.wso2.version>
         <commons-lang.wso2.osgi.version.range>[2.6.0,3.0.0)</commons-lang.wso2.osgi.version.range>
 
-        <nimbusds.version>5.8.0.wso2v1</nimbusds.version>
-        <nimbusds.imp.pkg.version.range>[5.8.0,6.0.0)</nimbusds.imp.pkg.version.range>
+        <nimbusds.version>7.3.0.wso2v1</nimbusds.version>
+        <nimbusds.imp.pkg.version.range>[7.3.0,8.0.0)</nimbusds.imp.pkg.version.range>
         <json-simple.version>1.1.wso2v1</json-simple.version>
-        <json-smart.version>1.3</json-smart.version>
+        <json-smart.version>2.3</json-smart.version>
         <apache.felix.scr.ds.annotations.version>1.2.4</apache.felix.scr.ds.annotations.version>
         <eclipse.osgi.version>3.5.100.v20160504-1419</eclipse.osgi.version>
 
