@@ -21,7 +21,7 @@
     <parent>
         <groupId>org.wso2</groupId>
         <artifactId>wso2</artifactId>
-        <version>1</version>
+        <version>1.2</version>
     </parent>
 
     <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
@@ -318,6 +318,25 @@
                         <doUpdate>false</doUpdate>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <configuration>
+                        <source>1.8</source>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                            <configuration>
+                                <!--This parameter disables doclint-->
+                                <doclint>none</doclint>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -354,7 +373,7 @@
         <!-- Identity Local Auth BasicAuth version -->
         <identity.application.auth.basicauth.exp.pkg.version>${project.version}
         </identity.application.auth.basicauth.exp.pkg.version>
-        <identity.application.auth.basicauth.imp.pkg.version.range>[5.0.0, 7.0.0)
+        <identity.application.auth.basicauth.imp.pkg.version.range>[6.2.0, 7.0.0)
         </identity.application.auth.basicauth.imp.pkg.version.range>
 
         <!-- Carbon Kernel version -->
@@ -364,8 +383,8 @@
         <carbon.base.imp.pkg.version.range>[1.0.0, 2.0.0)</carbon.base.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>5.13.0</carbon.identity.framework.version>
-        <carbon.identity.framework.imp.pkg.version.range>[5.13.0, 6.0.0)
+        <carbon.identity.framework.version>5.14.0</carbon.identity.framework.version>
+        <carbon.identity.framework.imp.pkg.version.range>[5.14.0, 6.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 
         <osgi.framework.imp.pkg.version.range>[1.7.0, 2.0.0)</osgi.framework.imp.pkg.version.range>
@@ -394,7 +413,7 @@
         <maven.surefire.plugin.version>2.18.1</maven.surefire.plugin.version>
         <org.slf4j.verison>1.6.1</org.slf4j.verison>
         <org.powermock.version>1.6.6</org.powermock.version>
-        <org.wso2.carbon.identity.testutil.version>5.10.0</org.wso2.carbon.identity.testutil.version>
+        <org.wso2.carbon.identity.testutil.version>5.14.0</org.wso2.carbon.identity.testutil.version>
 
         <!-- Pax Logging Version -->
         <pax.logging.api.version>1.10.1</pax.logging.api.version>
