@@ -197,11 +197,6 @@
                 <version>${org.wso2.carbon.identity.testutil.version}</version>
                 <scope>test</scope>
             </dependency>
-            <dependency>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>org.apache.felix.scr.ds-annotations</artifactId>
-                <version>${apache.felix.scr.ds.annotations.version}</version>
-            </dependency>
             <!-- Pax Logging -->
             <dependency>
                 <groupId>org.ops4j.pax.logging</groupId>
@@ -406,7 +401,6 @@
         <!-- Maven plugin version -->
         <carbon.p2.plugin.version>1.5.3</carbon.p2.plugin.version>
         <maven.buildnumber.plugin.version>1.4</maven.buildnumber.plugin.version>
-        <maven.source.plugin.version>1.22.0</maven.source.plugin.version>
 
         <testng.version>6.9.10</testng.version>
         <jacoco.version>0.7.9</jacoco.version>
