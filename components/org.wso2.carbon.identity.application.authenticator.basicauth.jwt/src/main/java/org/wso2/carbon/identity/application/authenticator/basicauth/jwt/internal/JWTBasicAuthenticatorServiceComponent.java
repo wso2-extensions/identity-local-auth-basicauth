@@ -35,7 +35,7 @@ import org.wso2.carbon.user.core.service.RealmService;
         immediate = true)
 public class JWTBasicAuthenticatorServiceComponent {
 
-    private static Log log = LogFactory.getLog(JWTBasicAuthenticatorServiceComponent.class);
+    private static final Log log = LogFactory.getLog(JWTBasicAuthenticatorServiceComponent.class);
 
     @Activate
     protected void activate(ComponentContext ctxt) {
