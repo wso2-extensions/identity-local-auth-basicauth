@@ -19,7 +19,7 @@
 package org.wso2.carbon.identity.application.authentication.handler.session;
 
 /**
- * Constants used by the Session Handler
+ * Constants used by the Session Handler.
  */
 public abstract class SessionHandlerConstants {
 

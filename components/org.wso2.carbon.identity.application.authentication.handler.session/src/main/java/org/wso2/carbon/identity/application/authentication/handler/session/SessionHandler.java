@@ -27,6 +27,7 @@ import org.wso2.carbon.identity.application.authentication.framework.config.buil
 import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.UserSessionException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.session.mgt.SessionManagementException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
@@ -56,6 +57,7 @@ public class SessionHandler extends AbstractApplicationAuthenticator
 
     private static final long serialVersionUID = -1304814600410853867L;
     private static final String REDIRECT_URL = "/authenticationendpoint/handle-multiple-sessions.do";
+    private static String maxSessionCountParamValue;
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -69,23 +71,26 @@ public class SessionHandler extends AbstractApplicationAuthenticator
     @Override
     public AuthenticatorFlowStatus process(HttpServletRequest request,
                                            HttpServletResponse response, AuthenticationContext context)
-            throws AuthenticationFailedException {
+            throws AuthenticationFailedException, LogoutFailedException {
 
-        if (context.isLogoutRequest()) {
-            return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
-        } else {
-            String maxSessionCountParamValue = getAuthenticatorParams(SessionHandlerConstants.MAX_SESSION_COUNT, "1", context);
+        if (!context.isLogoutRequest()) {
+            maxSessionCountParamValue = getAuthenticatorParams(SessionHandlerConstants.MAX_SESSION_COUNT, "1", context);
             int maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
 
-            if (maxSessionCount == 0) {
+            if (maxSessionCount <= 0) {
                 log.error("value of 'MaxSessionCount' must be greater than zero");
+                this.publishAuthenticationStepAttempt(request, context, context.getSubject(), false);
+                context.setRetrying(false);
                 return AuthenticatorFlowStatus.FAIL_COMPLETED;
             }
 
             if (request.getParameter(SessionHandlerConstants.DENY_LOGIN_ACTION) != null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("User denied the login");
+                }
+                this.publishAuthenticationStepAttempt(request, context, context.getSubject(), false);
+                context.setRetrying(false);
                 return AuthenticatorFlowStatus.FAIL_COMPLETED;
-            } else if (request.getParameter(SessionHandlerConstants.TERMINATE_SESSIONS_ACTION) != null) {
-                processAuthenticationResponse(request, response, context);
             }
 
             try {
@@ -96,24 +101,31 @@ public class SessionHandler extends AbstractApplicationAuthenticator
                     data.put(SessionHandlerConstants.MAX_SESSION_COUNT, maxSessionCountParamValue);
                     data.put(SessionHandlerConstants.SESSIONS, getSessionProperties(userSessions).toArray());
                     context.addEndpointParams(data);
-                    initiateAuthenticationRequest(request, response, context);
-                    return AuthenticatorFlowStatus.INCOMPLETE;
+                    return super.process(request, response, context);
+                } else {
+                    this.publishAuthenticationStepAttempt(request, context, context.getSubject(), true);
+                    return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
                 }
             } catch (UserSessionRetrievalException e) {
                 log.error(e);
+                this.publishAuthenticationStepAttempt(request, context, context.getSubject(), false);
+                return AuthenticatorFlowStatus.FAIL_COMPLETED;
             }
-
-            return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
+        } else {
+            return super.process(request, response, context);
         }
     }
 
-    private String getAuthenticatorParams(String parameterName, String defaultValue, AuthenticationContext authenticationContext) {
+    private String getAuthenticatorParams(String parameterName, String defaultValue,
+                                          AuthenticationContext authenticationContext) {
 
         Map<String, String> contextParams = authenticationContext.getAuthenticatorParams(this.getName());
-        AuthenticatorConfig authenticatorConfig = FileBasedConfigurationBuilder.getInstance().getAuthenticatorBean(this.getName());
+        AuthenticatorConfig authenticatorConfig = FileBasedConfigurationBuilder.getInstance()
+                .getAuthenticatorBean(this.getName());
         if (contextParams != null && contextParams.get(parameterName) != null) {
             return contextParams.get(parameterName);
-        } else if (authenticatorConfig != null && authenticatorConfig.getParameterMap() != null && authenticatorConfig.getParameterMap().get(parameterName) != null) {
+        } else if (authenticatorConfig != null && authenticatorConfig.getParameterMap() != null
+                && authenticatorConfig.getParameterMap().get(parameterName) != null) {
             return authenticatorConfig.getParameterMap().get(parameterName);
         }
         return defaultValue;
@@ -135,7 +147,8 @@ public class SessionHandler extends AbstractApplicationAuthenticator
                 .collect(Collectors.toList());
     }
 
-    private List<UserSession> getUserSessions(AuthenticatedUser authenticatedUser) throws UserSessionRetrievalException {
+    private List<UserSession> getUserSessions(AuthenticatedUser authenticatedUser)
+            throws UserSessionRetrievalException {
 
         String userId;
         List<UserSession> userSessions = null;
@@ -143,14 +156,18 @@ public class SessionHandler extends AbstractApplicationAuthenticator
         try {
             if (authenticatedUser != null) {
                 userId = UserSessionStore.getInstance()
-                        .getUserId(authenticatedUser.getUserName(), IdentityTenantUtil.getTenantIdOfUser(authenticatedUser.getUserName()), authenticatedUser.getUserStoreDomain());
-                userSessions = SessionHandlerServiceHolder.getInstance().getUserSessionManagementService().getSessionsByUserId(userId);
+                        .getUserId(authenticatedUser.getUserName(),
+                                IdentityTenantUtil.getTenantIdOfUser(authenticatedUser.getUserName()),
+                                authenticatedUser.getUserStoreDomain());
+                userSessions = SessionHandlerServiceHolder.getInstance()
+                        .getUserSessionManagementService().getSessionsByUserId(userId);
                 if (log.isDebugEnabled()) {
                     log.debug("Retrieved " + userSessions.size() + " for userId: " + userId);
                 }
             }
         } catch (UserSessionException | SessionManagementException e) {
-            throw new UserSessionRetrievalException("Error occurred while retrieving sessions for user: " + authenticatedUser.getUserName(), e);
+            throw new UserSessionRetrievalException("Error occurred while retrieving sessions for user: "
+                    + authenticatedUser.getUserName(), e);
         }
         return userSessions;
     }
@@ -163,7 +180,8 @@ public class SessionHandler extends AbstractApplicationAuthenticator
         try {
             response.sendRedirect(REDIRECT_URL + "?promptId=" + context.getContextIdentifier());
         } catch (IOException e) {
-            log.error("Error occurred while redirecting to: " + REDIRECT_URL + "?promptId=" + context.getContextIdentifier(), e);
+            log.error("Error occurred while redirecting to: " + REDIRECT_URL
+                    + "?promptId=" + context.getContextIdentifier(), e);
         }
     }
 
@@ -175,6 +193,23 @@ public class SessionHandler extends AbstractApplicationAuthenticator
         if (request.getParameter(SessionHandlerConstants.TERMINATE_SESSIONS_ACTION) != null) {
             String[] sessionIds = request.getParameterValues(SessionHandlerConstants.SESSIONS_TO_TERMINATE);
             terminateSessions(sessionIds);
+            List<UserSession> userSessions;
+            try {
+                userSessions = getUserSessions(context.getSubject());
+                if (userSessions != null && userSessions.size() >= Integer.parseInt(maxSessionCountParamValue)) {
+                    Map<String, Serializable> data = new HashMap<>();
+                    data.put(SessionHandlerConstants.MAX_SESSION_COUNT, maxSessionCountParamValue);
+                    data.put(SessionHandlerConstants.SESSIONS, getSessionProperties(userSessions).toArray());
+                    context.addEndpointParams(data);
+                    throw new AuthenticationFailedException("Active session count: " + userSessions.size()
+                            + " exceeds the specified limit: " + maxSessionCountParamValue);
+                }
+            } catch (UserSessionRetrievalException e) {
+                throw new AuthenticationFailedException("Error occurred while terminating user sessions");
+            }
+
+        } else if (request.getParameter(SessionHandlerConstants.REFRESH_ACTION) != null) {
+            throw new AuthenticationFailedException("Refresh action was called from the multiple session handler");
         }
 
     }
@@ -182,12 +217,19 @@ public class SessionHandler extends AbstractApplicationAuthenticator
     private void terminateSessions(String[] sessionIds) {
 
         for (String sessionId : sessionIds) {
-            SessionHandlerServiceHolder.getInstance().getUserSessionManagementService().terminateSessionBySessionId("", sessionId);
+            SessionHandlerServiceHolder.getInstance()
+                    .getUserSessionManagementService().terminateSessionBySessionId("", sessionId);
         }
     }
 
     @Override
     protected boolean retryAuthenticationEnabled() {
+
+        return true;
+    }
+
+    @Override
+    protected boolean retryAuthenticationEnabled(AuthenticationContext context) {
 
         return true;
     }

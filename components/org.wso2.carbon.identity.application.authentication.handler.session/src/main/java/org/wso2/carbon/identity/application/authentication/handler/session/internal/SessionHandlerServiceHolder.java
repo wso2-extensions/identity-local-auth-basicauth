@@ -22,7 +22,7 @@ import org.wso2.carbon.identity.application.authentication.framework.UserSession
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
- * OSGi service holder for the Session Handler
+ * OSGi service holder for the Session Handler.
  */
 public class SessionHandlerServiceHolder {
 
