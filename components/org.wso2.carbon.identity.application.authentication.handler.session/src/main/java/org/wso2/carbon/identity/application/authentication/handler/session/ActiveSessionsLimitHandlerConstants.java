@@ -21,19 +21,20 @@ package org.wso2.carbon.identity.application.authentication.handler.session;
 /**
  * Constants used by the Session Handler.
  */
-public abstract class SessionHandlerConstants {
+public abstract class ActiveSessionsLimitHandlerConstants {
 
     public static final String HANDLER_NAME = "SessionExecutor";
-    public static final String HANDLER_FRIENDLY_NAME = "multiple-sessions";
+    public static final String HANDLER_FRIENDLY_NAME = "active-sessions-limit-handler";
     public static final String TERMINATE_SESSIONS_ACTION = "terminateActiveSessionsAction";
-    public static final String DENY_LOGIN_ACTION = "denyLoginAction";
-    public static final String REFRESH_ACTION = "refreshAction";
+    public static final String ACTIVE_SESSIONS_LIMIT_ACTION = "ActiveSessionsLimitAction";
+    public static final String DENY_LOGIN_ACTION = "denyLimitActiveSessionsAction";
+    public static final String REFRESH_ACTION = "refreshActiveSessionsAction";
     public static final String MAX_SESSION_COUNT = "MaxSessionCount";
     public static final String SESSIONS_TO_TERMINATE = "sessionsToTerminate";
     public static final String SESSIONS = "sessions";
     public static final String SESSION_DATA_KEY = "sessionDataKey";
 
-    private SessionHandlerConstants() {
+    private ActiveSessionsLimitHandlerConstants() {
 
     }
 }

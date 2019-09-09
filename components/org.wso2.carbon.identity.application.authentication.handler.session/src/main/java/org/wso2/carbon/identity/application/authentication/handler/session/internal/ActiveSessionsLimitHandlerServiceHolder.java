@@ -24,17 +24,17 @@ import org.wso2.carbon.user.core.service.RealmService;
 /**
  * OSGi service holder for the Session Handler.
  */
-public class SessionHandlerServiceHolder {
+public class ActiveSessionsLimitHandlerServiceHolder {
 
-    private static SessionHandlerServiceHolder instance = new SessionHandlerServiceHolder();
+    private static ActiveSessionsLimitHandlerServiceHolder instance = new ActiveSessionsLimitHandlerServiceHolder();
     private RealmService realmService;
     private UserSessionManagementService userSessionManagementService;
 
-    private SessionHandlerServiceHolder() {
+    private ActiveSessionsLimitHandlerServiceHolder() {
 
     }
 
-    public static SessionHandlerServiceHolder getInstance() {
+    public static ActiveSessionsLimitHandlerServiceHolder getInstance() {
 
         return instance;
     }

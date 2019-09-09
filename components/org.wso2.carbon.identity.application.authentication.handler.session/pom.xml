@@ -29,7 +29,7 @@
 
     <artifactId>org.wso2.carbon.identity.application.authentication.handler.session</artifactId>
     <packaging>bundle</packaging>
-    <name>WSO2 Carbon - Auth Identity Application Multiple Session handler</name>
+    <name>WSO2 Carbon - Active Session Limit Handler</name>
     <dependencies>
         <dependency>
             <groupId>org.apache.felix</groupId>

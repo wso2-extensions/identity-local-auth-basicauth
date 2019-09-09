@@ -29,7 +29,7 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.UserSessionManagementService;
-import org.wso2.carbon.identity.application.authentication.handler.session.SessionHandler;
+import org.wso2.carbon.identity.application.authentication.handler.session.ActiveSessionsLimitHandler;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
@@ -39,21 +39,21 @@ import org.wso2.carbon.user.core.service.RealmService;
         name = "identity.application.handler.session.component",
         immediate = true
 )
-public class SessionHandlerServiceComponent {
+public class ActiveSessionsLimitHandlerServiceComponent {
 
-    private static final Log log = LogFactory.getLog(SessionHandlerServiceComponent.class);
+    private static final Log log = LogFactory.getLog(ActiveSessionsLimitHandlerServiceComponent.class);
 
     @Activate
     protected void activate(ComponentContext ctxt) {
 
         try {
-            SessionHandler sessionHandler = new SessionHandler();
-            ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), sessionHandler, null);
+            ActiveSessionsLimitHandler activeSessionsLimitHandler = new ActiveSessionsLimitHandler();
+            ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), activeSessionsLimitHandler, null);
             if (log.isDebugEnabled()) {
-                log.info("SessionHandler bundle is activated");
+                log.info("ActiveSessionsLimitHandler bundle is activated");
             }
         } catch (Throwable e) {
-            log.error("SessionHandler Authenticator bundle activation Failed", e);
+            log.error("ActiveSessionsLimitHandler Authenticator bundle activation Failed", e);
         }
     }
 
@@ -61,7 +61,7 @@ public class SessionHandlerServiceComponent {
     protected void deactivate(ComponentContext ctxt) {
 
         if (log.isDebugEnabled()) {
-            log.info("SessionHandler bundle is deactivated");
+            log.info("ActiveSessionsLimitHandler bundle is deactivated");
         }
     }
 
@@ -75,13 +75,13 @@ public class SessionHandlerServiceComponent {
     protected void setRealmService(RealmService realmService) {
 
         log.debug("Setting the Realm Service");
-        SessionHandlerServiceHolder.getInstance().setRealmService(realmService);
+        ActiveSessionsLimitHandlerServiceHolder.getInstance().setRealmService(realmService);
     }
 
     protected void unsetRealmService(RealmService realmService) {
 
         log.debug("UnSetting the Realm Service");
-        SessionHandlerServiceHolder.getInstance().setRealmService(null);
+        ActiveSessionsLimitHandlerServiceHolder.getInstance().setRealmService(null);
     }
 
     @Reference(
@@ -96,7 +96,7 @@ public class SessionHandlerServiceComponent {
         if (log.isDebugEnabled()) {
             log.debug("UserSessionManagementService is set in the conditional authentication user functions bundle");
         }
-        SessionHandlerServiceHolder.getInstance().setUserSessionManagementService(userSessionManagementService);
+        ActiveSessionsLimitHandlerServiceHolder.getInstance().setUserSessionManagementService(userSessionManagementService);
     }
 
     protected void unsetUserSessionManagementService(UserSessionManagementService userSessionManagementService) {
@@ -104,7 +104,7 @@ public class SessionHandlerServiceComponent {
         if (log.isDebugEnabled()) {
             log.debug("UserSessionManagementService is unset in the conditional authentication user functions bundle");
         }
-        SessionHandlerServiceHolder.getInstance().setUserSessionManagementService(null);
+        ActiveSessionsLimitHandlerServiceHolder.getInstance().setUserSessionManagementService(null);
     }
 
 }
