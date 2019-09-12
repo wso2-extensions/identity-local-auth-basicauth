@@ -50,7 +50,7 @@ public class ActiveSessionsLimitHandlerServiceComponent {
             ActiveSessionsLimitHandler activeSessionsLimitHandler = new ActiveSessionsLimitHandler();
             ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), activeSessionsLimitHandler, null);
             if (log.isDebugEnabled()) {
-                log.info("ActiveSessionsLimitHandler bundle is activated");
+                log.debug("ActiveSessionsLimitHandler bundle is activated");
             }
         } catch (Throwable e) {
             log.error("ActiveSessionsLimitHandler Authenticator bundle activation Failed", e);
@@ -61,7 +61,7 @@ public class ActiveSessionsLimitHandlerServiceComponent {
     protected void deactivate(ComponentContext ctxt) {
 
         if (log.isDebugEnabled()) {
-            log.info("ActiveSessionsLimitHandler bundle is deactivated");
+            log.debug("ActiveSessionsLimitHandler bundle is deactivated");
         }
     }
 
@@ -74,13 +74,17 @@ public class ActiveSessionsLimitHandlerServiceComponent {
     )
     protected void setRealmService(RealmService realmService) {
 
-        log.debug("Setting the Realm Service");
+        if (log.isDebugEnabled()) {
+            log.debug("Setting the Realm Service");
+        }
         ActiveSessionsLimitHandlerServiceHolder.getInstance().setRealmService(realmService);
     }
 
     protected void unsetRealmService(RealmService realmService) {
 
-        log.debug("UnSetting the Realm Service");
+        if (log.isDebugEnabled()) {
+            log.debug("UnSetting the Realm Service");
+        }
         ActiveSessionsLimitHandlerServiceHolder.getInstance().setRealmService(null);
     }
 
