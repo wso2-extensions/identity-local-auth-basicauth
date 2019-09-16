@@ -46,6 +46,7 @@
     <modules>
         <module>components/org.wso2.carbon.identity.application.authenticator.basicauth</module>
         <module>components/org.wso2.carbon.identity.application.authentication.handler.identifier</module>
+        <module>components/org.wso2.carbon.identity.application.authentication.handler.session</module>
         <module>features/org.wso2.carbon.identity.application.authenticator.basicauth.server.feature</module>
         <module>components/org.wso2.carbon.identity.application.authenticator.basicauth.jwt</module>
     </modules>
@@ -353,8 +354,8 @@
                 <inherited>true</inherited>
                 <configuration>
                     <encoding>UTF-8</encoding>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -379,8 +380,8 @@
         <carbon.base.imp.pkg.version.range>[1.0.0, 2.0.0)</carbon.base.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>5.14.0</carbon.identity.framework.version>
-        <carbon.identity.framework.imp.pkg.version.range>[5.14.0, 6.0.0)
+        <carbon.identity.framework.version>5.14.62</carbon.identity.framework.version>
+        <carbon.identity.framework.imp.pkg.version.range>[5.14.62, 6.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 
         <osgi.framework.imp.pkg.version.range>[1.7.0, 2.0.0)</osgi.framework.imp.pkg.version.range>
