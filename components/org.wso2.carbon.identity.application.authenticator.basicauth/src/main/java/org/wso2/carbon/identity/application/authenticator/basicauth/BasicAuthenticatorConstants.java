@@ -34,6 +34,11 @@ public abstract class BasicAuthenticatorConstants {
     public static final String USER_NAME_PARAM = "&username=";
     public static final String TENANT_DOMAIN_PARAM = "&tenantdomain=";
     public static final String CONFIRMATION_PARAM = "&confirmation=";
+    public static final String REMAINING_ATTEMPTS = "&remainingAttempts=";
+    public static final String LOCKED_REASON = "&lockedReason=";
+    public static final String CONF_SHOW_AUTH_FAILURE_REASON = "showAuthFailureReason";
+    public static final String CONF_MASK_USER_NOT_EXISTS_ERROR_CODE = "maskUserNotExistsErrorCode";
+    public static final String CONF_ERROR_PARAMS_TO_OMIT = "errorParamsToOmit";
     
     private BasicAuthenticatorConstants() {
     }
