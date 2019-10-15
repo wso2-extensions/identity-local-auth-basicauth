@@ -17,6 +17,7 @@
  */
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -47,7 +48,10 @@ import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -63,6 +67,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String PASSWORD_RESET_ENDPOINT = "accountrecoveryendpoint/confirmrecovery.do?";
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
     private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
+    private List<String> omittingErrorParams = null;
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -90,10 +95,30 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
         String showAuthFailureReason = null;
+        String maskUserNotExistsErrorCode = null;
         if (parameterMap != null) {
-            showAuthFailureReason = parameterMap.get("showAuthFailureReason");
+            showAuthFailureReason = parameterMap.get(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON);
             if (log.isDebugEnabled()) {
-                log.debug("showAuthFailureReason has been set as : " + showAuthFailureReason);
+                log.debug(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON + " has been set as : " +
+                        showAuthFailureReason);
+            }
+            if (Boolean.parseBoolean(showAuthFailureReason)) {
+                maskUserNotExistsErrorCode =
+                        parameterMap.get(BasicAuthenticatorConstants.CONF_MASK_USER_NOT_EXISTS_ERROR_CODE);
+                if (log.isDebugEnabled()) {
+                    log.debug(BasicAuthenticatorConstants.CONF_MASK_USER_NOT_EXISTS_ERROR_CODE +
+                            " has been set as : " + maskUserNotExistsErrorCode);
+                }
+
+                String errorParamsToOmit = parameterMap.get(BasicAuthenticatorConstants.CONF_ERROR_PARAMS_TO_OMIT);
+                if (log.isDebugEnabled()) {
+                    log.debug(BasicAuthenticatorConstants.CONF_ERROR_PARAMS_TO_OMIT + " has been set as : " +
+                            errorParamsToOmit);
+                }
+                if (StringUtils.isNotBlank(errorParamsToOmit)) {
+                    errorParamsToOmit = errorParamsToOmit.replaceAll(" ", "");
+                    omittingErrorParams = new ArrayList<>(Arrays.asList(errorParamsToOmit.split(",")));
+                }
             }
         }
 
@@ -175,6 +200,18 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
                 } else if ("true".equals(showAuthFailureReason)) {
 
+                    if (Boolean.parseBoolean(maskUserNotExistsErrorCode) &&
+                            StringUtils.contains(errorCode, UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST)) {
+
+                        errorCode = UserCoreConstants.ErrorCode.INVALID_CREDENTIAL;
+
+                        if (log.isDebugEnabled()) {
+                            log.debug("Masking user not found error code: " +
+                                    UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST + " with error code: " +
+                                    errorCode);
+                        }
+                    }
+
                     String reason = null;
                     if (errorCode.contains(":")) {
                         String[] errorCodeReason = errorCode.split(":");
@@ -193,75 +230,56 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     }
 
                     if (errorCode.equals(UserCoreConstants.ErrorCode.INVALID_CREDENTIAL)) {
-                        retryParam = retryParam + BasicAuthenticatorConstants.ERROR_CODE + errorCode
-                                + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder
-                                .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
-                                        BasicAuthenticatorConstants.UTF_8)
-                                + "&remainingAttempts=" + remainingAttempts;
+                        Map<String, String> paramMap = new HashMap<>();
+                        paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
+                        paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
+                                URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
+                                        BasicAuthenticatorConstants.UTF_8));
+                        paramMap.put(BasicAuthenticatorConstants.REMAINING_ATTEMPTS, String.valueOf(remainingAttempts));
+
+                        retryParam = retryParam + buildErrorParamString(paramMap);
                         response.sendRedirect(loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam);
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
-                        String redirectURL = retryPage;
-                        if (remainingAttempts == 0) {
-                            if (StringUtils.isBlank(reason)) {
-                                redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
-                                        BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) +
-                                        "&remainingAttempts=0";
-                            } else {
-                                redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
-                                        BasicAuthenticatorConstants.ERROR_CODE + errorCode + "&lockedReason="
-                                        + reason + BasicAuthenticatorConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
-                                                BasicAuthenticatorConstants.UTF_8) + "&remainingAttempts=0";
-                            }
-                        } else {
-                            if (StringUtils.isBlank(reason)) {
-                                redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
-                                        BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8);
-                            } else {
-                                redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
-                                        BasicAuthenticatorConstants.ERROR_CODE + errorCode + "&lockedReason="
-                                        + reason + BasicAuthenticatorConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
-                                                BasicAuthenticatorConstants.UTF_8);
-                            }
-                        }
-                        response.sendRedirect(redirectURL);
+                        Map<String, String> paramMap = new HashMap<>();
+                        paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
+                        paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
+                                URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
+                                        BasicAuthenticatorConstants.UTF_8));
 
-                    } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST)) {
-                        retryParam = retryParam + BasicAuthenticatorConstants.ERROR_CODE + errorCode
-                                + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder
-                                .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
-                                        BasicAuthenticatorConstants.UTF_8);
-                        response.sendRedirect(loginPage + ("?" + queryParams)
-                                + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
-                                BasicAuthenticatorConstants.LOCAL + retryParam);
-                    } else if (errorCode.equals(IdentityCoreConstants.USER_ACCOUNT_DISABLED_ERROR_CODE)) {
-                        retryParam = retryParam + BasicAuthenticatorConstants.ERROR_CODE + errorCode
-                                + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder
-                                .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
-                                        BasicAuthenticatorConstants.UTF_8);
-                        response.sendRedirect(loginPage + ("?" + queryParams)
-                                + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
-                                BasicAuthenticatorConstants.LOCAL + retryParam);
+                        if (StringUtils.isNotBlank(reason)) {
+                            paramMap.put(BasicAuthenticatorConstants.LOCKED_REASON, reason);
+                        }
+                        if (remainingAttempts == 0) {
+                            paramMap.put(BasicAuthenticatorConstants.REMAINING_ATTEMPTS, "0");
+                        }
+
+                        String redirectURL = response.encodeRedirectURL(retryPage + ("?" + queryParams))
+                                + buildErrorParamString(paramMap);
+                        response.sendRedirect(redirectURL);
                     } else if (errorCode.equals(
                             IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE)) {
+                        Map<String, String> paramMap = new HashMap<>();
+                        paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
+                        paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
+                                URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
+                                        BasicAuthenticatorConstants.UTF_8));
+
                         retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
-                        String redirectURL = loginPage + ("?" + queryParams) +
-                                BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter(
-                                BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) +
-                                BasicAuthenticatorConstants.ERROR_CODE + errorCode
+                        String redirectURL = loginPage + ("?" + queryParams)
+                                + buildErrorParamString(paramMap)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam;
                         response.sendRedirect(redirectURL);
                     } else {
-                        retryParam = retryParam + BasicAuthenticatorConstants.ERROR_CODE + errorCode
-                                + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder
-                                .encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
-                                        BasicAuthenticatorConstants.UTF_8);
+                        Map<String, String> paramMap = new HashMap<>();
+                        paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
+                        paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
+                                URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
+                                        BasicAuthenticatorConstants.UTF_8));
+
+                        retryParam = retryParam + buildErrorParamString(paramMap);
                         response.sendRedirect(loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":"
                                 + BasicAuthenticatorConstants.LOCAL + retryParam);
@@ -437,5 +455,29 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     @Override
     public String getName() {
         return BasicAuthenticatorConstants.AUTHENTICATOR_NAME;
+    }
+
+    private String buildErrorParamString(Map<String, String> paramMap) {
+
+        StringBuilder params = new StringBuilder();
+        for (Map.Entry<String, String> entry : paramMap.entrySet()) {
+            params.append(filterAndAddParam(entry.getKey(), entry.getValue()));
+        }
+        return params.toString();
+    }
+
+    private String filterAndAddParam(String key, String value) {
+
+        String keyActual = key.replaceAll("&", "").replaceAll("=", "");
+        if (CollectionUtils.isNotEmpty(omittingErrorParams) && omittingErrorParams.contains(keyActual)) {
+            if (log.isDebugEnabled()) {
+                log.debug("omitting param " + keyActual + " in the error response.");
+            }
+
+            // The param should be omitted, hence returning empty string.
+            return StringUtils.EMPTY;
+        } else {
+            return key + value;
+        }
     }
 }
