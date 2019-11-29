@@ -18,6 +18,7 @@
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -32,13 +33,19 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.L
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
+import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
+import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
+import org.wso2.carbon.identity.captcha.connector.recaptcha.SSOLoginReCaptchaConfig;
+import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
+import org.wso2.carbon.identity.governance.IdentityGovernanceException;
+import org.wso2.carbon.identity.governance.common.IdentityConnectorConfig;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserStoreException;
@@ -53,6 +60,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -126,6 +134,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String retryPage = ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL();
         String queryParams = context.getContextIdIncludedQueryParams();
         String password = (String) context.getProperty(PASSWORD_PROPERTY);
+        String redirectURL;
         context.getProperties().remove(PASSWORD_PROPERTY);
 
         Map<String, String> runtimeParams = getRuntimeParams(context);
@@ -145,12 +154,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             String retryParam = "";
 
             if (context.isRetrying()) {
-                retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
+                retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                        BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "login.fail.message";
             }
 
             if (context.getProperty("UserTenantDomainMismatch") != null &&
                     (Boolean) context.getProperty("UserTenantDomainMismatch")) {
-                retryParam = "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message";
+                retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                        BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "user.tenant.domain.mismatch.message";
                 context.setProperty("UserTenantDomainMismatch", false);
             }
 
@@ -164,39 +175,38 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 String errorCode = errorContext.getErrorCode();
 
                 if (errorCode.equals(IdentityCoreConstants.USER_ACCOUNT_NOT_CONFIRMED_ERROR_CODE)) {
-                    retryParam = "&authFailure=true&authFailureMsg=account.confirmation.pending";
+                    retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                            BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "account.confirmation.pending";
                     String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
                     Object domain = IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN);
                     if (domain != null) {
                         username = IdentityUtil.addDomainToName(username, domain.toString());
                     }
 
-                    String redirectURL = loginPage + ("?" + queryParams) + BasicAuthenticatorConstants.FAILED_USERNAME
+                    redirectURL = loginPage + ("?" + queryParams) + BasicAuthenticatorConstants.FAILED_USERNAME
                             + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants
                             .AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
-                    response.sendRedirect(redirectURL);
 
                 } else if (errorCode.equals(
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE)) {
-                    retryParam = "&authFailure=true&authFailureMsg=password.reset.pending";
-                    String redirectURL = loginPage + ("?" + queryParams) +
+                    retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                            BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "password.reset.pending";
+                    redirectURL = loginPage + ("?" + queryParams) +
                             BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter(
                             BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.ERROR_CODE + errorCode +
                             BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                             BasicAuthenticatorConstants.LOCAL + retryParam;
-                    response.sendRedirect(redirectURL);
 
                 } else if (errorCode.equals(
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE)) {
                     String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
                     String tenantDoamin = MultitenantUtils.getTenantDomain(username);
-                    String redirectURL = (PASSWORD_RESET_ENDPOINT + queryParams) +
+                    redirectURL = (PASSWORD_RESET_ENDPOINT + queryParams) +
                             BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM + URLEncoder.encode(tenantDoamin, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(password, BasicAuthenticatorConstants.UTF_8);
-                    response.sendRedirect(redirectURL);
 
                 } else if ("true".equals(showAuthFailureReason)) {
 
@@ -238,9 +248,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         paramMap.put(BasicAuthenticatorConstants.REMAINING_ATTEMPTS, String.valueOf(remainingAttempts));
 
                         retryParam = retryParam + buildErrorParamString(paramMap);
-                        response.sendRedirect(loginPage + ("?" + queryParams)
+                        redirectURL = loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
-                                BasicAuthenticatorConstants.LOCAL + retryParam);
+                                BasicAuthenticatorConstants.LOCAL + retryParam;
+
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
                         Map<String, String> paramMap = new HashMap<>();
                         paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
@@ -255,9 +266,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             paramMap.put(BasicAuthenticatorConstants.REMAINING_ATTEMPTS, "0");
                         }
 
-                        String redirectURL = response.encodeRedirectURL(retryPage + ("?" + queryParams))
+                        redirectURL = response.encodeRedirectURL(retryPage + ("?" + queryParams))
                                 + buildErrorParamString(paramMap);
-                        response.sendRedirect(redirectURL);
                     } else if (errorCode.equals(
                             IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE)) {
                         Map<String, String> paramMap = new HashMap<>();
@@ -267,11 +277,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                         BasicAuthenticatorConstants.UTF_8));
 
                         retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
-                        String redirectURL = loginPage + ("?" + queryParams)
+                        redirectURL = loginPage + ("?" + queryParams)
                                 + buildErrorParamString(paramMap)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam;
-                        response.sendRedirect(redirectURL);
+
                     } else {
                         Map<String, String> paramMap = new HashMap<>();
                         paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
@@ -280,29 +290,30 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                         BasicAuthenticatorConstants.UTF_8));
 
                         retryParam = retryParam + buildErrorParamString(paramMap);
-                        response.sendRedirect(loginPage + ("?" + queryParams)
+                        redirectURL = loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":"
-                                + BasicAuthenticatorConstants.LOCAL + retryParam);
+                                + BasicAuthenticatorConstants.LOCAL + retryParam;
                     }
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("Unknown identity error code.");
                     }
-                    response.sendRedirect(loginPage + ("?" + queryParams)
+                    redirectURL = loginPage + ("?" + queryParams)
                             + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
-                            BasicAuthenticatorConstants.LOCAL + retryParam);
+                            BasicAuthenticatorConstants.LOCAL + retryParam;
 
                 }
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("Identity error message context is null");
                 }
-                response.sendRedirect(loginPage + ("?" + queryParams)
+                redirectURL = loginPage + ("?" + queryParams)
                         + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
-                        BasicAuthenticatorConstants.LOCAL + retryParam);
+                        BasicAuthenticatorConstants.LOCAL + retryParam;
             }
 
-
+            redirectURL += getCaptchaParams(context.getTenantDomain());
+            response.sendRedirect(redirectURL);
         } catch (IOException e) {
             throw new AuthenticationFailedException(e.getMessage(), User.getUserFromUserName(request.getParameter
                     (BasicAuthenticatorConstants.USER_NAME)), e);
@@ -479,5 +490,77 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         } else {
             return key + value;
         }
+    }
+
+    /**
+     * Append the recaptcha related params if recaptcha is enabled for the authentication always.
+     *
+     * @param tenantDomain tenant domain of the application
+     * @return string with the appended recaptcha params
+     */
+    private String getCaptchaParams(String tenantDomain) {
+
+        IdentityConnectorConfig connector = new SSOLoginReCaptchaConfig();
+        String defaultCaptchaConfigName = ((SSOLoginReCaptchaConfig) connector).getName() +
+                CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE_ALWAYS;
+        Property[] connectorConfigs;
+        String captchaParams = "";
+
+        try {
+            connectorConfigs = BasicAuthenticatorDataHolder.getInstance().getIdentityGovernanceService()
+                    .getConfiguration(new String[]{defaultCaptchaConfigName}, tenantDomain);
+        if (!ArrayUtils.isEmpty(connectorConfigs) && Boolean.valueOf(connectorConfigs[0].getValue())) {
+                Properties captchaConfigs = getCaptchaConfigs();
+
+                if (captchaConfigs != null && !captchaConfigs.isEmpty() &&
+                        Boolean.valueOf(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
+
+                    captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true" +
+                            BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + captchaConfigs.getProperty
+                            (CaptchaConstants.RE_CAPTCHA_SITE_KEY) +
+                            BasicAuthenticatorConstants.RECAPTCHA_API_PARAM + captchaConfigs.getProperty
+                            (CaptchaConstants.RE_CAPTCHA_API_URL);
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Recaptcha is not enabled.");
+                    }
+                }
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("Enforcing recaptcha always for the basic authentication is not enabled.");
+                }
+            }
+        } catch (IdentityGovernanceException e) {
+            log.error("Error occurred while verifying the captcha configs. Proceeding the authentication request " +
+                    "without enabling recaptcha.", e);
+        }
+
+        return captchaParams;
+    }
+
+    /**
+     * Get the recaptcha configs from the data holder if they are valid.
+     *
+     * @return recaptcha properties
+     */
+    private Properties getCaptchaConfigs() {
+
+        Properties properties = BasicAuthenticatorDataHolder.getInstance().getRecaptchaConfigs();
+
+        if (properties != null && !properties.isEmpty() &&
+                Boolean.valueOf(properties.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
+            if (StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY)) ||
+                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_API_URL)) ||
+                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY)) ||
+                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL))) {
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Empty values found for the captcha properties in the file " + CaptchaConstants
+                            .CAPTCHA_CONFIG_FILE_NAME + ".");
+                }
+                properties.clear();
+            }
+        }
+        return properties;
     }
 }

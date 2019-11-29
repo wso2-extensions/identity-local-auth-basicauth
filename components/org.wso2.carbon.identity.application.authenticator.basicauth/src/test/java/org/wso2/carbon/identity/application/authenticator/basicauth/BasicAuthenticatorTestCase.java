@@ -37,12 +37,17 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.A
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
+import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
+import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
+import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
+import org.wso2.carbon.identity.governance.IdentityGovernanceException;
+import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.testutil.powermock.PowerMockIdentityBaseTest;
 import org.wso2.carbon.user.api.RealmConfiguration;
 import org.wso2.carbon.user.api.UserRealm;
@@ -65,6 +70,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -80,7 +86,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 /**
- * Unit test cases for the OpenID Connect Authenticator.
+ * Unit test cases for the Basic Authenticator.
  */
 @PrepareForTest({IdentityTenantUtil.class, BasicAuthenticatorServiceComponent.class, User
         .class, MultitenantUtils.class, FrameworkUtils.class, FileBasedConfigurationBuilder.class,
@@ -96,6 +102,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     private FileBasedConfigurationBuilder mockFileBasedConfigurationBuilder;
     private IdentityErrorMsgContext mockIdentityErrorMsgContext;
     private User mockUser;
+    private IdentityGovernanceService governanceService;
 
     private AuthenticatedUser authenticatedUser;
     private Boolean isrememberMe = false;
@@ -115,9 +122,22 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     private BasicAuthenticator basicAuthenticator;
 
     @BeforeTest
-    public void setup() {
+    public void setup() throws IdentityGovernanceException {
 
         basicAuthenticator = new BasicAuthenticator();
+
+        System.setProperty("carbon.config.dir.path", "carbon.home");
+
+        governanceService = mock(IdentityGovernanceService.class);
+
+        Property[] captchaProperties = new Property[1];
+        Property captchaEnabled = new Property();
+        captchaEnabled.setDefaultValue("false");
+        captchaProperties[0] = captchaEnabled;
+
+        when(governanceService.getConfiguration(any(String[].class), anyString())).thenReturn(captchaProperties);
+
+        BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(governanceService);
     }
 
     @DataProvider(name = "UsernameAndPasswordProvider")
@@ -546,6 +566,55 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                 + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
                 BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch" +
                 ".message");
+    }
+
+    @DataProvider(name = "captchaConfigData")
+    public Object[][] getCaptchaConfig() {
+
+        String basicUrl = dummyLoginPage + "?" + dummyQueryParam + BasicAuthenticatorConstants
+                .AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
+                BasicAuthenticatorConstants.LOCAL +
+                BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "user.tenant.domain.mismatch.message";
+
+        String captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true" +
+                BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + "dummySiteKey" +
+                BasicAuthenticatorConstants.RECAPTCHA_API_PARAM + "dummyApiUrl";
+
+        return new String[][]{
+                {"true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl + captchaParams},
+                {"true", "", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
+                {"true", "dummySiteKey", "", "dummySecret", "dummyUrl", basicUrl},
+                {"false", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
+        };
+    }
+
+    @Test(dataProvider = "captchaConfigData")
+    public void initiateAuthenticationRequestWithCaptchaEnabled(String captchaEnable, String captchaKey, String
+            captchaApi, String captchaSecret, String captchaUrl, String expectedRedirectUrl) throws Exception {
+
+        mockStatic(IdentityUtil.class);
+
+        Property[] captchaProperties = new Property[1];
+        Property captchaEnabled = new Property();
+        captchaEnabled.setValue("true");
+        captchaProperties[0] = captchaEnabled;
+
+        when(governanceService.getConfiguration(any(String[].class), anyString())).thenReturn(captchaProperties);
+        Properties properties = new Properties();
+        properties.setProperty(CaptchaConstants.RE_CAPTCHA_ENABLED, captchaEnable);
+        properties.setProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY, captchaKey);
+        properties.setProperty(CaptchaConstants.RE_CAPTCHA_API_URL, captchaApi);
+        properties.setProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY, captchaSecret);
+        properties.setProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL, captchaUrl);
+
+        BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(properties);
+        BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(governanceService);
+
+        initiateAuthenticationRequest();
+        basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+        assertEquals(isUserTenantDomainMismatch, (Boolean) false);
+        assertEquals(redirect, expectedRedirectUrl);
     }
 
     @DataProvider(name = "errorCodeProvider")
