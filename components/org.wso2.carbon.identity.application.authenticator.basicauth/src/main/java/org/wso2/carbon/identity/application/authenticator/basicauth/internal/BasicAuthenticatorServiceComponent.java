@@ -28,7 +28,19 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
+import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
+import org.wso2.carbon.identity.core.util.IdentityUtil;
+import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.user.core.service.RealmService;
+
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Properties;
 
 @Component(
         name = "identity.application.authenticator.basicauth.component",
@@ -59,6 +71,7 @@ public class BasicAuthenticatorServiceComponent {
     @Activate
     protected void activate(ComponentContext ctxt) {
 
+        buildReCaptchaFilterProperties();
         try {
             BasicAuthenticator basicAuth = new BasicAuthenticator();
             ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), basicAuth, null);
@@ -82,5 +95,47 @@ public class BasicAuthenticatorServiceComponent {
 
         log.debug("UnSetting the Realm Service");
         BasicAuthenticatorServiceComponent.realmService = null;
+    }
+
+    @Reference(
+            name = "IdentityGovernanceService",
+            service = org.wso2.carbon.identity.governance.IdentityGovernanceService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetIdentityGovernanceService")
+    protected void setIdentityGovernanceService(IdentityGovernanceService identityGovernanceService) {
+
+        BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(identityGovernanceService);
+    }
+
+    protected void unsetIdentityGovernanceService(IdentityGovernanceService identityGovernanceService) {
+
+        BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(null);
+    }
+
+    /**
+     * Read the captcha-config.properties file located in repository/conf/identity directory and set the
+     * configurations required to enable recaptcha in the Data holder.
+     */
+    private void buildReCaptchaFilterProperties() {
+
+        Path path = Paths.get(IdentityUtil.getIdentityConfigDirPath(), CaptchaConstants.CAPTCHA_CONFIG_FILE_NAME);
+
+        if (Files.exists(path)) {
+            Properties properties = new Properties();
+            try (Reader in = new InputStreamReader(Files.newInputStream(path), StandardCharsets.UTF_8)) {
+                properties.load(in);
+            } catch (IOException e) {
+                log.error("Error while loading '" + CaptchaConstants.CAPTCHA_CONFIG_FILE_NAME + "' configuration " +
+                        "file", e);
+            }
+
+            boolean reCaptchaEnabled = Boolean.valueOf(properties.getProperty(CaptchaConstants
+                    .RE_CAPTCHA_ENABLED));
+
+            if (reCaptchaEnabled) {
+                BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(properties);
+            }
+        }
     }
 }
