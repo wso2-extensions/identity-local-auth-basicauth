@@ -109,8 +109,13 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             }
 
             try {
+
                 String userId = getUserId(context.getSubject());
-                List<UserSession> userSessions = getUserSessions(userId);
+                
+                List<UserSession> userSessions = null;
+                if (userId != null) {
+                    userSessions = getUserSessions(userId);
+                }
 
                 if (userSessions != null && userSessions.size() >= maxSessionCount) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
