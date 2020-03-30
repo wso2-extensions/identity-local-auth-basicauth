@@ -130,8 +130,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
         }
 
-        String loginPage = ConfigurationFacade.getInstance().getAuthenticationEndpointURL();
-        String retryPage = ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL();
+        ConfigurationFacade configurationFacade = ConfigurationFacade.getInstance();
+        String loginPage = IdentityUtil.getServerURL(configurationFacade.getAuthenticationEndpointURL(), false, false);
+        String retryPage = IdentityUtil.getServerURL(configurationFacade.getAuthenticationEndpointRetryURL(), false,
+                false);
         String queryParams = context.getContextIdIncludedQueryParams();
         String password = (String) context.getProperty(PASSWORD_PROPERTY);
         String redirectURL;
