@@ -471,7 +471,8 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(Boolean.valueOf(cntxpropUserTenantDomainMismatch));
         when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
+        mockStatic(IdentityUtil.class);
+        when(IdentityUtil.getServerURL(ConfigurationFacade.getInstance().getAuthenticationEndpointURL(), false, false)).thenReturn(dummyLoginPage);
         when(mockAuthnCtxt.isRetrying()).thenReturn(Boolean.valueOf(statusProvider));
 
         doAnswer(new Answer<Object>() {
@@ -485,7 +486,6 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
         when(mockIdentityErrorMsgContext.getErrorCode()).thenReturn("dummyErrorCode");
-        mockStatic(IdentityUtil.class);
         when(IdentityUtil.getIdentityErrorMsg()).thenReturn(mockIdentityErrorMsgContext);
 
         basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
@@ -532,7 +532,8 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
         when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
+        mockStatic(IdentityUtil.class);
+        when(IdentityUtil.getServerURL(ConfigurationFacade.getInstance().getAuthenticationEndpointURL(), false, false)).thenReturn(dummyLoginPage);
         when(mockAuthnCtxt.isRetrying()).thenReturn(true);
 
         mockStatic(User.class);
@@ -770,8 +771,11 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
         when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
         when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(dummyPassword);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL()).thenReturn(dummyRetryURL);
+
+        mockStatic(IdentityUtil.class);
+        when(IdentityUtil.getServerURL(ConfigurationFacade.getInstance().getAuthenticationEndpointURL(), false, false))
+                .thenReturn(dummyLoginPage);
+        when(IdentityUtil.getServerURL(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL(), false, false)).thenReturn(dummyRetryURL);
         when(mockAuthnCtxt.isRetrying()).thenReturn(true);
 
         mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
@@ -779,7 +783,6 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(Integer.valueOf(maxLogin));
         when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(Integer.valueOf(minLogin));
 
-        mockStatic(IdentityUtil.class);
         when(IdentityUtil.getIdentityErrorMsg()).thenReturn(mockIdentityErrorMsgContext);
 
         doAnswer(new Answer<Object>() {
@@ -820,8 +823,9 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
         when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
         when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(dummyPassword);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL()).thenReturn(dummyRetryURL);
+        mockStatic(IdentityUtil.class);
+        when(IdentityUtil.getServerURL(ConfigurationFacade.getInstance().getAuthenticationEndpointURL(), false, false)).thenReturn(dummyLoginPage);
+        when(IdentityUtil.getServerURL(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL(), false, false)).thenReturn(dummyRetryURL);
         when(mockAuthnCtxt.isRetrying()).thenReturn(true);
 
         mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
@@ -829,7 +833,6 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(1);
         when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(1);
 
-        mockStatic(IdentityUtil.class);
         when(IdentityUtil.getIdentityErrorMsg()).thenReturn(mockIdentityErrorMsgContext);
 
         doAnswer(new Answer<Object>() {
@@ -873,8 +876,10 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
         when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
         when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(dummyPassword);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL()).thenReturn(dummyRetryURL);
+
+        mockStatic(IdentityUtil.class);
+        when(IdentityUtil.getServerURL(ConfigurationFacade.getInstance().getAuthenticationEndpointURL(), false, false)).thenReturn(dummyLoginPage);
+        when(IdentityUtil.getServerURL(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL(), false, false)).thenReturn(dummyRetryURL);
         when(mockAuthnCtxt.isRetrying()).thenReturn(true);
 
         mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
@@ -882,7 +887,6 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(1);
         when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(1);
 
-        mockStatic(IdentityUtil.class);
         when(IdentityUtil.getIdentityErrorMsg()).thenReturn(mockIdentityErrorMsgContext);
 
         doAnswer(new Answer<Object>() {
@@ -940,7 +944,8 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
         when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
+        mockStatic(IdentityUtil.class);
+        when(IdentityUtil.getServerURL(ConfigurationFacade.getInstance().getAuthenticationEndpointURL(), false, false)).thenReturn(dummyLoginPage);
         when(mockAuthnCtxt.isRetrying()).thenReturn(true);
 
         doAnswer(new Answer<Object>() {
