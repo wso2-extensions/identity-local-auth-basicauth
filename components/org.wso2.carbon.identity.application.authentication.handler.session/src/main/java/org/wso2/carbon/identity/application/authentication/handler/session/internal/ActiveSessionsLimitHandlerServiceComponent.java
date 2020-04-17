@@ -48,7 +48,8 @@ public class ActiveSessionsLimitHandlerServiceComponent {
 
         try {
             ActiveSessionsLimitHandler activeSessionsLimitHandler = new ActiveSessionsLimitHandler();
-            ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), activeSessionsLimitHandler, null);
+            ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), activeSessionsLimitHandler
+                    , null);
             if (log.isDebugEnabled()) {
                 log.debug("ActiveSessionsLimitHandler bundle is activated");
             }
@@ -100,7 +101,8 @@ public class ActiveSessionsLimitHandlerServiceComponent {
         if (log.isDebugEnabled()) {
             log.debug("UserSessionManagementService is set in the conditional authentication user functions bundle");
         }
-        ActiveSessionsLimitHandlerServiceHolder.getInstance().setUserSessionManagementService(userSessionManagementService);
+        ActiveSessionsLimitHandlerServiceHolder.getInstance()
+                .setUserSessionManagementService(userSessionManagementService);
     }
 
     protected void unsetUserSessionManagementService(UserSessionManagementService userSessionManagementService) {
