@@ -326,7 +326,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+        String username = FrameworkUtils.preprocessUsername(
+                request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
 
         Map<String, Object> authProperties = context.getProperties();
