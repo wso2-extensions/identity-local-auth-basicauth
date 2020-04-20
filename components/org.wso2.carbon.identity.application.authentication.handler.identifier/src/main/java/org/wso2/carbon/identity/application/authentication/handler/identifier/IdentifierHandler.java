@@ -298,7 +298,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+        String username = FrameworkUtils.preprocessUsername(
+                request.getParameter(IdentifierHandlerConstants.USER_NAME), context);
 
         Map<String, Object> authProperties = context.getProperties();
         if (authProperties == null) {
