@@ -157,7 +157,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 if (context.getProperty("InvalidEmailUsername") != null &&
                         (Boolean) context.getProperty("InvalidEmailUsername")) {
                     retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
-                            BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "invalid.emailusername.message";
+                            BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "emailusername.fail.message";
+                    context.setProperty("InvalidEmailUsername", false);
                 } else {
                     retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
                             BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "login.fail.message";
