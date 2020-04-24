@@ -21,6 +21,7 @@ import org.apache.commons.lang.StringUtils;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeTest;
@@ -36,6 +37,7 @@ import org.wso2.carbon.identity.application.authentication.framework.context.Aut
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
@@ -215,18 +217,23 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         mockUserStoreManager = mock(UserStoreManager.class);
 
         return new Object[][]{
-                {null, "Cannot find the user realm for the given tenant: " + dummyTenantId, null},
-                {mockRealm, "User authentication failed due to invalid credentials", dummyVal},
-                {mockRealm, "User authentication failed due to invalid credentials", null},
+                {null, "Cannot find the user realm for the given tenant: " + dummyTenantId, null, null},
+                {mockRealm, "User authentication failed due to invalid credentials", dummyVal, null},
+                {mockRealm, "User authentication failed due to invalid credentials", null, null},
+                {mockRealm, "Credential mismatch.", null, new HashMap<String, String>() {{
+                    put(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, "dummyUsername2");
+                }}},
         };
     }
 
     @Test(dataProvider = "realmProvider")
     public void processAuthenticationResponseTestCaseForException(Object realm, Object expected, Object
-            recapchaUserDomain) throws Exception {
+            recapchaUserDomain, Object authenticatorParams) throws Exception {
 
         mockAuthnCtxt = mock(AuthenticationContext.class);
         when(mockAuthnCtxt.getProperties()).thenReturn(new HashMap<String, Object>());
+        when(mockAuthnCtxt.getAuthenticatorParams("common"))
+                .thenReturn((Map<String, String>) authenticatorParams);
 
         mockRequest = mock(HttpServletRequest.class);
         when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
@@ -244,7 +251,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
 
         mockStatic(MultitenantUtils.class);
-        when(MultitenantUtils.getTenantAwareUsername(dummyUserName)).thenReturn(dummyPassword);
+        when(MultitenantUtils.getTenantAwareUsername(dummyUserName)).thenReturn(dummyUserName);
         when(mockUserStoreManager.authenticate(
                 MultitenantUtils.getTenantAwareUsername(dummyUserName), dummyPassword)).thenReturn(false);
 
@@ -252,6 +259,9 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         Map<String, Object> mockedThreadLocalMap = new HashMap<>();
         mockedThreadLocalMap.put("user-domain-recaptcha", recapchaUserDomain);
         IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
+
+        mockStatic(FrameworkUtils.class);
+        when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
 
         mockUser = mock(User.class);
         when(mockUser.getUserName()).thenReturn(dummyUserName);
@@ -393,6 +403,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         mockStatic(FrameworkUtils.class);
         when(MultitenantUtils.getTenantDomain(anyString())).thenReturn("carbon.super");
         when(FrameworkUtils.prependUserStoreDomainToName(anyString())).thenReturn(dummyUserName);
+        when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
     }
 
     @Test
@@ -410,6 +421,9 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         mockStatic(IdentityTenantUtil.class);
         when(IdentityTenantUtil.getTenantIdOfUser(dummyUserName)).thenReturn(-1234);
+
+        mockStatic(FrameworkUtils.class);
+        when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
 
         mockStatic(User.class);
         mockUser = mock(User.class);

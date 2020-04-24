@@ -155,10 +155,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             String retryParam = "";
 
             if (context.isRetrying()) {
-                if (context.getProperty("InvalidEmailUsername") != null &&
-                        (Boolean) context.getProperty("InvalidEmailUsername")) {
+                if (context.getProperty(FrameworkConstants.CONTEXT_PROP_INVALID_EMAIL_USERNAME) != null &&
+                        (Boolean) context.getProperty(FrameworkConstants.CONTEXT_PROP_INVALID_EMAIL_USERNAME)) {
                     retryParam = "&authFailure=true&authFailureMsg=emailusername.fail.message";
-                    context.setProperty("InvalidEmailUsername", false);
+                    context.setProperty(FrameworkConstants.CONTEXT_PROP_INVALID_EMAIL_USERNAME, false);
                 } else {
                     retryParam = "&authFailure=true&authFailureMsg=username.fail.message";
                 }
