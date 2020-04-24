@@ -155,7 +155,13 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             String retryParam = "";
 
             if (context.isRetrying()) {
-                retryParam = "&authFailure=true&authFailureMsg=username.fail.message";
+                if (context.getProperty(FrameworkConstants.CONTEXT_PROP_INVALID_EMAIL_USERNAME) != null &&
+                        (Boolean) context.getProperty(FrameworkConstants.CONTEXT_PROP_INVALID_EMAIL_USERNAME)) {
+                    retryParam = "&authFailure=true&authFailureMsg=emailusername.fail.message";
+                    context.setProperty(FrameworkConstants.CONTEXT_PROP_INVALID_EMAIL_USERNAME, false);
+                } else {
+                    retryParam = "&authFailure=true&authFailureMsg=username.fail.message";
+                }
             }
 
             if (context.getProperty("UserTenantDomainMismatch") != null &&
@@ -298,7 +304,9 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+        FrameworkUtils.validateUsername(request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
+        String username = FrameworkUtils.preprocessUsername(
+                request.getParameter(IdentifierHandlerConstants.USER_NAME), context);
 
         Map<String, Object> authProperties = context.getProperties();
         if (authProperties == null) {

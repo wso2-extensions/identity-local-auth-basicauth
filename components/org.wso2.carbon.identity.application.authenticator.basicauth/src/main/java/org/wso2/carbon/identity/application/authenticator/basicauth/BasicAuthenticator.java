@@ -154,8 +154,15 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             String retryParam = "";
 
             if (context.isRetrying()) {
-                retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
-                        BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "login.fail.message";
+                if (context.getProperty(FrameworkConstants.CONTEXT_PROP_INVALID_EMAIL_USERNAME) != null &&
+                        (Boolean) context.getProperty(FrameworkConstants.CONTEXT_PROP_INVALID_EMAIL_USERNAME)) {
+                    retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                            BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "emailusername.fail.message";
+                    context.setProperty(FrameworkConstants.CONTEXT_PROP_INVALID_EMAIL_USERNAME, false);
+                } else {
+                    retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                            BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "login.fail.message";
+                }
             }
 
             if (context.getProperty("UserTenantDomainMismatch") != null &&
@@ -326,7 +333,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+        FrameworkUtils.validateUsername(request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
+        String username = FrameworkUtils.preprocessUsername(
+                request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
 
         Map<String, Object> authProperties = context.getProperties();
