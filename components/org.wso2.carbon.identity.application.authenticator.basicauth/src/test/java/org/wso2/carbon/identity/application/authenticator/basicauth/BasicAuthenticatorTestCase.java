@@ -920,6 +920,70 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         }
     }
 
+    @Test
+    public void initiateAuthenticationRequestTestcaseWithPasswordResetErrorOmitted()
+            throws AuthenticationFailedException, IOException, URISyntaxException {
+
+        mockAuthnCtxt = mock(AuthenticationContext.class);
+        mockRequest = mock(HttpServletRequest.class);
+        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
+        mockResponse = mock(HttpServletResponse.class);
+        when(mockResponse.encodeRedirectURL(dummyRetryURL + "?" + dummyQueryParam)).thenReturn(dummyEncodedVal);
+
+        mockStatic(FileBasedConfigurationBuilder.class);
+        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
+
+        AuthenticatorConfig mockAuthenticatorConfig = mock(AuthenticatorConfig.class);
+        HashMap<String, String> paramMap = new HashMap<>();
+        paramMap.put("maskAdminForcedPasswordResetErrorCode", "true");
+        when(mockAuthenticatorConfig.getParameterMap()).thenReturn(paramMap);
+        when(FileBasedConfigurationBuilder.getInstance().getAuthenticatorBean(anyString()))
+                .thenReturn(mockAuthenticatorConfig);
+
+        when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
+        when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
+        when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(dummyPassword);
+        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
+        when(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL()).thenReturn(dummyRetryURL);
+        when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+
+        mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
+        when(mockIdentityErrorMsgContext.getErrorCode())
+                .thenReturn(IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE);
+        when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(1);
+        when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(1);
+
+        mockStatic(IdentityUtil.class);
+        when(IdentityUtil.getIdentityErrorMsg()).thenReturn(mockIdentityErrorMsgContext);
+
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }
+        }).when(mockResponse).sendRedirect(anyString());
+
+        basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+
+        validateResponseParam(BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM.replaceAll("&", ""), redirect,
+                "login.fail.message");
+    }
+
+    private void validateResponseParam(String param, String actual, String expected) throws URISyntaxException {
+
+        URI actualURI = new URI(URLDecoder.decode(actual));
+        String[] actualQueryParams = actualURI.getQuery().split("&");
+
+        for (String actualQueryParam : actualQueryParams) {
+            if (actualQueryParam.contains(param) && !actualQueryParam.contains(expected)) {
+                Assert.fail("Expected param: '" + actualQueryParam + "'  not available in response: " + actual);
+            }
+        }
+    }
+
     private void validateResponseParams(String expected, String actual) throws URISyntaxException {
 
         URI expectedURI = new URI(URLDecoder.decode(expected));

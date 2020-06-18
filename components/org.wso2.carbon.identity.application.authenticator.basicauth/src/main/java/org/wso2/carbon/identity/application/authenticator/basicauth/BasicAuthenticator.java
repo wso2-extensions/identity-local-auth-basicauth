@@ -104,6 +104,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
         String showAuthFailureReason = null;
         String maskUserNotExistsErrorCode = null;
+        String maskAdminForcedPasswordResetErrorCode = null;
         if (parameterMap != null) {
             showAuthFailureReason = parameterMap.get(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON);
             if (log.isDebugEnabled()) {
@@ -127,6 +128,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     errorParamsToOmit = errorParamsToOmit.replaceAll(" ", "");
                     omittingErrorParams = new ArrayList<>(Arrays.asList(errorParamsToOmit.split(",")));
                 }
+            }
+            maskAdminForcedPasswordResetErrorCode =
+                    parameterMap.get(BasicAuthenticatorConstants.CONF_MASK_ADMIN_FORCED_PASSWORD_RESET_ERROR_CODE);
+            if (log.isDebugEnabled()) {
+                log.debug(BasicAuthenticatorConstants.CONF_MASK_ADMIN_FORCED_PASSWORD_RESET_ERROR_CODE +
+                        " has been set as : " + maskAdminForcedPasswordResetErrorCode);
             }
         }
 
@@ -199,6 +206,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE)) {
                     retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
                             BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "password.reset.pending";
+                    if (Boolean.parseBoolean(maskAdminForcedPasswordResetErrorCode)) {
+
+                        errorCode = UserCoreConstants.ErrorCode.INVALID_CREDENTIAL;
+                        if (log.isDebugEnabled()) {
+                            log.debug("Masking password reset pending error code: " +
+                                    IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE +
+                                    " with error code: " + errorCode);
+                        }
+                        retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
+                    }
                     redirectURL = loginPage + ("?" + queryParams) +
                             BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter(
                             BasicAuthenticatorConstants.USER_NAME), BasicAuthenticatorConstants.UTF_8) +

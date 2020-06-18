@@ -38,6 +38,8 @@ public abstract class BasicAuthenticatorConstants {
     public static final String LOCKED_REASON = "&lockedReason=";
     public static final String CONF_SHOW_AUTH_FAILURE_REASON = "showAuthFailureReason";
     public static final String CONF_MASK_USER_NOT_EXISTS_ERROR_CODE = "maskUserNotExistsErrorCode";
+    public static final String CONF_MASK_ADMIN_FORCED_PASSWORD_RESET_ERROR_CODE =
+            "maskAdminForcedPasswordResetErrorCode";
     public static final String CONF_ERROR_PARAMS_TO_OMIT = "errorParamsToOmit";
     public static final String AUTH_FAILURE_PARAM = "&authFailure=";
     public static final String AUTH_FAILURE_MSG_PARAM = "&authFailureMsg=";
