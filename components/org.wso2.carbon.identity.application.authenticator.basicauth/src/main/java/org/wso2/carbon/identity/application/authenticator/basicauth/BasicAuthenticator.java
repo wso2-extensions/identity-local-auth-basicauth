@@ -209,7 +209,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     if (Boolean.parseBoolean(maskAdminForcedPasswordResetErrorCode)) {
 
                         errorCode = UserCoreConstants.ErrorCode.INVALID_CREDENTIAL;
-
                         if (log.isDebugEnabled()) {
                             log.debug("Masking password reset pending error code: " +
                                     IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE +
