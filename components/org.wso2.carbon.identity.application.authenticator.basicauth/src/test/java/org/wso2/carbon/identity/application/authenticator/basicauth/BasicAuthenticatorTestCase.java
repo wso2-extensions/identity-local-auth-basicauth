@@ -121,9 +121,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     private String dummyDomainName = "dummyDomain";
     private String dummyRetryURL = "DummyRetryUrl";
     private String dummyEncodedVal = "DummyRetryUrl?dummyQueryParams";
-    private String callback =
-            dummyLoginPage + "?" + dummyQueryParam + "&authenticators=BasicAuthenticator:LOCAL&reason=" +
-                    RecoveryScenarios.ADMIN_FORCED_PASSWORD_RESET_VIA_OTP.name();
+    private String callback = dummyLoginPage + "?" + dummyQueryParam + "&authenticators=BasicAuthenticator";
 
     private BasicAuthenticator basicAuthenticator;
 
@@ -754,7 +752,10 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                                 URLEncoder.encode(super_tenant, BasicAuthenticatorConstants.UTF_8) +
                                 BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(dummyPassword,
                                 BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
-                                URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8), "1", "1"
+                                URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.REASON_PARAM +
+                                URLEncoder.encode(RecoveryScenarios.ADMIN_FORCED_PASSWORD_RESET_VIA_OTP.name(),
+                                        BasicAuthenticatorConstants.UTF_8), "1", "1"
                 }
         };
     }
