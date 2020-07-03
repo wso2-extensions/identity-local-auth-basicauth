@@ -46,6 +46,7 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.governance.common.IdentityConnectorConfig;
+import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserStoreException;
@@ -227,11 +228,20 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE)) {
                     String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
                     String tenantDoamin = MultitenantUtils.getTenantDomain(username);
+
+                    String reason = BasicAuthenticatorConstants.REASON_PARAM +
+                            RecoveryScenarios.ADMIN_FORCED_PASSWORD_RESET_VIA_OTP.name();
+                    // Setting callback so that the user is prompted to login after a password reset.
+                    String callback = loginPage + ("?" + queryParams)
+                            + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
+                            BasicAuthenticatorConstants.LOCAL + reason;
+
                     redirectURL = (PASSWORD_RESET_ENDPOINT + queryParams) +
                             BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM + URLEncoder.encode(tenantDoamin, BasicAuthenticatorConstants.UTF_8) +
-                            BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(password, BasicAuthenticatorConstants.UTF_8);
-
+                            BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(password,
+                            BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
+                            URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8);
                 } else if ("true".equals(showAuthFailureReason)) {
 
                     if (Boolean.parseBoolean(maskUserNotExistsErrorCode) &&

@@ -50,6 +50,7 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
+import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.identity.testutil.powermock.PowerMockIdentityBaseTest;
 import org.wso2.carbon.user.api.RealmConfiguration;
 import org.wso2.carbon.user.api.UserRealm;
@@ -120,6 +121,9 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     private String dummyDomainName = "dummyDomain";
     private String dummyRetryURL = "DummyRetryUrl";
     private String dummyEncodedVal = "DummyRetryUrl?dummyQueryParams";
+    private String callback =
+            dummyLoginPage + "?" + dummyQueryParam + "&authenticators=BasicAuthenticator:LOCAL&reason=" +
+                    RecoveryScenarios.ADMIN_FORCED_PASSWORD_RESET_VIA_OTP.name();
 
     private BasicAuthenticator basicAuthenticator;
 
@@ -740,6 +744,17 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                         BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
                         BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM + URLEncoder.encode(super_tenant, BasicAuthenticatorConstants.UTF_8) +
                         BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(dummyPassword, BasicAuthenticatorConstants.UTF_8), "1", "1"
+                },
+                {
+                        IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE,
+                        "accountrecoveryendpoint/confirmrecovery.do?" + dummyQueryParam +
+                                BasicAuthenticatorConstants.USER_NAME_PARAM +
+                                URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
+                                URLEncoder.encode(super_tenant, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(dummyPassword,
+                                BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
+                                URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8), "1", "1"
                 }
         };
     }
@@ -986,8 +1001,8 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
     private void validateResponseParams(String expected, String actual) throws URISyntaxException {
 
-        URI expectedURI = new URI(URLDecoder.decode(expected));
-        String[] expectedQueryParams = expectedURI.getQuery().split("&");
+        URI expectedURI = new URI(expected);
+        String[] expectedQueryParams = expected.split("&");
 
         for (String expectedQueryParam : expectedQueryParams) {
             if (!actual.contains(expectedQueryParam)) {
