@@ -22,6 +22,10 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+import org.wso2.carbon.core.util.SignatureUtil;
 import org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
 import org.wso2.carbon.identity.application.authentication.framework.LocalApplicationAuthenticator;
@@ -38,16 +42,17 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.internal.Bas
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
-import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.captcha.connector.recaptcha.SSOLoginReCaptchaConfig;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
+import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.governance.common.IdentityConnectorConfig;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
+import org.wso2.carbon.identity.recovery.util.Utils;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserStoreException;
@@ -59,11 +64,13 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
-
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -77,6 +84,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String PASSWORD_PROPERTY = "PASSWORD_PROPERTY";
     private static final String PASSWORD_RESET_ENDPOINT = "accountrecoveryendpoint/confirmrecovery.do?";
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
+    private static final String RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN = "Recovery.AutoLogin.Enable";
+    private static final String USERNAME = "username";
+    private static final String SIGNATURE = "signature";
+    private static final String COOKIE_NAME = "ALOR";
     private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     private List<String> omittingErrorParams = null;
 
@@ -84,7 +95,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     public boolean canHandle(HttpServletRequest request) {
         String userName = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
-        return userName != null && password != null;
+        Cookie autoLoginCookie = getAutoLoginCookie(request.getCookies());
+
+        return (userName != null && password != null) || autoLoginCookie != null;
     }
 
     @Override
@@ -92,11 +105,181 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                            HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException, LogoutFailedException {
 
+        Cookie autoLoginCookie = getAutoLoginCookie(request.getCookies());
+
         if (context.isLogoutRequest()) {
             return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
-        } else {
-            return super.process(request, response, context);
+        } else if (autoLoginCookie != null && isEnableAutoLoginAfterPasswordReset(context)) {
+            try {
+                return executeAutoLoginFlow(request, response, context, autoLoginCookie);
+            } catch (AuthenticationFailedException e) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Error occurred while executing the Auto Login from Cookie flow: " + e);
+                }
+                removeAutoLoginCookie(response, autoLoginCookie);
+            }
         }
+        return super.process(request, response, context);
+    }
+
+    private AuthenticatorFlowStatus executeAutoLoginFlow(HttpServletRequest request, HttpServletResponse response,
+                                                         AuthenticationContext context, Cookie autoLoginCookie)
+            throws AuthenticationFailedException {
+
+        JSONObject cookieValueJSON = transformCookieValueToJSON(autoLoginCookie);
+        String usernameInCookie = (String) cookieValueJSON.get(USERNAME);
+        String usernameInHttpRequest = request.getParameter(USERNAME);
+
+        if (log.isDebugEnabled()) {
+            log.debug("Started executing Auto Login from Cookie flow.");
+        }
+
+        if (StringUtils.isNotEmpty(usernameInHttpRequest) && StringUtils.isNotEmpty(usernameInCookie) &&
+                !StringUtils.equalsIgnoreCase(usernameInHttpRequest, usernameInCookie)) {
+            throw new AuthenticationFailedException("Username in HTTP Request: " + usernameInHttpRequest
+                    + " and username in Cookie: " + usernameInCookie + " does not match.");
+        }
+
+        validateCookieSignature(usernameInCookie, cookieValueJSON);
+        usernameInCookie = FrameworkUtils.prependUserStoreDomainToName(usernameInCookie);
+
+        String tenantDomain = MultitenantUtils.getTenantDomain(usernameInCookie);
+        UserStoreManager userStoreManager = getUserStoreManager(usernameInCookie);
+
+        usernameInCookie = getMultiAttributeUsername(usernameInCookie, tenantDomain, userStoreManager);
+        context.setSubject(AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(usernameInCookie));
+        removeAutoLoginCookie(response, autoLoginCookie);
+        return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
+    }
+
+    private void removeAutoLoginCookie(HttpServletResponse response, Cookie autoLoginCookie) {
+
+        autoLoginCookie.setMaxAge(0);
+        autoLoginCookie.setValue("");
+        autoLoginCookie.setPath("/");
+        response.addCookie(autoLoginCookie);
+    }
+
+    private void validateCookieSignature(String username, JSONObject cookieValueJSON)
+            throws AuthenticationFailedException {
+
+        String signature = (String) cookieValueJSON.get(SIGNATURE);
+
+        if (StringUtils.isEmpty(username) || StringUtils.isEmpty(signature)) {
+            throw new AuthenticationFailedException("Either 'username' or 'signature' attribute is" +
+                    " missing in value of Auto Login Cookie in JSON: " + cookieValueJSON.toString());
+        }
+
+        try {
+            if (!SignatureUtil.validateSignature(username, Base64.getDecoder().decode(signature))) {
+                throw new AuthenticationFailedException("Signature verification failed in Auto Login Cookie " +
+                        "for user: " + username);
+            }
+        } catch (Exception e) {
+            throw new AuthenticationFailedException("Error occurred while validating the signature for the Auto " +
+                    "Login Cookie");
+        }
+    }
+
+    private JSONObject transformCookieValueToJSON(Cookie autoLoginCookie) throws AuthenticationFailedException {
+
+        JSONParser jsonParser = new JSONParser();
+        String decodedCookieValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
+        try {
+            return (JSONObject) jsonParser.parse(decodedCookieValue);
+        } catch (ParseException e) {
+            throw new AuthenticationFailedException("Error occurred while parsing the Auto Login Cookie JSON string " +
+                    "to a JSON object", e);
+        }
+    }
+
+    private boolean isEnableAutoLoginAfterPasswordReset(AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        try {
+            return Boolean.parseBoolean(
+                    Utils.getConnectorConfig(RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN,
+                            context.getTenantDomain()));
+        } catch (IdentityEventException e) {
+            throw new AuthenticationFailedException("Error occurred while resolving isEnableAutoLogin property.", e);
+        }
+    }
+
+    private String getMultiAttributeUsername(String username, String tenantDomain, UserStoreManager userStoreManager) {
+
+        if (getAuthenticatorConfig().getParameterMap() != null) {
+            String userNameUri = getAuthenticatorConfig().getParameterMap().get("UserNameAttributeClaimUri");
+            if (StringUtils.isNotBlank(userNameUri)) {
+                boolean multipleAttributeEnable;
+                String domain = UserCoreUtil.getDomainFromThreadLocal();
+                if (StringUtils.isNotBlank(domain)) {
+                    multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.getSecondaryUserStoreManager(domain)
+                            .getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
+                } else {
+                    multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.
+                            getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
+                }
+                if (multipleAttributeEnable) {
+                    try {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Searching for UserNameAttribute value for user " + username +
+                                    " for claim uri : " + userNameUri);
+                        }
+                        String usernameValue = userStoreManager.
+                                getUserClaimValue(MultitenantUtils.getTenantAwareUsername(username), userNameUri, null);
+                        if (StringUtils.isNotBlank(usernameValue)) {
+                            usernameValue = FrameworkUtils.prependUserStoreDomainToName(usernameValue);
+                            username = usernameValue + "@" + tenantDomain;
+                            if (log.isDebugEnabled()) {
+                                log.debug("UserNameAttribute is found for user. Value is :  " + username);
+                            }
+                        }
+                    } catch (UserStoreException e) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Error while retrieving UserNameAttribute for user : " + username, e);
+                        }
+                    }
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("MultipleAttribute is not enabled for user store domain : " + domain + " " +
+                                "Therefore UserNameAttribute is not retrieved");
+                    }
+                }
+            }
+        }
+        return username;
+    }
+
+    private UserStoreManager getUserStoreManager(String username) throws AuthenticationFailedException {
+
+        try {
+            int tenantId = IdentityTenantUtil.getTenantIdOfUser(username);
+            UserRealm userRealm = BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(tenantId);
+            if (userRealm != null) {
+                return (UserStoreManager) userRealm.getUserStoreManager();
+            } else {
+                throw new AuthenticationFailedException("Cannot find the user realm for the given tenant: " +
+                        tenantId, User.getUserFromUserName(username));
+            }
+        } catch (org.wso2.carbon.user.api.UserStoreException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("Can't find the UserStoreManager the user " + username, e);
+            }
+            throw new AuthenticationFailedException(e.getMessage(), e);
+        }
+    }
+
+    private Cookie getAutoLoginCookie(Cookie[] cookiesInRequest) {
+
+        Optional<Cookie> targetCookie = Optional.empty();
+        if (ArrayUtils.isNotEmpty(cookiesInRequest)) {
+            targetCookie = Arrays.stream(cookiesInRequest)
+                    .filter(cookie -> StringUtils.equalsIgnoreCase(COOKIE_NAME, cookie.getName()))
+                    .filter(cookie -> StringUtils.isNotEmpty(cookie.getValue()))
+                    .findFirst();
+        }
+
+        return targetCookie.orElse(null);
     }
 
     @Override
@@ -391,29 +574,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         authProperties.put(PASSWORD_PROPERTY, password);
 
         boolean isAuthenticated;
-        UserStoreManager userStoreManager;
+        UserStoreManager userStoreManager = getUserStoreManager(username);
         // Reset RE_CAPTCHA_USER_DOMAIN thread local variable before the authentication
         IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
         // Check the authentication
         try {
-            int tenantId = IdentityTenantUtil.getTenantIdOfUser(username);
-            UserRealm userRealm = BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(tenantId);
-            if (userRealm != null) {
-                userStoreManager = (UserStoreManager) userRealm.getUserStoreManager();
-                isAuthenticated = userStoreManager.authenticate(
-                        MultitenantUtils.getTenantAwareUsername(username), password);
-            } else {
-                throw new AuthenticationFailedException(
-                        ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getCode(),
-                        String.format(ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getMessage(),
-                                tenantId), User.getUserFromUserName(username));
-            }
-        } catch (IdentityRuntimeException e) {
-            if (log.isDebugEnabled()) {
-                throw new AuthenticationFailedException(ErrorMessages.INVALID_TENANT_ID_OF_THE_USER.getCode(),
-                        e.getMessage(), User.getUserFromUserName(username), e);
-            }
-            throw new AuthenticationFailedException(e.getMessage(), e);
+            isAuthenticated = userStoreManager.authenticate(
+                    MultitenantUtils.getTenantAwareUsername(username), password);
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
             if (log.isDebugEnabled()) {
                 log.debug("BasicAuthentication failed while trying to authenticate the user " + username, e);
@@ -442,50 +609,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         //TODO: user tenant domain has to be an attribute in the AuthenticationContext
         authProperties.put("user-tenant-domain", tenantDomain);
 
-        username = FrameworkUtils.prependUserStoreDomainToName(username);
-
-        if (getAuthenticatorConfig().getParameterMap() != null) {
-            String userNameUri = getAuthenticatorConfig().getParameterMap().get("UserNameAttributeClaimUri");
-            if (StringUtils.isNotBlank(userNameUri)) {
-                boolean multipleAttributeEnable;
-                String domain = UserCoreUtil.getDomainFromThreadLocal();
-                if (StringUtils.isNotBlank(domain)) {
-                    multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.getSecondaryUserStoreManager(domain)
-                            .getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
-                } else {
-                    multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.
-                            getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
-                }
-                if (multipleAttributeEnable) {
-                    try {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Searching for UserNameAttribute value for user " + username +
-                                    " for claim uri : " + userNameUri);
-                        }
-                        String usernameValue = userStoreManager.
-                                getUserClaimValue(MultitenantUtils.getTenantAwareUsername(username), userNameUri, null);
-                        if (StringUtils.isNotBlank(usernameValue)) {
-                            tenantDomain = MultitenantUtils.getTenantDomain(username);
-                            usernameValue = FrameworkUtils.prependUserStoreDomainToName(usernameValue);
-                            username = usernameValue + "@" + tenantDomain;
-                            if (log.isDebugEnabled()) {
-                                log.debug("UserNameAttribute is found for user. Value is :  " + username);
-                            }
-                        }
-                    } catch (UserStoreException e) {
-                        //ignore  but log in debug
-                        if (log.isDebugEnabled()) {
-                            log.debug("Error while retrieving UserNameAttribute for user : " + username, e);
-                        }
-                    }
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("MultipleAttribute is not enabled for user store domain : " + domain + " " +
-                                "Therefore UserNameAttribute is not retrieved");
-                    }
-                }
-            }
-        }
+        username = getMultiAttributeUsername(FrameworkUtils.prependUserStoreDomainToName(username), tenantDomain,
+                userStoreManager);
         context.setSubject(AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username));
         String rememberMe = request.getParameter("chkRemember");
 
