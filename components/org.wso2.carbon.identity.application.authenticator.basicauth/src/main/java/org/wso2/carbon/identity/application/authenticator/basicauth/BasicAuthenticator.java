@@ -35,6 +35,7 @@ import org.wso2.carbon.identity.application.authentication.framework.util.Framew
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
@@ -61,6 +62,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -339,8 +341,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             redirectURL += getCaptchaParams(context.getTenantDomain());
             response.sendRedirect(redirectURL);
         } catch (IOException e) {
-            throw new AuthenticationFailedException(e.getMessage(), User.getUserFromUserName(request.getParameter
-                    (BasicAuthenticatorConstants.USER_NAME)), e);
+            throw new AuthenticationFailedException(ErrorMessages.SYSTEM_ERROR_WHILE_AUTHENTICATING.getCode(),
+                    e.getMessage(),
+                    User.getUserFromUserName(request.getParameter(BasicAuthenticatorConstants.USER_NAME)), e);
         }
     }
 
@@ -369,7 +372,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     log.debug("Username set for identifier first login: " + usernameFromContext + " and username " +
                             "submitted from login page" + username + " does not match.");
                 }
-                throw new InvalidCredentialsException("Credential mismatch.");
+                throw new InvalidCredentialsException(ErrorMessages.CREDENTIAL_MISMATCH.getCode(),
+                        ErrorMessages.CREDENTIAL_MISMATCH.getMessage());
             }
         }
 
@@ -388,19 +392,24 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 isAuthenticated = userStoreManager.authenticate(
                         MultitenantUtils.getTenantAwareUsername(username), password);
             } else {
-                throw new AuthenticationFailedException("Cannot find the user realm for the given tenant: " +
-                        tenantId, User.getUserFromUserName(username));
+                throw new AuthenticationFailedException(
+                        ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getCode(),
+                        String.format(ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getMessage(),
+                                tenantId), User.getUserFromUserName(username));
             }
         } catch (IdentityRuntimeException e) {
             if (log.isDebugEnabled()) {
-                log.debug("BasicAuthentication failed while trying to get the tenant ID of the user " + username, e);
+                throw new AuthenticationFailedException(ErrorMessages.INVALID_TENANT_ID_OF_THE_USER.getCode(),
+                        e.getMessage(), User.getUserFromUserName(username), e);
             }
             throw new AuthenticationFailedException(e.getMessage(), e);
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
             if (log.isDebugEnabled()) {
                 log.debug("BasicAuthentication failed while trying to authenticate the user " + username, e);
             }
-            throw new AuthenticationFailedException(e.getMessage(), e);
+            throw new AuthenticationFailedException(
+                    ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
+                    User.getUserFromUserName(username), e);
         }
 
         if (!isAuthenticated) {
@@ -412,8 +421,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         username, IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN).toString());
             }
             IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
-            throw new InvalidCredentialsException("User authentication failed due to invalid credentials",
-                    User.getUserFromUserName(username));
+            throw new InvalidCredentialsException(ErrorMessages.INVALID_CREDENTIALS.getCode(),
+                    ErrorMessages.INVALID_CREDENTIALS.getMessage(), User.getUserFromUserName(username));
         }
 
 

@@ -37,6 +37,7 @@ import org.wso2.carbon.identity.application.authentication.framework.util.Framew
 import org.wso2.carbon.identity.application.authentication.handler.identifier.internal.IdentifierAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
@@ -52,6 +53,7 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -114,7 +116,9 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                         response.sendRedirect(identifierFirstConfirmationURL + ("?" + queryParams));
                                         return AuthenticatorFlowStatus.INCOMPLETE;
                                     } catch (IOException e) {
-                                        throw new AuthenticationFailedException(e.getMessage(), e);
+                                        throw new AuthenticationFailedException(
+                                                ErrorMessages.SYSTEM_ERROR_WHILE_AUTHENTICATING.getCode(),
+                                                e.getMessage(), e);
                                     }
                                 }
                             } else {
@@ -294,8 +298,9 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         IdentifierHandlerConstants.LOCAL + retryParam);
             }
         } catch (IOException e) {
-            throw new AuthenticationFailedException(e.getMessage(), User.getUserFromUserName(request.getParameter
-                    (IdentifierHandlerConstants.USER_NAME)), e);
+            throw new AuthenticationFailedException(ErrorMessages.SYSTEM_ERROR_WHILE_AUTHENTICATING.getCode(),
+                    e.getMessage(),
+                    User.getUserFromUserName(request.getParameter(IdentifierHandlerConstants.USER_NAME)), e);
         }
     }
 
@@ -330,20 +335,25 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         isUserExists = userStoreManager.isExistingUser(MultitenantUtils.getTenantAwareUsername
                                 (username));
                     } else {
-                        throw new AuthenticationFailedException("Cannot find the user realm for the given tenant: " +
-                                tenantId, User.getUserFromUserName(username));
+                        throw new AuthenticationFailedException(
+                                ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getCode(), String.format(
+                                ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getMessage(), tenantId),
+                                User.getUserFromUserName(username));
                     }
                 } catch (IdentityRuntimeException e) {
                     if (log.isDebugEnabled()) {
                         log.debug("IdentifierHandler failed while trying to get the tenant ID of the user " +
                                 username, e);
                     }
-                    throw new AuthenticationFailedException(e.getMessage(), User.getUserFromUserName(username), e);
+                    throw new AuthenticationFailedException(ErrorMessages.INVALID_TENANT_ID_OF_THE_USER.getCode(),
+                            e.getMessage(), User.getUserFromUserName(username), e);
                 } catch (org.wso2.carbon.user.api.UserStoreException e) {
                     if (log.isDebugEnabled()) {
                         log.debug("IdentifierHandler failed while trying to authenticate", e);
                     }
-                    throw new AuthenticationFailedException(e.getMessage(), User.getUserFromUserName(username), e);
+                    throw new AuthenticationFailedException(
+                            ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
+                            User.getUserFromUserName(username), e);
                 }
 
                 if (!isUserExists) {
@@ -356,7 +366,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                         .toString());
                     }
                     IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
-                    throw new InvalidCredentialsException("User  does not exists", User.getUserFromUserName(username));
+                    throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
+                            ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
                 }
 
                 String tenantDomain = MultitenantUtils.getTenantDomain(username);

@@ -34,8 +34,8 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.A
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
 import org.wso2.carbon.identity.application.authenticator.basicauth.jwt.cache.AuthJwtCache;
-import org.wso2.carbon.identity.application.authenticator.basicauth.jwt.internal
-        .JWTBasicAuthenticatorServiceComponentDataHolder;
+import org.wso2.carbon.identity.application.authenticator.basicauth.jwt.internal.JWTBasicAuthenticatorServiceComponentDataHolder;
+import org.wso2.carbon.identity.application.authenticator.basicauth.jwt.util.JwtBasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 
@@ -47,6 +47,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Map;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -96,10 +97,12 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
                     context.setRememberMe(true);
                 }
             } else {
-                throw new AuthenticationFailedException("User authentication failed : Invalid signature.");
+                throw new AuthenticationFailedException(ErrorMessages.INVALID_SIGNATURE.getCode(),
+                        ErrorMessages.INVALID_SIGNATURE.getMessage());
             }
         } else {
-            throw new AuthenticationFailedException("Invalid token");
+            throw new AuthenticationFailedException(ErrorMessages.INVALID_TOKEN.getCode(),
+                    ErrorMessages.INVALID_TOKEN.getMessage());
         }
     }
 
@@ -118,7 +121,7 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
         String errorMessage = "No Valid JWT Assertion was found.";
         SignedJWT signedJWT;
         if (StringUtils.isBlank(jwtAssertion)) {
-            throw new AuthenticationFailedException(errorMessage);
+            throw new AuthenticationFailedException(ErrorMessages.INVALID_TOKEN.getCode(), errorMessage);
         }
 
         try {
@@ -127,11 +130,12 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
             if (log.isDebugEnabled()) {
                 log.debug(e.getMessage());
             }
-            throw new AuthenticationFailedException("Error while parsing the JWT.");
+            throw new AuthenticationFailedException(ErrorMessages.INVALID_TOKEN.getCode(),
+                    "Error while parsing the JWT.");
         }
 
         if (signedJWT == null) {
-            throw new AuthenticationFailedException(errorMessage);
+            throw new AuthenticationFailedException(ErrorMessages.INVALID_TOKEN.getCode(), errorMessage);
         }
         return signedJWT;
     }
@@ -139,7 +143,8 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
     private JWTClaimsSet getClaimSet(SignedJWT signedJWT) throws AuthenticationFailedException {
 
         if (signedJWT == null) {
-            throw new AuthenticationFailedException("No Valid JWT Assertion was found.");
+            throw new AuthenticationFailedException(ErrorMessages.INVALID_TOKEN.getCode(),
+                    "No Valid JWT Assertion was found.");
         }
 
         JWTClaimsSet claimsSet;
@@ -150,11 +155,12 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
                 throw new AuthenticationFailedException("Claim values are empty in the given JWT.");
             }
         } catch (ParseException e) {
-            String errorMsg = "Error when trying to retrieve claimsSet from the JWT.";
+            String errorMsg = ErrorMessages.RETRIEVING_CLAIMS_SET_FROM_JWT_FAILED.getMessage();
             if (log.isDebugEnabled()) {
                 log.debug(errorMsg);
             }
-            throw new AuthenticationFailedException(errorMsg);
+            throw new AuthenticationFailedException(ErrorMessages.RETRIEVING_CLAIMS_SET_FROM_JWT_FAILED.getCode(),
+                    errorMsg);
         }
         return claimsSet;
     }
@@ -163,11 +169,13 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
 
         if (StringUtils.isEmpty(claimsSet.getSubject()) || StringUtils.isEmpty(claimsSet.getIssuer()) || StringUtils
                 .isEmpty(claimsSet.getJWTID()) || claimsSet.getExpirationTime() == null) {
-            throw new AuthenticationFailedException("Invalid token : Required fields are not present in JWT.");
+            throw new AuthenticationFailedException(ErrorMessages.MISSING_REQUIRED_FIELDS_IN_JWT.getCode(),
+                    ErrorMessages.MISSING_REQUIRED_FIELDS_IN_JWT.getMessage());
         }
 
         if (AuthJwtCache.getInstance().getValueFromCache(claimsSet.getJWTID()) != null) {
-            throw new AuthenticationFailedException("Invalid token : Possible replay attack.");
+            throw new AuthenticationFailedException(ErrorMessages.INVALID_TOKEN_POSSIBLE_REPLAY_ATTACK.getCode(),
+                    ErrorMessages.INVALID_TOKEN_POSSIBLE_REPLAY_ATTACK.getMessage());
         }
 
         return checkExpirationTime(claimsSet.getExpirationTime().getTime(), System.currentTimeMillis(),
@@ -187,8 +195,10 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
             tenantId = JWTBasicAuthenticatorServiceComponentDataHolder.getInstance().getRealmService()
                     .getTenantManager().getTenantId(tenantDomain);
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
-            String errorMsg = "Error while getting the tenant ID from the tenant domain : " + tenantDomain;
-            throw new AuthenticationFailedException(errorMsg);
+            String errorMsg = String.format(ErrorMessages.GETTING_THE_TENANT_ID_FROM_TENANT_DOMAIN_FAILED.getMessage(),
+                    tenantDomain);
+            throw new AuthenticationFailedException(
+                    ErrorMessages.GETTING_THE_TENANT_ID_FROM_TENANT_DOMAIN_FAILED.getCode(), errorMsg);
         }
 
         // get an instance of the corresponding Key Store Manager instance
@@ -203,18 +213,23 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
                 return keyStoreManager.getDefaultPrimaryCertificate();
             }
         } catch (KeyStoreException e) {
-            String errorMsg = "Error instantiating an X509Certificate object for the primary certificate  in tenant: " +
-                    "" + tenantDomain;
+            String errorMsg = String.format(
+                    "Error instantiating an X509Certificate object for the primary certificate in tenant: %s",
+                    tenantDomain);
             if (log.isDebugEnabled()) {
                 log.debug(errorMsg, e);
             }
-            throw new AuthenticationFailedException(errorMsg);
+            throw new AuthenticationFailedException(
+                    ErrorMessages.KEY_STORE_EXCEPTION_WHILE_INSTANTIATING_X_509_CERTIFICATE_OBJECT.getCode(), errorMsg);
         } catch (Exception e) {
-            String errorMsg = "Unable to load key store manager for the tenant domain: " + tenantDomain;
+            String errorMsg =
+                    String.format(ErrorMessages.UNABLE_TO_LOAD_KEY_STORE_MANAGER_FOR_TENANT_DOMAIN.getMessage(),
+                            tenantDomain);
             if (log.isDebugEnabled()) {
                 log.debug(errorMsg, e);
             }
-            throw new AuthenticationFailedException(errorMsg);
+            throw new AuthenticationFailedException(
+                    ErrorMessages.UNABLE_TO_LOAD_KEY_STORE_MANAGER_FOR_TENANT_DOMAIN.getCode(), errorMsg);
         }
     }
 
@@ -230,14 +245,16 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
 
         JWSHeader header = signedJWT.getHeader();
         if (x509Certificate == null) {
-            throw new AuthenticationFailedException("Unable to locate certificate for JWT " + header.toString());
+            throw new AuthenticationFailedException(ErrorMessages.UNABLE_TO_LOCATE_CERTIFICATE_FOR_JWT.getCode(),
+                    String.format(ErrorMessages.UNABLE_TO_LOCATE_CERTIFICATE_FOR_JWT.getMessage(), header.toString()));
         }
 
         JWSVerifier verifier;
         String alg = header.getAlgorithm().getName();
         if (StringUtils.isEmpty(alg)) {
-            throw new AuthenticationFailedException("Signature validation failed. No algorithm is found in JWT " +
-                    "header.");
+            throw new AuthenticationFailedException(
+                    ErrorMessages.SIGNATURE_VALIDATION_ALGORITHM_NOT_FOUND_IN_JWT_HEADER.getCode(),
+                    ErrorMessages.SIGNATURE_VALIDATION_ALGORITHM_NOT_FOUND_IN_JWT_HEADER.getMessage());
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("Signature Algorithm: " + alg + " found in JWT Header.");
@@ -248,22 +265,25 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
                 if (publicKey instanceof RSAPublicKey) {
                     verifier = new RSASSAVerifier((RSAPublicKey) publicKey);
                 } else {
-                    throw new AuthenticationFailedException("Signature validation failed. Public key is not an RSA "
-                            + "public key.");
+                    throw new AuthenticationFailedException(
+                            ErrorMessages.SIGNATURE_VALIDATION_PUBLIC_KEY_NOT_AN_RSA_PUBLIC_KEY.getCode(),
+                            ErrorMessages.SIGNATURE_VALIDATION_PUBLIC_KEY_NOT_AN_RSA_PUBLIC_KEY.getMessage());
                 }
             } else {
-                throw new AuthenticationFailedException("Signature Algorithm not supported : " + alg);
+                throw new AuthenticationFailedException(ErrorMessages.SIGNATURE_ALGORITHM_NOT_SUPPORTED.getCode(),
+                        String.format(ErrorMessages.SIGNATURE_ALGORITHM_NOT_SUPPORTED.getMessage(), alg));
             }
         }
 
         try {
             return signedJWT.verify(verifier);
         } catch (JOSEException e) {
-            String errorMsg = "Signature verification failed for the JWT.";
+            String errorMsg = ErrorMessages.SIGNATURE_VERIFICATION_FAILED_FOR_JWT.getMessage();
             if (log.isDebugEnabled()) {
                 log.debug(errorMsg, e);
             }
-            throw new AuthenticationFailedException(errorMsg);
+            throw new AuthenticationFailedException(ErrorMessages.SIGNATURE_VERIFICATION_FAILED_FOR_JWT.getCode(),
+                    errorMsg);
         }
     }
 
@@ -301,8 +321,8 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
                         "TimeStamp Skew(ms) : " + timeStampSkewMillis + ", Current Time(ms) : " + currentTimeInMillis
                         + ". JWT Rejected and validation terminated");
             }
-
-            throw new AuthenticationFailedException("Invalid token : Token is expired.");
+            throw new AuthenticationFailedException(ErrorMessages.TOKEN_EXPIRED.getCode(),
+                    ErrorMessages.TOKEN_EXPIRED.getMessage());
         }
         return true;
     }
