@@ -167,6 +167,11 @@
                 <version>${identity.governance.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.wso2.carbon.identity.governance</groupId>
+                <artifactId>org.wso2.carbon.identity.recovery</artifactId>
+                <version>${identity.governance.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.jacoco</groupId>
                 <artifactId>org.jacoco.agent</artifactId>
                 <classifier>runtime</classifier>

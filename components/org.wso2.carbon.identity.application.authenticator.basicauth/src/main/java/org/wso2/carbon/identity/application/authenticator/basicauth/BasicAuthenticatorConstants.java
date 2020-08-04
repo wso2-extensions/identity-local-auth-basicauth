@@ -46,6 +46,8 @@ public abstract class BasicAuthenticatorConstants {
     public static final String RECAPTCHA_PARAM = "&reCaptcha=";
     public static final String RECAPTCHA_KEY_PARAM = "&reCaptchaKey=";
     public static final String RECAPTCHA_API_PARAM = "&reCaptchaAPI=";
+    public static final String CALLBACK_PARAM = "&callback=";
+    public static final String REASON_PARAM = "&reason=";
 
     private BasicAuthenticatorConstants() {
     }
