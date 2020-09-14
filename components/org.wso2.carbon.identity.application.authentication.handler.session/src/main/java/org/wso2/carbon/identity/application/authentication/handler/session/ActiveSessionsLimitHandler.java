@@ -34,6 +34,7 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.s
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.UserSession;
 import org.wso2.carbon.identity.application.authentication.framework.store.UserSessionStore;
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserIdRetrievalException;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionRetrievalException;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionTerminationException;
@@ -245,10 +246,9 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         String userId = null;
         try {
             if (authenticatedUser != null) {
-                userId = UserSessionStore.getInstance()
-                        .getUserId(authenticatedUser.getUserName(),
-                                IdentityTenantUtil.getTenantIdOfUser(authenticatedUser.getUserName()),
-                                authenticatedUser.getUserStoreDomain());
+                userId = FrameworkUtils.resolveUserIdFromUsername(
+                        IdentityTenantUtil.getTenantIdOfUser(authenticatedUser.getUserName()),
+                        authenticatedUser.getUserStoreDomain(), authenticatedUser.getUserName());
             }
         } catch (UserSessionException e) {
             throw new UserIdRetrievalException("Error occurred while retrieving the userId for user: "
