@@ -49,6 +49,8 @@ public abstract class BasicAuthenticatorConstants {
     public static final String CALLBACK_PARAM = "&callback=";
     public static final String REASON_PARAM = "&reason=";
 
+    public static final String AUTHENTICATION_POLICY_CONFIG = "AuthenticationPolicy.CheckAccountExist";
+
     private BasicAuthenticatorConstants() {
     }
 }

@@ -91,6 +91,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
 
 /**
  * Unit test cases for the Basic Authenticator.
@@ -428,6 +429,17 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                 return null;
             }
         }).when(mockAuthnCtxt).setRememberMe(anyBoolean());
+
+        Map<String, Object> mockedThreadLocalMap = new HashMap<>();
+        mockedThreadLocalMap.put("userExistThreadLocalProperty", false);
+        IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
+
+        when(IdentityUtil.getProperty(BasicAuthenticatorConstants.AUTHENTICATION_POLICY_CONFIG)).
+                thenReturn("true");
+        IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants
+                .ErrorCode.USER_DOES_NOT_EXIST);
+        ThreadLocal<IdentityErrorMsgContext> IdentityError = new ThreadLocal();
+        IdentityError.set(customErrorMessageContext);
 
         basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
 
