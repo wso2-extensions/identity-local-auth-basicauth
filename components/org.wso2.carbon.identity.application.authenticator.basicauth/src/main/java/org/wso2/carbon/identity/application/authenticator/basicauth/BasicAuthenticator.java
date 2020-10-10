@@ -91,6 +91,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     private List<String> omittingErrorParams = null;
 
+    /**
+     * USER_EXIST_THREAD_LOCAL_PROPERTY is used to maintain the state of user existence
+     * which has used in org.wso2.carbon.identity.governance.listener.IdentityMgtEventListener.
+     */
+    private static String USER_EXIST_THREAD_LOCAL_PROPERTY = "userExistThreadLocalProperty";
+
     @Override
     public boolean canHandle(HttpServletRequest request) {
         String userName = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
@@ -449,8 +455,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
         // Check the authentication
         try {
+            setUserExistThreadLocal();
             isAuthenticated = userStoreManager.authenticate(
                     MultitenantUtils.getTenantAwareUsername(username), password);
+            if (isAuthPolicyAccountExistCheck()) {
+                checkUserExistence();
+            }
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
             if (log.isDebugEnabled()) {
                 log.debug("BasicAuthentication failed while trying to authenticate the user " + username, e);
@@ -458,6 +468,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             throw new AuthenticationFailedException(
                     ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
                     User.getUserFromUserName(username), e);
+        } finally {
+            clearUserExistThreadLocal();
         }
 
         if (!isAuthenticated) {
@@ -472,7 +484,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             throw new InvalidCredentialsException(ErrorMessages.INVALID_CREDENTIALS.getCode(),
                     ErrorMessages.INVALID_CREDENTIALS.getMessage(), User.getUserFromUserName(username));
         }
-
 
         String tenantDomain = MultitenantUtils.getTenantDomain(username);
 
@@ -733,5 +744,41 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
 
         return targetCookie.orElse(null);
+    }
+
+    private boolean isAuthPolicyAccountExistCheck() {
+
+        return Boolean.parseBoolean(IdentityUtil.getProperty(BasicAuthenticatorConstants.AUTHENTICATION_POLICY_CONFIG));
+    }
+
+    /**
+     * Check user existence and set error code to IdentityErrorMsgContext if user does not exist.
+     */
+    private void checkUserExistence() {
+
+        if (!isUserExist()) {
+            IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants
+                    .ErrorCode.USER_DOES_NOT_EXIST);
+            IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
+        }
+    }
+
+    private Boolean isUserExist() {
+
+        return IdentityUtil.threadLocalProperties.get().get(USER_EXIST_THREAD_LOCAL_PROPERTY) != null &&
+                (Boolean) IdentityUtil.threadLocalProperties.get().get(USER_EXIST_THREAD_LOCAL_PROPERTY);
+    }
+
+    private void setUserExistThreadLocal() {
+
+        IdentityUtil.threadLocalProperties.get().put(USER_EXIST_THREAD_LOCAL_PROPERTY, false);
+        if (log.isDebugEnabled()) {
+            log.debug(USER_EXIST_THREAD_LOCAL_PROPERTY + " is added as false to thread local.");
+        }
+    }
+
+    private void clearUserExistThreadLocal() {
+
+        IdentityUtil.threadLocalProperties.get().remove(USER_EXIST_THREAD_LOCAL_PROPERTY);
     }
 }
