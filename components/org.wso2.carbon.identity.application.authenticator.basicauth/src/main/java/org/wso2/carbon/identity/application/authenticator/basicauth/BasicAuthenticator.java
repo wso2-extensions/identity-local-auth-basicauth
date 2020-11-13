@@ -85,6 +85,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String PASSWORD_RESET_ENDPOINT = "accountrecoveryendpoint/confirmrecovery.do?";
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
     private static final String RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN = "Recovery.AutoLogin.Enable";
+    private static final String RESEND_CONFIRMATION_RECAPTCHA_ENABLE = "SelfRegistration.ResendConfirmationReCaptcha";
     private static final String USERNAME = "username";
     private static final String SIGNATURE = "signature";
     private static final String COOKIE_NAME = "ALOR";
@@ -552,39 +553,60 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
      */
     private String getCaptchaParams(String tenantDomain) {
 
-        IdentityConnectorConfig connector = new SSOLoginReCaptchaConfig();
-        String defaultCaptchaConfigName = ((SSOLoginReCaptchaConfig) connector).getName() +
+        SSOLoginReCaptchaConfig connector = new SSOLoginReCaptchaConfig();
+        String defaultCaptchaConfigName = connector.getName() +
                 CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE_ALWAYS;
-        Property[] connectorConfigs;
+
         String captchaParams = "";
+        Property[] connectorConfigs;
+        Properties captchaConfigs = getCaptchaConfigs();
 
-        try {
-            connectorConfigs = BasicAuthenticatorDataHolder.getInstance().getIdentityGovernanceService()
-                    .getConfiguration(new String[]{defaultCaptchaConfigName}, tenantDomain);
-        if (!ArrayUtils.isEmpty(connectorConfigs) && Boolean.valueOf(connectorConfigs[0].getValue())) {
-                Properties captchaConfigs = getCaptchaConfigs();
+        if (captchaConfigs != null && !captchaConfigs.isEmpty() &&
+                Boolean.parseBoolean(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
 
-                if (captchaConfigs != null && !captchaConfigs.isEmpty() &&
-                        Boolean.valueOf(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
+            try {
+                connectorConfigs = BasicAuthenticatorDataHolder.getInstance().getIdentityGovernanceService()
+                        .getConfiguration(new String[]{defaultCaptchaConfigName, RESEND_CONFIRMATION_RECAPTCHA_ENABLE},
+                                tenantDomain);
 
-                    captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true" +
-                            BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + captchaConfigs.getProperty
+                for (Property connectorConfig : connectorConfigs) {
+                    if (defaultCaptchaConfigName.equals(connectorConfig.getName())) {
+                        // SSO Login Captcha Config
+                        if (Boolean.parseBoolean(connectorConfig.getValue())) {
+                            captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Enforcing recaptcha for SSO Login is not enabled.");
+                            }
+                        }
+                    } else if ((RESEND_CONFIRMATION_RECAPTCHA_ENABLE).equals(connectorConfig.getName())) {
+                        // Resend Confirmation Captcha Config
+                        if (Boolean.parseBoolean(connectorConfig.getValue())) {
+                            captchaParams += BasicAuthenticatorConstants.RECAPTCHA_RESEND_CONFIRMATION_PARAM + "true";
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Enforcing recaptcha for resend confirmation is not enabled.");
+                            }
+                        }
+                    }
+                }
+
+                // Add captcha configs
+                if (!captchaParams.isEmpty()) {
+                    captchaParams += BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + captchaConfigs.getProperty
                             (CaptchaConstants.RE_CAPTCHA_SITE_KEY) +
                             BasicAuthenticatorConstants.RECAPTCHA_API_PARAM + captchaConfigs.getProperty
                             (CaptchaConstants.RE_CAPTCHA_API_URL);
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Recaptcha is not enabled.");
-                    }
                 }
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("Enforcing recaptcha always for the basic authentication is not enabled.");
-                }
+
+            } catch (IdentityGovernanceException e) {
+                log.error("Error occurred while verifying the captcha configs. Proceeding the authentication request " +
+                        "without enabling recaptcha.", e);
             }
-        } catch (IdentityGovernanceException e) {
-            log.error("Error occurred while verifying the captcha configs. Proceeding the authentication request " +
-                    "without enabling recaptcha.", e);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Recaptcha is not enabled.");
+            }
         }
 
         return captchaParams;

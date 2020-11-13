@@ -128,6 +128,9 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     private String dummyEncodedVal = "DummyRetryUrl?dummyQueryParams";
     private String callback = dummyLoginPage + "?" + dummyQueryParam + "&authenticators=BasicAuthenticator";
 
+    private String defaultCaptchaConfigName = "sso.login.recaptcha" +
+            CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE_ALWAYS;
+
     private BasicAuthenticator basicAuthenticator;
 
     @BeforeTest
@@ -697,6 +700,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         Property[] captchaProperties = new Property[1];
         Property captchaEnabled = new Property();
+        captchaEnabled.setName(defaultCaptchaConfigName);
         captchaEnabled.setValue("true");
         captchaProperties[0] = captchaEnabled;
 
