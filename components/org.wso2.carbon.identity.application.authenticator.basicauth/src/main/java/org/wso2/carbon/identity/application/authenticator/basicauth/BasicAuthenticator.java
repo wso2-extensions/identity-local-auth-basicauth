@@ -89,6 +89,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String USERNAME = "username";
     private static final String SIGNATURE = "signature";
     private static final String COOKIE_NAME = "ALOR";
+    public static final String SELF_REGISTRATION_AUTO_LOGIN = "SelfRegistration.AutoLogin.Enable";
     private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     private List<String> omittingErrorParams = null;
 
@@ -116,7 +117,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         if (context.isLogoutRequest()) {
             return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
-        } else if (autoLoginCookie != null && isEnableAutoLoginAfterPasswordReset(context)) {
+        } else if (autoLoginCookie != null &&
+                (isEnableAutoLoginAfterPasswordReset(context) || isEnableSelfRegistrationAutoLogin(context))) {
             try {
                 return executeAutoLoginFlow(request, response, context, autoLoginCookie);
             } catch (AuthenticationFailedException e) {
@@ -688,6 +690,17 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             context.getTenantDomain()));
         } catch (IdentityEventException e) {
             throw new AuthenticationFailedException("Error occurred while resolving isEnableAutoLogin property.", e);
+        }
+    }
+
+    boolean isEnableSelfRegistrationAutoLogin(AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        try {
+            return Boolean.parseBoolean(Utils.getConnectorConfig(SELF_REGISTRATION_AUTO_LOGIN,
+                            context.getTenantDomain()));
+        } catch (IdentityEventException e) {
+            throw new AuthenticationFailedException("Error occurred while resolving isEnableSelfRegistrationAutoLogin property.", e);
         }
     }
 

@@ -49,6 +49,7 @@ import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
+import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
@@ -260,6 +261,16 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(mockAuthnCtxt.isLogoutRequest()).thenReturn(false);
         assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt),
                 AuthenticatorFlowStatus.INCOMPLETE);
+    }
+
+    @Test
+    public void isEnableSelfRegistrationAutoLoginTest() throws AuthenticationFailedException, IdentityEventException {
+
+        mockAuthnCtxt = mock(AuthenticationContext.class);
+        mockStatic(Utils.class);
+        when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", dummyDomainName)).thenReturn("true");
+        when(mockAuthnCtxt.getTenantDomain()).thenReturn(dummyDomainName);
+        assertEquals(basicAuthenticator.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt), true);
     }
 
     @Test
