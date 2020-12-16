@@ -309,6 +309,19 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
+        Map<String, String> runtimeParams = getRuntimeParams(context);
+        if (runtimeParams != null) {
+            String skipPreProcessUsername = runtimeParams.get("skipIdentifierPreProcess");
+            if (Boolean.valueOf(skipPreProcessUsername)) {
+                String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+                persistUsername(context, username);
+                AuthenticatedUser user = new AuthenticatedUser();
+                user.setUserName(username);
+                context.setSubject(user);
+                return;
+            }
+        }
+
         FrameworkUtils.validateUsername(request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
         String username = FrameworkUtils.preprocessUsername(
                 request.getParameter(IdentifierHandlerConstants.USER_NAME), context);
@@ -379,13 +392,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         username = FrameworkUtils.prependUserStoreDomainToName(username);
         authProperties.put("username", username);
 
-        Map<String, String> identifierParams = new HashMap<>();
-        identifierParams.put(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, username);
-        Map<String, Map<String, String>> contextParams =  new HashMap<>();
-        contextParams.put(FrameworkConstants.JSAttributes.JS_COMMON_OPTIONS, identifierParams);
-        //Identifier first is the first authenticator.
-        context.getPreviousAuthenticatedIdPs().clear();
-        context.addAuthenticatorParams(contextParams);
+        persistUsername(context, username);
         context.setSubject(AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username));
     }
 
@@ -407,5 +414,17 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     @Override
     public String getName() {
         return IdentifierHandlerConstants.HANDLER_NAME;
+    }
+
+
+    private void persistUsername(AuthenticationContext context, String username) {
+
+        Map<String, String> identifierParams = new HashMap<>();
+        identifierParams.put(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, username);
+        Map<String, Map<String, String>> contextParams = new HashMap<>();
+        contextParams.put(FrameworkConstants.JSAttributes.JS_COMMON_OPTIONS, identifierParams);
+        //Identifier first is the first authenticator.
+        context.getPreviousAuthenticatedIdPs().clear();
+        context.addAuthenticatorParams(contextParams);
     }
 }

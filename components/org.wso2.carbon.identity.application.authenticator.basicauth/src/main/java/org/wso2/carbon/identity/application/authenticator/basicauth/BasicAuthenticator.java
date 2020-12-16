@@ -438,7 +438,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
             String usernameFromContext = runtimeParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME);
-            if (usernameFromContext != null && !usernameFromContext.equals(username)) {
+            if (usernameFromContext != null &&
+                    !usernameFromContext.equals(request.getParameter(BasicAuthenticatorConstants.USER_NAME))) {
                 if (log.isDebugEnabled()) {
                     log.debug("Username set for identifier first login: " + usernameFromContext + " and username " +
                             "submitted from login page" + username + " does not match.");
