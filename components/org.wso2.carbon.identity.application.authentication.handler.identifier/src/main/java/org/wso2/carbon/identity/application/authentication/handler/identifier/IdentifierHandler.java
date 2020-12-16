@@ -68,6 +68,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     private static final long serialVersionUID = 1819664539416029785L;
     private static final Log log = LogFactory.getLog(IdentifierHandler.class);
     private static final String PROMPT_CONFIRMATION_WINDOW = "promptConfirmationWindow";
+    private static final String SKIP_IDENTIFIER_PRE_PROCESS = "skipIdentifierPreProcess";
     private static final String CONTINUE = "continue";
     private static final String RESET = "reset";
     private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
@@ -311,7 +312,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
-            String skipPreProcessUsername = runtimeParams.get("skipIdentifierPreProcess");
+            String skipPreProcessUsername = runtimeParams.get(SKIP_IDENTIFIER_PRE_PROCESS);
             if (Boolean.valueOf(skipPreProcessUsername)) {
                 String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
                 persistUsername(context, username);
