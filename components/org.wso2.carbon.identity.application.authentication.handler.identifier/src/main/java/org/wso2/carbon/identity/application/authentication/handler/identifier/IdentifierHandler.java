@@ -58,6 +58,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.IDENTIFIER_CONSENT;
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.RESTART_FLOW;
 
 /**
  * Identifier based handler.
@@ -78,7 +79,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         String userName = request.getParameter(IdentifierHandlerConstants.USER_NAME);
         String identifierConsent = request.getParameter(IDENTIFIER_CONSENT);
-        return userName != null || identifierConsent != null;
+        String restart = request.getParameter(RESTART_FLOW);
+        return userName != null || identifierConsent != null || restart != null;
     }
 
     @Override
@@ -131,6 +133,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 }
             } else if (request.getParameter(IDENTIFIER_CONSENT) != null) {
                 //submit from the confirmation page.
+                initiateAuthenticationRequest(request, response, context);
+                return AuthenticatorFlowStatus.INCOMPLETE;
+            } else if (request.getParameter(RESTART_FLOW) != null) {
+                // Restart the flow from identifier first.
                 initiateAuthenticationRequest(request, response, context);
                 return AuthenticatorFlowStatus.INCOMPLETE;
             }
