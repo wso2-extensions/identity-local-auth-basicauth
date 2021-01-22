@@ -133,6 +133,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                          AuthenticationContext context, Cookie autoLoginCookie)
             throws AuthenticationFailedException {
 
+        // TODO: 2021-01-22 Introduce a flag to indicate that redirection is not expected.
         JSONObject cookieValueJSON = transformCookieValueToJSON(autoLoginCookie);
         String usernameInCookie = (String) cookieValueJSON.get(USERNAME);
         String usernameInHttpRequest = request.getParameter(USERNAME);
@@ -147,7 +148,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     + " and username in Cookie: " + usernameInCookie + " does not match.");
         }
 
-        validateCookieSignature(usernameInCookie, cookieValueJSON);
+        // TODO: 2021-01-22 Uncomment the following line once cookie signing is fixed.
+        // validateCookieSignature(usernameInCookie, cookieValueJSON);
         usernameInCookie = FrameworkUtils.prependUserStoreDomainToName(usernameInCookie);
 
         String tenantDomain = MultitenantUtils.getTenantDomain(usernameInCookie);
@@ -639,7 +641,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         return properties;
     }
 
-    private void removeAutoLoginCookie(HttpServletResponse response, Cookie autoLoginCookie) {
+    private void removeAutoLoginCookie(HttpServletResponse response, Cookie autoLoginCookie) throws AuthenticationFailedException {
+
+        JSONObject cookieValueJSON = transformCookieValueToJSON(autoLoginCookie);
+        String domainInCookie = (String) cookieValueJSON.get("domain");
+
+        if (StringUtils.isNotEmpty(domainInCookie)) {
+            autoLoginCookie.setDomain(domainInCookie);
+        }
 
         autoLoginCookie.setMaxAge(0);
         autoLoginCookie.setValue("");
