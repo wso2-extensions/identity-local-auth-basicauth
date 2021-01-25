@@ -39,6 +39,7 @@ import org.wso2.carbon.identity.application.authentication.framework.util.Framew
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
@@ -50,7 +51,6 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
-import org.wso2.carbon.identity.governance.common.IdentityConnectorConfig;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.identity.recovery.util.Utils;
 import org.wso2.carbon.user.api.UserRealm;
@@ -84,11 +84,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String PASSWORD_PROPERTY = "PASSWORD_PROPERTY";
     private static final String PASSWORD_RESET_ENDPOINT = "accountrecoveryendpoint/confirmrecovery.do?";
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
-    private static final String RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN = "Recovery.AutoLogin.Enable";
     private static final String RESEND_CONFIRMATION_RECAPTCHA_ENABLE = "SelfRegistration.ResendConfirmationReCaptcha";
-    private static final String USERNAME = "username";
-    private static final String SIGNATURE = "signature";
-    private static final String COOKIE_NAME = "ALOR";
     private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     private List<String> omittingErrorParams = null;
 
@@ -116,7 +112,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         if (context.isLogoutRequest()) {
             return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
-        } else if (autoLoginCookie != null && isEnableAutoLoginAfterPasswordReset(context)) {
+        } else if (autoLoginCookie != null && isEnableAutoLoginEnabled(context, autoLoginCookie)) {
             try {
                 return executeAutoLoginFlow(request, response, context, autoLoginCookie);
             } catch (AuthenticationFailedException e) {
@@ -133,9 +129,20 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                          AuthenticationContext context, Cookie autoLoginCookie)
             throws AuthenticationFailedException {
 
-        JSONObject cookieValueJSON = transformCookieValueToJSON(autoLoginCookie);
-        String usernameInCookie = (String) cookieValueJSON.get(USERNAME);
-        String usernameInHttpRequest = request.getParameter(USERNAME);
+        String decodedValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
+        JSONObject cookieValueJSON = transformToJSON(decodedValue);
+        String usernameInCookie = (String) cookieValueJSON.get(AutoLoginConstant.USERNAME);
+        String signature = (String) cookieValueJSON.get(AutoLoginConstant.SIGNATURE);
+        String content = usernameInCookie;
+        String alias = null;
+        if (StringUtils.isEmpty(usernameInCookie)) {
+            content = (String) cookieValueJSON.get(AutoLoginConstant.CONTENT);
+            JSONObject contentJSON = transformToJSON(content);
+            usernameInCookie = (String) contentJSON.get(AutoLoginConstant.USERNAME);
+            alias = getSelfRegistrationAutoLoginAlias(context);
+        }
+
+        String usernameInHttpRequest = request.getParameter(AutoLoginConstant.USERNAME);
 
         if (log.isDebugEnabled()) {
             log.debug("Started executing Auto Login from Cookie flow.");
@@ -147,7 +154,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     + " and username in Cookie: " + usernameInCookie + " does not match.");
         }
 
-        validateCookieSignature(usernameInCookie, cookieValueJSON);
+        validateCookieSignature(content, signature, alias);
         usernameInCookie = FrameworkUtils.prependUserStoreDomainToName(usernameInCookie);
 
         String tenantDomain = MultitenantUtils.getTenantDomain(usernameInCookie);
@@ -647,20 +654,27 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         response.addCookie(autoLoginCookie);
     }
 
-    private void validateCookieSignature(String username, JSONObject cookieValueJSON)
+    private void validateCookieSignature(String content, String signature, String alias)
             throws AuthenticationFailedException {
 
-        String signature = (String) cookieValueJSON.get(SIGNATURE);
 
-        if (StringUtils.isEmpty(username) || StringUtils.isEmpty(signature)) {
-            throw new AuthenticationFailedException("Either 'username' or 'signature' attribute is" +
-                    " missing in value of Auto Login Cookie in JSON: " + cookieValueJSON.toString());
+        if (StringUtils.isEmpty(content) || StringUtils.isEmpty(signature)) {
+            throw new AuthenticationFailedException("Either 'content' or 'signature' attribute is missing in value of" +
+                    " Auto Login Cookie.");
         }
 
         try {
-            if (!SignatureUtil.validateSignature(username, Base64.getDecoder().decode(signature))) {
+            boolean isSignatureValid;
+            if (StringUtils.isEmpty(alias)) {
+                isSignatureValid = SignatureUtil.validateSignature(content, Base64.getDecoder().decode(signature));
+            } else {
+                byte[] thumpPrint = SignatureUtil.getThumbPrintForAlias(alias);
+                isSignatureValid = SignatureUtil.validateSignature(thumpPrint, content,
+                        Base64.getDecoder().decode(signature));
+            }
+            if (!isSignatureValid) {
                 throw new AuthenticationFailedException("Signature verification failed in Auto Login Cookie " +
-                        "for user: " + username);
+                        "for user: " + content);
             }
         } catch (Exception e) {
             throw new AuthenticationFailedException("Error occurred while validating the signature for the Auto " +
@@ -668,16 +682,41 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
-    private JSONObject transformCookieValueToJSON(Cookie autoLoginCookie) throws AuthenticationFailedException {
+    private JSONObject transformToJSON(String value) throws AuthenticationFailedException {
 
         JSONParser jsonParser = new JSONParser();
-        String decodedCookieValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
         try {
-            return (JSONObject) jsonParser.parse(decodedCookieValue);
+            return (JSONObject) jsonParser.parse(value);
         } catch (ParseException e) {
             throw new AuthenticationFailedException("Error occurred while parsing the Auto Login Cookie JSON string " +
                     "to a JSON object", e);
         }
+    }
+
+    private boolean isEnableAutoLoginEnabled(AuthenticationContext context, Cookie autoLoginCookie)
+            throws AuthenticationFailedException {
+
+        String flowType = resolveAutoLoginFlow(autoLoginCookie.getValue());
+        if (AutoLoginConstant.SIGNUP.equals(flowType)) {
+            return isEnableSelfRegistrationAutoLogin(context);
+        } else if (AutoLoginConstant.RECOVERY.equals(flowType)) {
+            return isEnableAutoLoginAfterPasswordReset(context);
+        }
+        return false;
+    }
+
+    private String resolveAutoLoginFlow(String cookieValue) throws AuthenticationFailedException {
+
+        String decodedValue = new String(Base64.getDecoder().decode(cookieValue));
+        JSONObject cookieValueJSON = transformToJSON(decodedValue);
+        String usernameInCookie = (String) cookieValueJSON.get(AutoLoginConstant.USERNAME);
+        if (StringUtils.isNotEmpty(usernameInCookie)) {
+            if (log.isDebugEnabled()) {
+                log.debug("Received ALOR cookie is an old format, so considering it as a recovery flow.");
+            }
+            return "RECOVERY";
+        }
+        return (String) transformToJSON((String)cookieValueJSON.get(AutoLoginConstant.CONTENT)).get(AutoLoginConstant.FLOW_TYPE);
     }
 
     private boolean isEnableAutoLoginAfterPasswordReset(AuthenticationContext context)
@@ -685,10 +724,32 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         try {
             return Boolean.parseBoolean(
-                    Utils.getConnectorConfig(RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN,
+                    Utils.getConnectorConfig(AutoLoginConstant.RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN,
                             context.getTenantDomain()));
         } catch (IdentityEventException e) {
             throw new AuthenticationFailedException("Error occurred while resolving isEnableAutoLogin property.", e);
+        }
+    }
+
+    boolean isEnableSelfRegistrationAutoLogin(AuthenticationContext context) throws AuthenticationFailedException {
+
+        try {
+            return Boolean.parseBoolean(Utils.getConnectorConfig(AutoLoginConstant.SELF_REGISTRATION_AUTO_LOGIN,
+                    context.getTenantDomain()));
+        } catch (IdentityEventException e) {
+            throw new AuthenticationFailedException("Error occurred while resolving isEnableSelfRegistrationAutoLogin" +
+                    " property.", e);
+        }
+    }
+
+    String getSelfRegistrationAutoLoginAlias(AuthenticationContext context) throws AuthenticationFailedException {
+
+        try {
+            return Utils.getConnectorConfig(AutoLoginConstant.SELF_REGISTRATION_AUTO_LOGIN_ALIAS_NAME,
+                    context.getTenantDomain());
+        } catch (IdentityEventException e) {
+            throw new AuthenticationFailedException("Error occurred while resolving " +
+                    AutoLoginConstant.SELF_REGISTRATION_AUTO_LOGIN_ALIAS_NAME + " property.", e);
         }
     }
 
@@ -761,7 +822,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         Optional<Cookie> targetCookie = Optional.empty();
         if (ArrayUtils.isNotEmpty(cookiesInRequest)) {
             targetCookie = Arrays.stream(cookiesInRequest)
-                    .filter(cookie -> StringUtils.equalsIgnoreCase(COOKIE_NAME, cookie.getName()))
+                    .filter(cookie -> StringUtils.equalsIgnoreCase(AutoLoginConstant.COOKIE_NAME, cookie.getName()))
                     .filter(cookie -> StringUtils.isNotEmpty(cookie.getValue()))
                     .findFirst();
         }
