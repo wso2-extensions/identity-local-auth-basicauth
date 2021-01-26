@@ -651,9 +651,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         String decodedValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
         JSONObject cookieValueJSON = transformToJSON(decodedValue);
-        String domainInCookie = (String) cookieValueJSON.get(AutoLoginConstant.DOMAIN);
-        if (StringUtils.isNotEmpty(domainInCookie)) {
-            autoLoginCookie.setDomain(domainInCookie);
+        String usernameInCookie = (String) cookieValueJSON.get(AutoLoginConstant.USERNAME);
+        if (StringUtils.isEmpty(usernameInCookie)) {
+            String content = (String) cookieValueJSON.get(AutoLoginConstant.CONTENT);
+            JSONObject contentJSON = transformToJSON(content);
+            String domainInCookie = (String) contentJSON.get(AutoLoginConstant.DOMAIN);
+            if (StringUtils.isNotEmpty(domainInCookie)) {
+                autoLoginCookie.setDomain(domainInCookie);
+            }
         }
 
         autoLoginCookie.setMaxAge(0);
