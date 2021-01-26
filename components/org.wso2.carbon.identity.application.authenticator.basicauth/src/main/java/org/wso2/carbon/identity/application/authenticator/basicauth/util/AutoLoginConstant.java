@@ -30,6 +30,7 @@ public class AutoLoginConstant {
     public static final String SIGNATURE = "signature";
     public static final String COOKIE_NAME = "ALOR";
     public static final String CONTENT = "content";
+    public static final String DOMAIN = "domain";
     public static final String FLOW_TYPE = "flowType";
     public static final String SIGNUP = "SIGNUP";
     public static final String RECOVERY = "RECOVERY";
