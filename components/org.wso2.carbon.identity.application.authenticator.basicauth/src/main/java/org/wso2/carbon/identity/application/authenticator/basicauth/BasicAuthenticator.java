@@ -646,7 +646,15 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         return properties;
     }
 
-    private void removeAutoLoginCookie(HttpServletResponse response, Cookie autoLoginCookie) {
+    private void removeAutoLoginCookie(HttpServletResponse response, Cookie autoLoginCookie)
+            throws AuthenticationFailedException {
+
+        String decodedValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
+        JSONObject cookieValueJSON = transformToJSON(decodedValue);
+        String domainInCookie = (String) cookieValueJSON.get(AutoLoginConstant.DOMAIN);
+        if (StringUtils.isNotEmpty(domainInCookie)) {
+            autoLoginCookie.setDomain(domainInCookie);
+        }
 
         autoLoginCookie.setMaxAge(0);
         autoLoginCookie.setValue("");
