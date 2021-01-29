@@ -155,6 +155,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
 
         validateCookieSignature(content, signature, alias);
+
+        String userStoreDomain = UserCoreUtil.extractDomainFromName(usernameInCookie);
+        // Set the user store domain in thread local as downstream code depends on it. This will be cleared at the
+        // end of the request at the framework.
+        UserCoreUtil.setDomainInThreadLocal(userStoreDomain);
+
         usernameInCookie = FrameworkUtils.prependUserStoreDomainToName(usernameInCookie);
 
         String tenantDomain = MultitenantUtils.getTenantDomain(usernameInCookie);
