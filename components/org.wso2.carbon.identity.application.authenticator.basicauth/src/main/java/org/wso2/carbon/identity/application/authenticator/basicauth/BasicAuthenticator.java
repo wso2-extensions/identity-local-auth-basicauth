@@ -85,6 +85,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String PASSWORD_RESET_ENDPOINT = "accountrecoveryendpoint/confirmrecovery.do?";
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
     private static final String RESEND_CONFIRMATION_RECAPTCHA_ENABLE = "SelfRegistration.ResendConfirmationReCaptcha";
+    private static final String AUTO_LOGIN_FLOW_HANDLED = "autoLoginHandled";
     private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     private List<String> omittingErrorParams = null;
 
@@ -112,13 +113,31 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         if (context.isLogoutRequest()) {
             return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
-        } else if (autoLoginCookie != null && isEnableAutoLoginEnabled(context, autoLoginCookie)) {
+        } else if (autoLoginCookie != null && !Boolean.TRUE.equals(context.getProperty(AUTO_LOGIN_FLOW_HANDLED)) &&
+                isEnableAutoLoginEnabled(context, autoLoginCookie)) {
             try {
+                context.setProperty(AUTO_LOGIN_FLOW_HANDLED, true);
                 return executeAutoLoginFlow(request, response, context, autoLoginCookie);
             } catch (AuthenticationFailedException e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Error occurred while executing the Auto Login from Cookie flow: " + e);
+                request.setAttribute(FrameworkConstants.REQ_ATTR_HANDLED, true);
+                // Decide whether we need to redirect to the login page to retry authentication.
+                boolean sendToMultiOptionPage =
+                        isStepHasMultiOption(context) && isRedirectToMultiOptionPageOnFailure();
+                if (retryAuthenticationEnabled(context) && !sendToMultiOptionPage) {
+                    // The Authenticator will re-initiate the authentication and retry.
+                    context.setCurrentAuthenticator(getName());
+                    initiateAuthenticationRequest(request, response, context);
+                    return AuthenticatorFlowStatus.INCOMPLETE;
+                } else {
+                    context.setProperty(FrameworkConstants.LAST_FAILED_AUTHENTICATOR, getName());
+                    // By throwing this exception step handler will redirect to multi options page if
+                    // multi-option are available in the step.
+                    if (log.isDebugEnabled()) {
+                        log.debug("Error occurred while executing the Auto Login from Cookie flow: " + e);
+                    }
+                    throw e;
                 }
+            } finally {
                 removeAutoLoginCookie(response, autoLoginCookie);
             }
         }
@@ -140,6 +159,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             JSONObject contentJSON = transformToJSON(content);
             usernameInCookie = (String) contentJSON.get(AutoLoginConstant.USERNAME);
             alias = getSelfRegistrationAutoLoginAlias(context);
+            String domainInCookie = (String) contentJSON.get(AutoLoginConstant.DOMAIN);
+            if (StringUtils.isEmpty(domainInCookie)) {
+                throw new AuthenticationFailedException("The domain name is not available in the ALOR cookie content.");
+            }
         }
 
         String usernameInHttpRequest = request.getParameter(AutoLoginConstant.USERNAME);
@@ -168,7 +191,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         usernameInCookie = getMultiAttributeUsername(usernameInCookie, tenantDomain, userStoreManager);
         context.setSubject(AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(usernameInCookie));
-        removeAutoLoginCookie(response, autoLoginCookie);
         return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
     }
 

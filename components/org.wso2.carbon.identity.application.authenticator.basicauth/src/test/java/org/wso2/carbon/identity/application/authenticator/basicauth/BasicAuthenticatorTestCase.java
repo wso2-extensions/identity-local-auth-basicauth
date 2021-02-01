@@ -35,6 +35,7 @@ import org.wso2.carbon.identity.application.authentication.framework.Authenticat
 import org.wso2.carbon.identity.application.authentication.framework.config.ConfigurationFacade;
 import org.wso2.carbon.identity.application.authentication.framework.config.builder.FileBasedConfigurationBuilder;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
+import org.wso2.carbon.identity.application.authentication.framework.config.model.SequenceConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
@@ -278,7 +279,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(mockAuthnCtxt.isLogoutRequest()).thenReturn(false);
         when(mockAuthnCtxt.getTenantDomain()).thenReturn(dummyDomainName);
         when(mockRequest.getParameter("username")).thenReturn("admin");
-
+        when((mockAuthnCtxt.getSequenceConfig())).thenReturn(new SequenceConfig());
         mockStatic(Utils.class);
         mockStatic(MultitenantUtils.class);
         mockStatic(IdentityTenantUtil.class);
@@ -286,20 +287,6 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         mockStatic(BasicAuthenticatorServiceComponent.class);
         mockStatic(FrameworkUtils.class);
         mockStatic(SignatureUtil.class);
-
-        JSONObject cookieValue = new JSONObject();
-        cookieValue.put("username", "admin");
-        cookieValue.put("flowType", SIGNUP);
-        String content = cookieValue.toString();
-        JSONObject cookieValueInJson = new JSONObject();
-        cookieValueInJson.put("content", content);
-        cookieValueInJson.put("signature", "eyJzaWduYXR1cmUiOiJBeTRTU1h1bXlhWFpzYzBnS0J1SjdUQzgyNzEzb1BiWlRjSDZs" +
-                "XFxcL29XcE1vaVNJVUFHcWwyb2tWOGZ0c3VPMWlrdUZQaUE1Qm1LNFFpdzNpakVTaXdmbFBzcmdNTVVFdEcrMnE3cEQya09oc0p" +
-                "1NmVuRnQ5Qlc5THl0YjlsSmlmV0hJZXVGRDllckFyUDhiWExocTE1WFFmSnVGSlNtVnBIZTZub0RrNnVIY2ZLTW5aVmF2d0xza2" +
-                "5DZE5mYnZXQitxUkF3dnJBSmtLTG9vZVZpM2t4RlBHbmcwaFlRbnNKeHJcXFwvOTNwVnpmN1xcXC9PcmZhcFU2bzJXNEZvdk01d" +
-                "XJ6SjhDWmVkakpHZm5qdjV5bXNjRlN3U1NWVDljZnhISVVBWDFaQU9CZzRSMVZXNnhlbm9wcjYzTkFIYXZINFNESSs0UFl2Y1Ju" +
-                "S0J1dVR5YTB0dm0rdTVUaVE9PSIsImNvbnRlbnQiOiJ7XCJ1c2VybmFtZVwiOlwiYWRtaW5cIixcImZsb3dUeXBlXCI6XCJTSUdO" +
-                "VVBcIn0ifQ==");
 
         when(SignatureUtil.validateSignature(any(byte[].class), anyString(), any(byte[].class))).thenReturn(true);
         when(SignatureUtil.getThumbPrintForAlias("alias")).thenReturn(new byte[0]);
@@ -325,7 +312,42 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(mockRealmConfiguration.getUserStoreProperty("MultipleAttributeEnable")).thenReturn("false");
         when(MultitenantUtils.getTenantDomain("admin" + "@" + dummyDomainName)).thenReturn(dummyDomainName);
 
+        JSONObject cookieValue = new JSONObject();
+        cookieValue.put("username", "admin");
+        cookieValue.put("flowType", SIGNUP);
+        String content = cookieValue.toString();
+        JSONObject cookieValueInJson = new JSONObject();
+        cookieValueInJson.put("content", content);
+        cookieValueInJson.put("signature", "eyJzaWduYXR1cmUiOiJBeTRTU1h1bXlhWFpzYzBnS0J1SjdUQzgyNzEzb1BiWlRjSDZs" +
+                "XFxcL29XcE1vaVNJVUFHcWwyb2tWOGZ0c3VPMWlrdUZQaUE1Qm1LNFFpdzNpakVTaXdmbFBzcmdNTVVFdEcrMnE3cEQya09oc0p" +
+                "1NmVuRnQ5Qlc5THl0YjlsSmlmV0hJZXVGRDllckFyUDhiWExocTE1WFFmSnVGSlNtVnBIZTZub0RrNnVIY2ZLTW5aVmF2d0xza2" +
+                "5DZE5mYnZXQitxUkF3dnJBSmtLTG9vZVZpM2t4RlBHbmcwaFlRbnNKeHJcXFwvOTNwVnpmN1xcXC9PcmZhcFU2bzJXNEZvdk01d" +
+                "XJ6SjhDWmVkakpHZm5qdjV5bXNjRlN3U1NWVDljZnhISVVBWDFaQU9CZzRSMVZXNnhlbm9wcjYzTkFIYXZINFNESSs0UFl2Y1Ju" +
+                "S0J1dVR5YTB0dm0rdTVUaVE9PSIsImNvbnRlbnQiOiJ7XCJ1c2VybmFtZVwiOlwiYWRtaW5cIixcImZsb3dUeXBlXCI6XCJTSUdO" +
+                "VVBcIn0ifQ==");
+
         Cookie[] cookies = new Cookie[1];
+        cookies[0] = new Cookie("ALOR",
+                Base64.getEncoder().encodeToString(cookieValueInJson.toString().getBytes()));
+        when(mockRequest.getCookies()).thenReturn(cookies);
+
+        assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt),
+                AuthenticatorFlowStatus.INCOMPLETE);
+
+
+        cookieValue.put("domain", "wso2is.com");
+        content = cookieValue.toString();
+        cookieValueInJson = new JSONObject();
+        cookieValueInJson.put("content", content);
+        cookieValueInJson.put("signature", "eyJzaWduYXR1cmUiOiJBeTRTU1h1bXlhWFpzYzBnS0J1SjdUQzgyNzEzb1BiWlRjSDZs" +
+                "XFxcL29XcE1vaVNJVUFHcWwyb2tWOGZ0c3VPMWlrdUZQaUE1Qm1LNFFpdzNpakVTaXdmbFBzcmdNTVVFdEcrMnE3cEQya09oc0p" +
+                "1NmVuRnQ5Qlc5THl0YjlsSmlmV0hJZXVGRDllckFyUDhiWExocTE1WFFmSnVGSlNtVnBIZTZub0RrNnVIY2ZLTW5aVmF2d0xza2" +
+                "5DZE5mYnZXQitxUkF3dnJBSmtLTG9vZVZpM2t4RlBHbmcwaFlRbnNKeHJcXFwvOTNwVnpmN1xcXC9PcmZhcFU2bzJXNEZvdk01d" +
+                "XJ6SjhDWmVkakpHZm5qdjV5bXNjRlN3U1NWVDljZnhISVVBWDFaQU9CZzRSMVZXNnhlbm9wcjYzTkFIYXZINFNESSs0UFl2Y1Ju" +
+                "S0J1dVR5YTB0dm0rdTVUaVE9PSIsImNvbnRlbnQiOiJ7XCJ1c2VybmFtZVwiOlwiYWRtaW5cIixcImZsb3dUeXBlXCI6XCJTSUdO" +
+                "VVBcIn0ifQ==");
+
+        cookies = new Cookie[1];
         cookies[0] = new Cookie("ALOR",
                 Base64.getEncoder().encodeToString(cookieValueInJson.toString().getBytes()));
         when(mockRequest.getCookies()).thenReturn(cookies);
