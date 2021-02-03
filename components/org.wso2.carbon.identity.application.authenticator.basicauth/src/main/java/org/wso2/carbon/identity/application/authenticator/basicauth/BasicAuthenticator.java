@@ -70,6 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -150,14 +151,21 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         String decodedValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
         JSONObject cookieValueJSON = transformToJSON(decodedValue);
-        String usernameInCookie = (String) cookieValueJSON.get(AutoLoginConstant.USERNAME);
         String signature = (String) cookieValueJSON.get(AutoLoginConstant.SIGNATURE);
-        String content = usernameInCookie;
+        String content = (String) cookieValueJSON.get(AutoLoginConstant.CONTENT);
+
+        JSONObject contentJSON = transformToJSON(content);
+        String usernameInCookie = (String) contentJSON.get(AutoLoginConstant.USERNAME);
+
+        if (contentJSON.get(AutoLoginConstant.CREATED_TIME) == null) {
+            throw new AuthenticationFailedException("The created time is not available in the ALOR cookie content.");
+        }
+        long createdTime = (long) contentJSON.get(AutoLoginConstant.CREATED_TIME);
+        validateCreatedTime(createdTime);
+
         String alias = null;
-        if (StringUtils.isEmpty(usernameInCookie)) {
-            content = (String) cookieValueJSON.get(AutoLoginConstant.CONTENT);
-            JSONObject contentJSON = transformToJSON(content);
-            usernameInCookie = (String) contentJSON.get(AutoLoginConstant.USERNAME);
+        String flowType = resolveAutoLoginFlow(autoLoginCookie.getValue());
+        if (AutoLoginConstant.SIGNUP.equals(flowType)) {
             alias = getSelfRegistrationAutoLoginAlias(context);
             String domainInCookie = (String) contentJSON.get(AutoLoginConstant.DOMAIN);
             if (StringUtils.isEmpty(domainInCookie)) {
@@ -165,16 +173,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
         }
 
-        String usernameInHttpRequest = request.getParameter(AutoLoginConstant.USERNAME);
-
         if (log.isDebugEnabled()) {
             log.debug("Started executing Auto Login from Cookie flow.");
-        }
-
-        if (StringUtils.isNotEmpty(usernameInHttpRequest) && StringUtils.isNotEmpty(usernameInCookie) &&
-                !StringUtils.equalsIgnoreCase(usernameInHttpRequest, usernameInCookie)) {
-            throw new AuthenticationFailedException("Username in HTTP Request: " + usernameInHttpRequest
-                    + " and username in Cookie: " + usernameInCookie + " does not match.");
         }
 
         validateCookieSignature(content, signature, alias);
@@ -679,14 +679,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         String decodedValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
         JSONObject cookieValueJSON = transformToJSON(decodedValue);
-        String usernameInCookie = (String) cookieValueJSON.get(AutoLoginConstant.USERNAME);
-        if (StringUtils.isEmpty(usernameInCookie)) {
-            String content = (String) cookieValueJSON.get(AutoLoginConstant.CONTENT);
-            JSONObject contentJSON = transformToJSON(content);
-            String domainInCookie = (String) contentJSON.get(AutoLoginConstant.DOMAIN);
-            if (StringUtils.isNotEmpty(domainInCookie)) {
-                autoLoginCookie.setDomain(domainInCookie);
-            }
+        String content = (String) cookieValueJSON.get(AutoLoginConstant.CONTENT);
+        JSONObject contentJSON = transformToJSON(content);
+        String domainInCookie = (String) contentJSON.get(AutoLoginConstant.DOMAIN);
+        if (StringUtils.isNotEmpty(domainInCookie)) {
+            autoLoginCookie.setDomain(domainInCookie);
         }
 
         autoLoginCookie.setMaxAge(0);
@@ -723,6 +720,23 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
+
+    private void validateCreatedTime(long createdTime) throws AuthenticationFailedException {
+
+        String cookieMaxAge = AutoLoginConstant.DEFAULT_COOKIE_MAX_AGE;
+        if (getAuthenticatorConfig().getParameterMap() != null) {
+            String autoLoginCookieMaxAge = getAuthenticatorConfig().getParameterMap().get("AutoLoginCookieMaxAge");
+            if (StringUtils.isNotEmpty(autoLoginCookieMaxAge)) {
+                cookieMaxAge = autoLoginCookieMaxAge;
+            }
+        }
+        long maxAgeTime = TimeUnit.SECONDS.toMillis(Long.parseLong(cookieMaxAge));
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - createdTime > maxAgeTime) {
+            throw new AuthenticationFailedException("The Auto Login Cookie expired.");
+        }
+    }
+
     private JSONObject transformToJSON(String value) throws AuthenticationFailedException {
 
         JSONParser jsonParser = new JSONParser();
@@ -750,14 +764,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         String decodedValue = new String(Base64.getDecoder().decode(cookieValue));
         JSONObject cookieValueJSON = transformToJSON(decodedValue);
-        String usernameInCookie = (String) cookieValueJSON.get(AutoLoginConstant.USERNAME);
-        if (StringUtils.isNotEmpty(usernameInCookie)) {
-            if (log.isDebugEnabled()) {
-                log.debug("Received ALOR cookie is an old format, so considering it as a recovery flow.");
-            }
-            return "RECOVERY";
-        }
-        return (String) transformToJSON((String)cookieValueJSON.get(AutoLoginConstant.CONTENT)).get(AutoLoginConstant.FLOW_TYPE);
+        JSONObject content = transformToJSON((String) cookieValueJSON.get(AutoLoginConstant.CONTENT));
+        return (String) content.get(AutoLoginConstant.FLOW_TYPE);
     }
 
     private boolean isEnableAutoLoginAfterPasswordReset(AuthenticationContext context)

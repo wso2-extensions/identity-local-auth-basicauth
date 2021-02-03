@@ -32,6 +32,8 @@ public class AutoLoginConstant {
     public static final String CONTENT = "content";
     public static final String DOMAIN = "domain";
     public static final String FLOW_TYPE = "flowType";
+    public static final String CREATED_TIME = "createdTime";
     public static final String SIGNUP = "SIGNUP";
     public static final String RECOVERY = "RECOVERY";
+    public static final String DEFAULT_COOKIE_MAX_AGE = "300";
 }
