@@ -43,6 +43,7 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLog
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
+import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.captcha.connector.recaptcha.SSOLoginReCaptchaConfig;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
@@ -860,7 +861,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
             if (log.isDebugEnabled()) {
-                log.debug("Can't find the UserStoreManager the user " + username, e);
+                log.debug("Can't find the UserStoreManager for the user: " + username, e);
+            }
+            throw new AuthenticationFailedException(e.getMessage(), e);
+        } catch (IdentityRuntimeException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("Can't find the tenant domain for the user: " + username, e);
             }
             throw new AuthenticationFailedException(e.getMessage(), e);
         }
