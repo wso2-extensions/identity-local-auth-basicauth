@@ -87,6 +87,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
     private static final String RESEND_CONFIRMATION_RECAPTCHA_ENABLE = "SelfRegistration.ResendConfirmationReCaptcha";
     private static final String AUTO_LOGIN_FLOW_HANDLED = "autoLoginHandled";
+    private static final String APPEND_USER_TENANT_TO_USERNAME = "appendUserTenantToUsername";
     private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     private List<String> omittingErrorParams = null;
 
@@ -459,9 +460,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        FrameworkUtils.validateUsername(request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
-        String username = FrameworkUtils.preprocessUsername(
-                request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
+        String usernameFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+        FrameworkUtils.validateUsername(usernameFromRequest, context);
+        Map<String, String> runtimeParams = getRuntimeParams(context);
+        if (runtimeParams != null) {
+            String appendUserTenant = runtimeParams.get(APPEND_USER_TENANT_TO_USERNAME);
+            if (Boolean.valueOf(appendUserTenant)) {
+                usernameFromRequest = usernameFromRequest + "@" + context.getUserTenantDomain();
+            }
+        }
+        String username = FrameworkUtils.preprocessUsername(usernameFromRequest, context);
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
 
         Map<String, Object> authProperties = context.getProperties();
@@ -470,7 +478,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             context.setProperties(authProperties);
         }
 
-        Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
             String usernameFromContext = runtimeParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME);
             if (usernameFromContext != null &&
