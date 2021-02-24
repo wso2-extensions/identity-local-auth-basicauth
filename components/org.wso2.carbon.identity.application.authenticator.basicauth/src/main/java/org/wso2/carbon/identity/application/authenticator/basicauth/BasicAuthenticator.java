@@ -20,6 +20,7 @@ package org.wso2.carbon.identity.application.authenticator.basicauth;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.json.simple.JSONObject;
@@ -56,6 +57,7 @@ import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.identity.recovery.util.Utils;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.core.UserCoreConstants;
+import org.wso2.carbon.user.core.UserStoreClientException;
 import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
@@ -77,7 +79,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * Username Password based Authenticator
+ * Username Password based Authenticator.
  */
 public class BasicAuthenticator extends AbstractApplicationAuthenticator
         implements LocalApplicationAuthenticator {
@@ -252,7 +254,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 inputType = FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST;
             }
             if (FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST.equalsIgnoreCase(inputType)) {
-                queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE +"=" + inputType;
+                queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE + "=" + inputType;
                 context.addEndpointParam(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, usernameFromContext);
             }
         }
@@ -335,8 +337,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     String reason = RecoveryScenarios.ADMIN_FORCED_PASSWORD_RESET_VIA_OTP.name();
 
                     redirectURL = (PASSWORD_RESET_ENDPOINT + queryParams) +
-                            BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
-                            BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM + URLEncoder.encode(tenantDoamin, BasicAuthenticatorConstants.UTF_8) +
+                            BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username,
+                            BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
+                            URLEncoder.encode(tenantDoamin, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(password,
                             BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
                             URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
@@ -358,7 +361,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
                     String reason = null;
                     if (errorCode.contains(":")) {
-                        String[] errorCodeReason = errorCode.split(":");
+                        String[] errorCodeReason = errorCode.split(":", 2);
                         errorCode = errorCodeReason[0];
                         if (errorCodeReason.length > 1) {
                             reason = errorCodeReason[1];
@@ -422,7 +425,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
                                 URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
                                         BasicAuthenticatorConstants.UTF_8));
-
+                        if (StringUtils.isNotBlank(reason)) {
+                            retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                                    BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + URLEncoder.encode(reason,
+                                    BasicAuthenticatorConstants.UTF_8);
+                        }
                         retryParam = retryParam + buildErrorParamString(paramMap);
                         redirectURL = loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":"
@@ -506,9 +513,27 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (isAuthPolicyAccountExistCheck()) {
                 checkUserExistence();
             }
+        } catch (UserStoreClientException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("BasicAuthentication failed while trying to authenticate the user " + username, e);
+            }
+            IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(e.getErrorCode() +
+                    ":" + e.getMessage());
+            IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
+            throw new AuthenticationFailedException(
+                    ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
+                    User.getUserFromUserName(username), e);
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
             if (log.isDebugEnabled()) {
                 log.debug("BasicAuthentication failed while trying to authenticate the user " + username, e);
+            }
+            // Sometimes client exceptions are wrapped in the super class.
+            // Therefore checking for possible client exception.
+            Throwable rootCause = ExceptionUtils.getRootCause(e);
+            if (rootCause instanceof UserStoreClientException) {
+                IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(
+                        ((UserStoreClientException) rootCause).getErrorCode() + ":" + rootCause.getMessage());
+                IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
             }
             throw new AuthenticationFailedException(
                     ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
