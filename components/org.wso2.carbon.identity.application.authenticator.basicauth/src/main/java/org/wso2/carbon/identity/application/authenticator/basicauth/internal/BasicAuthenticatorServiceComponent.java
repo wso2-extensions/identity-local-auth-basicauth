@@ -31,6 +31,7 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthent
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.user.core.service.RealmService;
 
 import java.io.IOException;
@@ -111,6 +112,22 @@ public class BasicAuthenticatorServiceComponent {
     protected void unsetIdentityGovernanceService(IdentityGovernanceService identityGovernanceService) {
 
         BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(null);
+    }
+
+    @Reference(
+            name = "MultiAttributeLoginService",
+            service = MultiAttributeLoginService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetMultiAttributeLoginService")
+    protected void setMultiAttributeLoginService(MultiAttributeLoginService multiAttributeLogin) {
+
+        BasicAuthenticatorDataHolder.getInstance().setMultiAttributeLogin(multiAttributeLogin);
+    }
+
+    protected void unsetMultiAttributeLoginService(MultiAttributeLoginService multiAttributeLogin) {
+
+        BasicAuthenticatorDataHolder.getInstance().setMultiAttributeLogin(null);
     }
 
     /**

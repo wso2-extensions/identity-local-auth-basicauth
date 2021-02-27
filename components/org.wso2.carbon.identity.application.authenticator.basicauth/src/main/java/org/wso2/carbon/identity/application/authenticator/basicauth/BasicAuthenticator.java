@@ -51,6 +51,7 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.identity.recovery.util.Utils;
 import org.wso2.carbon.user.api.UserRealm;
@@ -430,9 +431,28 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        FrameworkUtils.validateUsername(request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
-        String username = FrameworkUtils.preprocessUsername(
-                request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
+        String usernameFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+        FrameworkUtils.validateUsername(usernameFromRequest, context);
+        Map<String, String> runtimeParams = getRuntimeParams(context);
+        if (runtimeParams != null) {
+            String appendUserTenant = runtimeParams.get(APPEND_USER_TENANT_TO_USERNAME);
+            if (Boolean.valueOf(appendUserTenant)) {
+                usernameFromRequest = usernameFromRequest + "@" + context.getUserTenantDomain();
+            }
+        }
+        String username = FrameworkUtils.preprocessUsername(usernameFromRequest, context);
+        String requestTenantDomain = context.getTenantDomain();
+        if (BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().isEnabled(requestTenantDomain)) {
+            ResolvedUserResult resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
+                    resolveUser(MultitenantUtils.getTenantAwareUsername(username), requestTenantDomain);
+            if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                    equals(resolvedUserResult.getResolvedStatus())) {
+                username = UserCoreUtil.addTenantDomainToEntry(resolvedUserResult.getUser().getUsername(),
+                        requestTenantDomain);
+            } else {
+                throw new InvalidCredentialsException("User not exist");
+            }
+        }
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
 
         Map<String, Object> authProperties = context.getProperties();
@@ -441,7 +461,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             context.setProperties(authProperties);
         }
 
-        Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
             String usernameFromContext = runtimeParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME);
             if (usernameFromContext != null && !usernameFromContext.equals(username)) {

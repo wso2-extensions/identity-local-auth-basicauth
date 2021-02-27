@@ -114,6 +114,11 @@
                 <artifactId>org.apache.felix.scr.ds-annotations</artifactId>
                 <scope>provided</scope>
             </dependency>
+        <dependency>
+            <groupId>org.wso2.carbon.identity.framework</groupId>
+            <artifactId>org.wso2.carbon.identity.multi.attribute.login.mgt</artifactId>
+            <version>${carbon.identity.framework.version}</version>
+        </dependency>
         </dependencies>
     <build>
         <plugins>
@@ -161,7 +166,10 @@
                             org.wso2.carbon.identity.governance; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.recovery; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.recovery.util; version="${identity.governance.imp.pkg.version.range}",
-                            org.wso2.carbon.identity.governance.common; version="${identity.governance.imp.pkg.version.range}"
+                            org.wso2.carbon.identity.governance.common; version="${identity.governance.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.multi.attribute.login.mgt.*;
+                            version="${carbon.identity.framework.imp.pkg.version.range}",
+                            org.wso2.carbon.user.core.*; version="${carbon.kernel.imp.pkg.version.range}",
                         </Import-Package>
                         <Export-Package>
                             !org.wso2.carbon.identity.application.authenticator.basicauth.internal,
