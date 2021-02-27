@@ -29,6 +29,7 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandler;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.user.core.service.RealmService;
 
 @Component(
@@ -40,6 +41,12 @@ public class IdentifierAuthenticatorServiceComponent {
     private static final Log log = LogFactory.getLog(IdentifierAuthenticatorServiceComponent.class);
 
     private static RealmService realmService;
+    private static MultiAttributeLoginService multiAttributeLogin;
+
+    public static MultiAttributeLoginService getMultiAttributeLogin() {
+
+        return multiAttributeLogin;
+    }
 
     public static RealmService getRealmService() {
 
@@ -87,4 +94,19 @@ public class IdentifierAuthenticatorServiceComponent {
         IdentifierAuthenticatorServiceComponent.realmService = null;
     }
 
+    @Reference(
+            name = "MultiAttributeLoginService",
+            service = MultiAttributeLoginService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetMultiAttributeLoginService")
+    protected void setMultiAttributeLoginService(MultiAttributeLoginService multiAttributeLogin) {
+
+        IdentifierAuthenticatorServiceComponent.multiAttributeLogin = multiAttributeLogin;
+    }
+
+    protected void unsetMultiAttributeLoginService(MultiAttributeLoginService multiAttributeLogin) {
+
+        IdentifierAuthenticatorServiceComponent.multiAttributeLogin = null;
+    }
 }
