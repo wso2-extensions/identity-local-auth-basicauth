@@ -532,8 +532,6 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         when(mockUserStoreManager.authenticate(dummyUserName,dummyUserName)).thenThrow(new org
                 .wso2.carbon.user.core.UserStoreException(new org.wso2.carbon.user.core.UserStoreClientException()));
-
-
         try {
             basicAuthenticator.processAuthenticationResponse(
                     mockRequest, mockResponse, mockAuthnCtxt);
@@ -572,13 +570,11 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId)).thenReturn(mockRealm);
         when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
 
-
         mockStatic(MultitenantUtils.class);
         when(MultitenantUtils.getTenantAwareUsername(dummyUserName)).thenReturn(dummyUserName);
 
         when(mockUserStoreManager.authenticate(dummyUserName,dummyUserName)).thenThrow(new org
                 .wso2.carbon.user.core.UserStoreClientException());
-
         try {
             basicAuthenticator.processAuthenticationResponse(
                     mockRequest, mockResponse, mockAuthnCtxt);
@@ -622,7 +618,6 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         } catch (AuthenticationFailedException e) {
             assertNotNull(e);
         }
-
     }
 
 
