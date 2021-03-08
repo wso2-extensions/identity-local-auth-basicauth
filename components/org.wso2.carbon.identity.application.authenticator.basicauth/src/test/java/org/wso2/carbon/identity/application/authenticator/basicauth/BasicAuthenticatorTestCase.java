@@ -22,6 +22,7 @@ import org.json.simple.JSONObject;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.reflect.internal.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeTest;
@@ -33,6 +34,7 @@ import org.wso2.carbon.core.util.SignatureUtil;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
 import org.wso2.carbon.identity.application.authentication.framework.config.ConfigurationFacade;
 import org.wso2.carbon.identity.application.authentication.framework.config.builder.FileBasedConfigurationBuilder;
+import org.wso2.carbon.identity.application.authentication.framework.config.model.ApplicationConfig;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.SequenceConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
@@ -119,6 +121,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     private HttpServletRequest mockRequest;
     private HttpServletResponse mockResponse;
     private AuthenticationContext mockAuthnCtxt;
+    private ApplicationConfig applicationConfig;
     private RealmService mockRealmService;
     private UserRealm mockRealm;
     private UserStoreManager mockUserStoreManager;
@@ -133,6 +136,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     private String redirect;
 
     private String dummyUserName = "dummyUserName";
+    private String dummyUserNameWithTenant = "dummyUserName@carbon.super";
     private String dummyQueryParam = "dummyQueryParams";
     private String dummyLoginPage = "dummyLoginPageurl";
     private String dummyPassword = "dummyPassword";
@@ -974,6 +978,12 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
         when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
         when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(dummyPassword);
+        SequenceConfig conf = new SequenceConfig();
+        applicationConfig = mock(ApplicationConfig.class);
+        conf.setApplicationConfig(applicationConfig);
+        when(applicationConfig.isSaaSApp()).thenReturn(false);
+        when((mockAuthnCtxt.getSequenceConfig())).thenReturn(conf);
+
         when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
         when(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL()).thenReturn(dummyRetryURL);
         when(mockAuthnCtxt.isRetrying()).thenReturn(true);
@@ -1219,6 +1229,34 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                 return null;
             }
         }).when(mockResponse).sendRedirect(anyString());
+    }
+
+    @DataProvider(name = "GetTenantDomainFromUserNameProvider")
+    public Object[][] getTenantDomainFromUserName() {
+
+        // isSaasApp, isTenantQualifiedUrlEnabled
+        return new String[][]{
+                {"true", "false", "carbon.super"},
+                {"false", "true", "abc.com"},
+                {"false", "false", "carbon.super"}
+        };
+    }
+
+    @Test(dataProvider = "GetTenantDomainFromUserNameProvider")
+    public void testgetTenantDomainFromUserName(String isSaasApp, String isTenantQualifiedUrl,
+                                                String expectedTenant) throws Exception {
+
+        SequenceConfig conf = new SequenceConfig();
+        applicationConfig = mock(ApplicationConfig.class);
+        conf.setApplicationConfig(applicationConfig);
+        when(applicationConfig.isSaaSApp()).thenReturn(Boolean.valueOf(isSaasApp));
+        when((mockAuthnCtxt.getSequenceConfig())).thenReturn(conf);
+        mockStatic(IdentityTenantUtil.class);
+        when(IdentityTenantUtil.isTenantQualifiedUrlsEnabled()).thenReturn(Boolean.valueOf(isTenantQualifiedUrl));
+        when(IdentityTenantUtil.getTenantDomainFromContext()).thenReturn("abc.com");
+        String tenantDomain = WhiteboxImpl.invokeMethod(basicAuthenticator, "getTenantDomainFromUserName",
+                mockAuthnCtxt, dummyUserNameWithTenant);
+        Assert.assertEquals(tenantDomain, expectedTenant);
     }
 
     @ObjectFactory
