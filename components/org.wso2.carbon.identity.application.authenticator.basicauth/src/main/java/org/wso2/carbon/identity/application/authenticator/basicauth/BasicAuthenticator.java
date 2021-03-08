@@ -328,7 +328,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 } else if (errorCode.equals(
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE)) {
                     String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
-                    String tenantDomain = getTenantDomainFromUserName(username);
+                    String tenantDomain = getTenantDomainFromUserName(context, username);
 
                     // Setting callback so that the user is prompted to login after a password reset.
                     String callback = loginPage + ("?" + queryParams)
@@ -953,9 +953,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         IdentityUtil.threadLocalProperties.get().remove(USER_EXIST_THREAD_LOCAL_PROPERTY);
     }
 
-    private String getTenantDomainFromUserName(String username) {
+    private String getTenantDomainFromUserName(AuthenticationContext context, String username) {
 
-        if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled()) {
+        boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
+        if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled() && !isSaaSApp) {
             return IdentityTenantUtil.getTenantDomainFromContext();
         }
         return MultitenantUtils.getTenantDomain(username);
