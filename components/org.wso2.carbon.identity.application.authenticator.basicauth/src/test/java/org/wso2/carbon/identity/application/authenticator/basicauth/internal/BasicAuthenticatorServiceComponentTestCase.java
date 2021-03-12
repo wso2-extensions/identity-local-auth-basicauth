@@ -20,8 +20,6 @@ package org.wso2.carbon.identity.application.authenticator.basicauth.internal;
 import org.osgi.service.component.ComponentContext;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
-import org.wso2.carbon.identity.governance.IdentityGovernanceService;
-import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.identity.testutil.IdentityBaseTest;
 import org.wso2.carbon.user.core.service.RealmService;
 
@@ -33,8 +31,6 @@ public class BasicAuthenticatorServiceComponentTestCase extends IdentityBaseTest
     private RealmService mockRealmService;
     private BasicAuthenticatorServiceComponent basicAuthenticatorServiceComponent;
     private ComponentContext mockComponentContext;
-    private MultiAttributeLoginService mockMultiAttributeLoginService;
-    private IdentityGovernanceService identityGovernanceService;
 
     @BeforeTest
     public void setup() {
@@ -60,35 +56,4 @@ public class BasicAuthenticatorServiceComponentTestCase extends IdentityBaseTest
         mockRealmService = mock(RealmService.class);
         basicAuthenticatorServiceComponent.unsetRealmService(mockRealmService);
     }
-
-    @Test
-    public void setMultiAttributeLoginServiceTestCase() throws NoSuchFieldException, IllegalAccessException {
-
-        mockMultiAttributeLoginService = mock(MultiAttributeLoginService.class);
-        basicAuthenticatorServiceComponent.setMultiAttributeLoginService(mockMultiAttributeLoginService);
-
-    }
-
-    @Test
-    public void unSetMultiAttributeLoginServiceTestCase() throws NoSuchFieldException, IllegalAccessException {
-
-        mockMultiAttributeLoginService = mock(MultiAttributeLoginService.class);
-        basicAuthenticatorServiceComponent.unsetMultiAttributeLoginService(mockMultiAttributeLoginService);
-    }
-
-    @Test
-    public void setIdentityGovernanceServiceTestCase() throws NoSuchFieldException, IllegalAccessException {
-
-        identityGovernanceService = mock(IdentityGovernanceService.class);
-        basicAuthenticatorServiceComponent.setIdentityGovernanceService(identityGovernanceService);
-
-    }
-
-    @Test
-    public void unsetIdentityGovernanceServiceTestCase() throws NoSuchFieldException, IllegalAccessException {
-
-        identityGovernanceService = mock(IdentityGovernanceService.class);
-        basicAuthenticatorServiceComponent.unsetIdentityGovernanceService(identityGovernanceService);
-    }
-
 }
