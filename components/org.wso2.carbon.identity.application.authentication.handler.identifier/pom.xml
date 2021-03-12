@@ -146,7 +146,10 @@
 
                             org.wso2.carbon.user.core.service; version="${carbon.kernel.imp.pkg.version.range}",
                             org.wso2.carbon.user.core.util; version="${carbon.kernel.imp.pkg.version.range}",
-                            org.wso2.carbon.utils.multitenancy; version="${carbon.kernel.imp.pkg.version.range}"
+                            org.wso2.carbon.utils.multitenancy; version="${carbon.kernel.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.multi.attribute.login.mgt.*;
+                            version="${carbon.identity.framework.imp.pkg.version.range}",
+                            org.wso2.carbon.user.core.*; version="${carbon.kernel.imp.pkg.version.range}",
                         </Import-Package>
                         <Export-Package>
                             !org.wso2.carbon.identity.application.authentication.handler.identifier.internal,
