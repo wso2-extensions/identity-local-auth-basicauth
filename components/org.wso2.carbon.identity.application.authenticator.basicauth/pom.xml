@@ -162,10 +162,7 @@
                             org.wso2.carbon.identity.governance; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.recovery; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.recovery.util; version="${identity.governance.imp.pkg.version.range}",
-                            org.wso2.carbon.identity.governance.common; version="${identity.governance.imp.pkg.version.range}",
-                            org.wso2.carbon.identity.multi.attribute.login.mgt.*;
-                            version="${carbon.identity.framework.imp.pkg.version.range}",
-                            org.wso2.carbon.user.core.*; version="${carbon.kernel.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.governance.common; version="${identity.governance.imp.pkg.version.range}"
                         </Import-Package>
                         <Export-Package>
                             !org.wso2.carbon.identity.application.authenticator.basicauth.internal,
@@ -230,7 +227,7 @@
                                             <counter>COMPLEXITY</counter>
                                             <value>COVEREDRATIO</value>
                                             <!-- Temporarily reducing threshold due to https://github.com/wso2/product-is/issues/6645 -->
-                                            <minimum>0.53</minimum>
+                                            <minimum>0.50</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
