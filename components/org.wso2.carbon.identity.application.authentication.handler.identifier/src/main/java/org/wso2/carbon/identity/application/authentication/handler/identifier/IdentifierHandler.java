@@ -314,16 +314,12 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         FrameworkUtils.validateUsername(request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
         String username = FrameworkUtils.preprocessUsername(
                 request.getParameter(IdentifierHandlerConstants.USER_NAME), context);
-        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
-            ResolvedUserResult resolvedUserResult = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().
-                    resolveUser(MultitenantUtils.getTenantAwareUsername(username), context.getTenantDomain());
-            if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
-                    equals(resolvedUserResult.getResolvedStatus())) {
-                username = UserCoreUtil.addTenantDomainToEntry(resolvedUserResult.getUser().getUsername(),
-                        context.getTenantDomain());
-            } else {
-                throw new InvalidCredentialsException("User not exist");
-            }
+        ResolvedUserResult resolvedUserResult = FrameworkUtils.processMultiAttributeLoginIdentification(
+                MultitenantUtils.getTenantAwareUsername(username), context.getTenantDomain());
+        if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                equals(resolvedUserResult.getResolvedStatus())) {
+            username = UserCoreUtil.addTenantDomainToEntry(resolvedUserResult.getUser().getUsername(),
+                    context.getTenantDomain());
         }
         Map<String, Object> authProperties = context.getProperties();
         if (authProperties == null) {

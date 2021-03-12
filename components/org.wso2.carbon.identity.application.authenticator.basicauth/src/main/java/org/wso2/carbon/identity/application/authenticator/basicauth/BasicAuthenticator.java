@@ -442,16 +442,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
         String username = FrameworkUtils.preprocessUsername(usernameFromRequest, context);
         String requestTenantDomain = context.getTenantDomain();
-        if (BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().isEnabled(requestTenantDomain)) {
-            ResolvedUserResult resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
-                    resolveUser(MultitenantUtils.getTenantAwareUsername(username), requestTenantDomain);
-            if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
-                    equals(resolvedUserResult.getResolvedStatus())) {
-                username = UserCoreUtil.addTenantDomainToEntry(resolvedUserResult.getUser().getUsername(),
-                        requestTenantDomain);
-            } else {
-                throw new InvalidCredentialsException("User not exist");
-            }
+        ResolvedUserResult resolvedUserResult = FrameworkUtils.processMultiAttributeLoginIdentification(
+                MultitenantUtils.getTenantAwareUsername(username), requestTenantDomain);
+        if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                equals(resolvedUserResult.getResolvedStatus())) {
+            username = UserCoreUtil.addTenantDomainToEntry(resolvedUserResult.getUser().getUsername(),
+                    requestTenantDomain);
         }
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
 
