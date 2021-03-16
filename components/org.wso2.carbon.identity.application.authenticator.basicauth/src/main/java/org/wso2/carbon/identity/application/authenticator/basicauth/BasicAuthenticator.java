@@ -171,10 +171,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String flowType = resolveAutoLoginFlow(autoLoginCookie.getValue());
         if (AutoLoginConstant.SIGNUP.equals(flowType)) {
             alias = getSelfRegistrationAutoLoginAlias(context);
-            String domainInCookie = (String) contentJSON.get(AutoLoginConstant.DOMAIN);
-            if (StringUtils.isEmpty(domainInCookie)) {
-                throw new AuthenticationFailedException("The domain name is not available in the ALOR cookie content.");
-            }
         }
 
         if (log.isDebugEnabled()) {

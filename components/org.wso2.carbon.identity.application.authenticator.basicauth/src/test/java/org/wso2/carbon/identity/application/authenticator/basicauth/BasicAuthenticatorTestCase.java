@@ -61,6 +61,7 @@ import org.wso2.carbon.user.api.RealmConfiguration;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserCoreConstants;
+import org.wso2.carbon.user.core.UserStoreClientException;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
@@ -85,16 +86,9 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyString;
-import static org.powermock.api.mockito.PowerMockito.doAnswer;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.powermock.api.mockito.PowerMockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+import static org.mockito.Matchers.*;
+import static org.powermock.api.mockito.PowerMockito.*;
+import static org.testng.Assert.*;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.CONTENT;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.COOKIE_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.CREATED_TIME;
@@ -214,7 +208,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         return new Object[][]{
                 {SIGNUP, null, System.currentTimeMillis(), autoLoginSignature,
-                        AuthenticatorFlowStatus.INCOMPLETE.toString()},
+                        AuthenticatorFlowStatus.SUCCESS_COMPLETED.toString()},
                 {SIGNUP, "wso2.is", null, autoLoginSignature, AuthenticatorFlowStatus.INCOMPLETE.toString()},
                 {SIGNUP, "wso2.is", System.currentTimeMillis(), null, AuthenticatorFlowStatus.INCOMPLETE.toString()},
                 {SIGNUP, "wso2.is", System.currentTimeMillis() -
@@ -318,6 +312,55 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", dummyDomainName)).thenReturn("true");
         when(mockAuthnCtxt.getTenantDomain()).thenReturn(dummyDomainName);
         assertEquals(basicAuthenticator.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt), true);
+    }
+
+    @DataProvider(name = "SelfRegistrationAutoLoginDataProvider")
+    public Object[][] getSelfRegistrationAutoLogin() {
+
+        return new String[][] {
+                {null, "Error occurred while resolving isEnableSelfRegistrationAutoLogin property."},
+        };
+    }
+
+    @Test(dataProvider = "SelfRegistrationAutoLoginDataProvider")
+    public void isEnableSelfRegistrationAutoLoginExceptionTest(String tenant, Object expected ) throws
+
+            IdentityEventException {
+
+        mockAuthnCtxt = mock(AuthenticationContext.class);
+        mockStatic(Utils.class);
+        when(mockAuthnCtxt.getTenantDomain()).thenReturn(tenant);
+        when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", tenant)).
+                thenThrow(new IdentityEventException("Error"));
+        try {
+            basicAuthenticator.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt);
+        } catch (Exception e) {
+            assertEquals(e.getMessage(),expected);
+        }
+    }
+
+    @DataProvider(name = "SelfRegistrationAutoLoginAliasDataProvider")
+    public Object[][] getSelfRegistrationAutoLoginAlias() {
+
+        return new String[][] {
+                {null, "Error occurred while resolving SelfRegistration.AutoLogin.AliasName property."},
+        };
+    }
+
+    @Test(dataProvider = "SelfRegistrationAutoLoginAliasDataProvider")
+    public void getSelfRegistrationAutoLoginAliasExceptionTest(String tenant, Object expected ) throws
+            IdentityEventException {
+
+        mockAuthnCtxt = mock(AuthenticationContext.class);
+        mockStatic(Utils.class);
+        when(mockAuthnCtxt.getTenantDomain()).thenReturn(tenant);
+        when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.AliasName", tenant)).
+                thenThrow(new IdentityEventException("Error"));
+        try {
+            basicAuthenticator.getSelfRegistrationAutoLoginAlias(mockAuthnCtxt);
+        } catch (Exception e) {
+            assertEquals(e.getMessage(),expected);
+        }
     }
 
     @Test
@@ -554,21 +597,20 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     }
 
     @Test
-    public void processAuthenticationResponseTestcaseWithuserStoreException() throws IOException,
-            UserStoreException, NoSuchFieldException, IllegalAccessException {
+    public void processAuthenticationResponseTestcaseWithUserStoreException() throws UserStoreException {
 
         mockAuthnCtxt = mock(AuthenticationContext.class);
         when(mockAuthnCtxt.getProperties()).thenReturn(null);
 
         mockRequest = mock(HttpServletRequest.class);
         when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(dummyUserName);
+        when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(dummyPassword);
 
         mockResponse = mock(HttpServletResponse.class);
-
+        when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(anyMap());
+        when(mockAuthnCtxt.getAuthenticatorParams("BasicAuthenticator")).thenReturn(anyMap());
         mockStatic(IdentityTenantUtil.class);
-        when(IdentityTenantUtil.getTenantIdOfUser(dummyUserName)).thenReturn(-1234);
-
+        when(IdentityTenantUtil.getTenantIdOfUser(dummyUserName)).thenReturn(dummyTenantId);
         mockStatic(FrameworkUtils.class);
         when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
 
@@ -576,24 +618,76 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         mockUser = mock(User.class);
         when(User.getUserFromUserName(anyString())).thenReturn(mockUser);
 
+        mockStatic(IdentityUtil.class);
+        Map<String, Object> mockedThreadLocalMap = new HashMap<>();
+        IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
         mockStatic(BasicAuthenticatorServiceComponent.class);
         mockRealmService = mock(RealmService.class);
         when(BasicAuthenticatorServiceComponent.getRealmService()).thenReturn(mockRealmService);
         mockRealm = mock(UserRealm.class);
         mockUserStoreManager = mock(UserStoreManager.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(-1234)).thenThrow(new org
-                .wso2.carbon.user.api.UserStoreException());
+        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId))
+                .thenReturn(mockRealm);
+        when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
+        mockStatic(MultitenantUtils.class);
+        when(MultitenantUtils.getTenantAwareUsername(dummyUserName)).thenReturn(dummyUserName);
+        when(mockUserStoreManager.authenticate(
+                MultitenantUtils.getTenantAwareUsername(dummyUserName), dummyPassword))
+                .thenThrow(new org.wso2.carbon.user.core.UserStoreException(new UserStoreClientException()));
         try {
-            basicAuthenticator.processAuthenticationResponse(
-                    mockRequest, mockResponse, mockAuthnCtxt);
+            basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
         } catch (AuthenticationFailedException e) {
             assertNotNull(e);
         }
     }
 
     @Test
-    public void processAuthenticationResponseTestcaseWithIdentityRuntimeException() throws IOException,
-            UserStoreException, NoSuchFieldException, IllegalAccessException {
+    public void processAuthenticationResponseTestcaseWithUserStoreClientException() throws UserStoreException {
+
+        mockAuthnCtxt = mock(AuthenticationContext.class);
+        when(mockAuthnCtxt.getProperties()).thenReturn(null);
+
+        mockRequest = mock(HttpServletRequest.class);
+        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
+        when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(dummyPassword);
+
+        mockResponse = mock(HttpServletResponse.class);
+        when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(anyMap());
+        when(mockAuthnCtxt.getAuthenticatorParams("BasicAuthenticator")).thenReturn(anyMap());
+        mockStatic(IdentityTenantUtil.class);
+        when(IdentityTenantUtil.getTenantIdOfUser(dummyUserName)).thenReturn(dummyTenantId);
+        mockStatic(FrameworkUtils.class);
+        when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
+
+        mockStatic(User.class);
+        mockUser = mock(User.class);
+        when(User.getUserFromUserName(anyString())).thenReturn(mockUser);
+
+        mockStatic(IdentityUtil.class);
+        Map<String, Object> mockedThreadLocalMap = new HashMap<>();
+        IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
+        mockStatic(BasicAuthenticatorServiceComponent.class);
+        mockRealmService = mock(RealmService.class);
+        when(BasicAuthenticatorServiceComponent.getRealmService()).thenReturn(mockRealmService);
+        mockRealm = mock(UserRealm.class);
+        mockUserStoreManager = mock(UserStoreManager.class);
+        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId)).thenReturn(mockRealm);
+        when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
+
+        mockStatic(MultitenantUtils.class);
+        when(MultitenantUtils.getTenantAwareUsername(dummyUserName)).thenReturn(dummyUserName);
+        when(mockUserStoreManager.authenticate(
+                MultitenantUtils.getTenantAwareUsername(dummyUserName), dummyPassword))
+                .thenThrow(new UserStoreClientException());
+        try {
+            basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
+        } catch (AuthenticationFailedException e) {
+            assertNotNull(e);
+        }
+    }
+
+    @Test
+    public void processAuthenticationResponseTestcaseWithIdentityRuntimeException() throws UserStoreException {
 
         mockAuthnCtxt = mock(AuthenticationContext.class);
         when(mockAuthnCtxt.getProperties()).thenReturn(null);
@@ -643,16 +737,17 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     public Object[][] getEnabledOption() {
 
         return new String[][]{
-                {"true", dummyVal, null},
-                {"false", null, null},
-                {"true", null, "false"}
+                {"true", dummyVal, null, null},
+                {"false", null, null, null},
+                {"true", null, "false", null},
+                {"true", null, "false", "true"}
         };
     }
 
     @Test(dataProvider = "enableStatusProvider")
     public void initiateAuthenticationRequestTestcaseWithUnknownErrorCode(String statusProvider, String
-            showAuthFailureReason, String cntxpropUserTenantDomainMismatch) throws
-            AuthenticationFailedException, IOException, NoSuchFieldException, IllegalAccessException {
+            showAuthFailureReason, String constexprUserTenantDomainMismatch, String contextInvalidEmailUsername) throws
+            AuthenticationFailedException, IOException {
 
         mockAuthnCtxt = mock(AuthenticationContext.class);
         mockRequest = mock(HttpServletRequest.class);
@@ -669,7 +764,9 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
         when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
 
-        when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(Boolean.valueOf(cntxpropUserTenantDomainMismatch));
+        when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(Boolean.valueOf(
+                constexprUserTenantDomainMismatch));
+        when(mockAuthnCtxt.getProperty("InvalidEmailUsername")).thenReturn(Boolean.valueOf(contextInvalidEmailUsername));
         when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
         when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
         when(mockAuthnCtxt.isRetrying()).thenReturn(Boolean.valueOf(statusProvider));
@@ -690,14 +787,19 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
 
-        if (Boolean.valueOf(statusProvider) && !Boolean.valueOf(cntxpropUserTenantDomainMismatch)) {
+        if (Boolean.valueOf(statusProvider) && !Boolean.valueOf(constexprUserTenantDomainMismatch)
+                && !Boolean.valueOf(contextInvalidEmailUsername)) {
             assertEquals(redirect, dummyLoginPage + "?" + dummyQueryParam
                     + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
                     BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=login.fail.message");
-        } else if (!Boolean.valueOf(statusProvider) && !Boolean.valueOf(cntxpropUserTenantDomainMismatch)) {
+        } else if (!Boolean.valueOf(statusProvider) && !Boolean.valueOf(constexprUserTenantDomainMismatch)) {
             assertEquals(redirect, dummyLoginPage + "?" + dummyQueryParam
                     + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
                     BasicAuthenticatorConstants.LOCAL + "");
+        } else if (Boolean.valueOf(statusProvider) && Boolean.valueOf(contextInvalidEmailUsername)) {
+            assertEquals(redirect,dummyLoginPage + "?" + dummyQueryParam
+                    + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
+                    BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=emailusername.fail.message");
         } else {
             assertEquals(redirect, dummyLoginPage + "?" + dummyQueryParam
                     + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
