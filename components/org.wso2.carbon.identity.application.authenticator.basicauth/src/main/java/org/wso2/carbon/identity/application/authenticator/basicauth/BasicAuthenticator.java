@@ -324,7 +324,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 } else if (errorCode.equals(
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE)) {
                     String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
-                    String tenantDoamin = MultitenantUtils.getTenantDomain(username);
+                    String tenantDomain = getTenantDomainFromUserName(context, username);
 
                     // Setting callback so that the user is prompted to login after a password reset.
                     String callback = loginPage + ("?" + queryParams)
@@ -335,7 +335,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     redirectURL = (PASSWORD_RESET_ENDPOINT + queryParams) +
                             BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username,
                             BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
-                            URLEncoder.encode(tenantDoamin, BasicAuthenticatorConstants.UTF_8) +
+                            URLEncoder.encode(tenantDomain, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(password,
                             BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
                             URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
@@ -947,5 +947,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private void clearUserExistThreadLocal() {
 
         IdentityUtil.threadLocalProperties.get().remove(USER_EXIST_THREAD_LOCAL_PROPERTY);
+    }
+
+    private String getTenantDomainFromUserName(AuthenticationContext context, String username) {
+
+        boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
+        if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled() && !isSaaSApp) {
+            return IdentityTenantUtil.getTenantDomainFromContext();
+        }
+        return MultitenantUtils.getTenantDomain(username);
     }
 }
