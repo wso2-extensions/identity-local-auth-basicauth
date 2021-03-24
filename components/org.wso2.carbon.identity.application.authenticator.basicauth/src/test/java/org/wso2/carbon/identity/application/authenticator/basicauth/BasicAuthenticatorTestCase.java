@@ -699,6 +699,42 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     }
 
     @Test
+    public void processAuthenticationResponseTestcaseWithUserStoreManagerException() throws Exception {
+
+        mockAuthnCtxt = mock(AuthenticationContext.class);
+        when(mockAuthnCtxt.getProperties()).thenReturn(null);
+
+        mockRequest = mock(HttpServletRequest.class);
+        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
+        when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(dummyUserName);
+
+        mockResponse = mock(HttpServletResponse.class);
+
+        mockStatic(IdentityTenantUtil.class);
+        when(IdentityTenantUtil.getTenantIdOfUser(dummyUserName)).thenReturn(-1234);
+
+        mockStatic(FrameworkUtils.class);
+        when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
+
+        mockStatic(User.class);
+        mockUser = mock(User.class);
+        when(User.getUserFromUserName(anyString())).thenReturn(mockUser);
+
+        mockStatic(BasicAuthenticatorServiceComponent.class);
+        mockRealmService = mock(RealmService.class);
+        when(BasicAuthenticatorServiceComponent.getRealmService()).thenReturn(mockRealmService);
+        mockRealm = mock(UserRealm.class);
+        mockUserStoreManager = mock(UserStoreManager.class);
+        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId))
+                .thenThrow(new org.wso2.carbon.user.api.UserStoreException());
+        try {
+            basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
+        } catch (AuthenticationFailedException e) {
+            assertNotNull(e);
+        }
+    }
+
+    @Test
     public void processAuthenticationResponseTestcaseWithIdentityRuntimeException() throws UserStoreException {
 
         mockAuthnCtxt = mock(AuthenticationContext.class);
