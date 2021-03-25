@@ -53,6 +53,7 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.identity.recovery.util.Utils;
 import org.wso2.carbon.user.api.UserRealm;
@@ -474,6 +475,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
         }
         String username = FrameworkUtils.preprocessUsername(usernameFromRequest, context);
+        String requestTenantDomain = context.getTenantDomain();
+        ResolvedUserResult resolvedUserResult = FrameworkUtils.processMultiAttributeLoginIdentification(
+                MultitenantUtils.getTenantAwareUsername(username), requestTenantDomain);
+        if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                equals(resolvedUserResult.getResolvedStatus())) {
+            username = UserCoreUtil.addTenantDomainToEntry(resolvedUserResult.getUser().getUsername(),
+                    requestTenantDomain);
+        }
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
 
         Map<String, Object> authProperties = context.getProperties();

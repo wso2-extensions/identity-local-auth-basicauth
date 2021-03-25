@@ -112,7 +112,6 @@ public class BasicAuthenticatorServiceComponent {
 
         BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(null);
     }
-
     /**
      * Read the captcha-config.properties file located in repository/conf/identity directory and set the
      * configurations required to enable recaptcha in the Data holder.

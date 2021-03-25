@@ -118,7 +118,7 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.util.
  */
 @PrepareForTest({IdentityTenantUtil.class, BasicAuthenticatorServiceComponent.class, User
         .class, MultitenantUtils.class, FrameworkUtils.class, FileBasedConfigurationBuilder.class,
-        IdentityUtil.class, UserCoreUtil.class, Utils.class, SignatureUtil.class})
+        IdentityUtil.class, UserCoreUtil.class, Utils.class, SignatureUtil.class, BasicAuthenticatorDataHolder.class})
 public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
     private HttpServletRequest mockRequest;
