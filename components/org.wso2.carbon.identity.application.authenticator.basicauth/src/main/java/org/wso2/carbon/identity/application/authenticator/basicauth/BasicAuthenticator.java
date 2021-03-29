@@ -433,15 +433,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         String usernameFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
         FrameworkUtils.validateUsername(usernameFromRequest, context);
-
-        // TODO: 3/29/21 Tenanted user session feature is not available yet. Therefore username is assumed to contain
-        //  the tenant domain.
-//        if (runtimeParams != null) {
-//            String appendUserTenant = runtimeParams.get(APPEND_USER_TENANT_TO_USERNAME);
-//            if (Boolean.valueOf(appendUserTenant)) {
-//                usernameFromRequest = usernameFromRequest + "@" + context.getUserTenantDomain();
-//            }
-//        }
         String username = FrameworkUtils.preprocessUsername(usernameFromRequest, context);
         String requestTenantDomain = context.getTenantDomain();
         ResolvedUserResult resolvedUserResult = FrameworkUtils.processMultiAttributeLoginIdentification(
