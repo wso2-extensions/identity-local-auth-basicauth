@@ -234,7 +234,7 @@
                                             <counter>COMPLEXITY</counter>
                                             <value>COVEREDRATIO</value>
                                             <!-- Temporarily reducing threshold due to https://github.com/wso2/product-is/issues/6645 -->
-                                            <minimum>0.52</minimum>
+                                            <minimum>0.47</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
