@@ -18,6 +18,7 @@
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
 import org.apache.commons.lang.StringUtils;
+import org.json.simple.JSONObject;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -49,6 +50,7 @@ import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
+import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
@@ -93,6 +95,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.mockito.Matchers.anyString;
 
+import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.SELF_REGISTRATION_AUTO_LOGIN;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.SELF_REGISTRATION_AUTO_LOGIN_ALIAS_NAME;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.SIGNUP;
 /**
  * Unit test cases for the Basic Authenticator.
  */
@@ -253,6 +258,139 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                 AuthenticatorFlowStatus.SUCCESS_COMPLETED);
     }
 
+    @Test
+    public void processAutoLoginNewCookieSuccessTestCase() throws Exception {
+
+        Map<String, String> parameterMap = new HashMap<>();
+        parameterMap.put("UserNameAttributeClaimUri", "http://wso2.org/claims/username");
+        AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("BasicAuthenticator", true,
+                parameterMap);
+
+        mockStatic(FileBasedConfigurationBuilder.class);
+        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
+        when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+
+        mockRequest = mock(HttpServletRequest.class);
+        mockResponse = mock(HttpServletResponse.class);
+        mockAuthnCtxt = mock(AuthenticationContext.class);
+
+        when(mockAuthnCtxt.isLogoutRequest()).thenReturn(false);
+        when(mockAuthnCtxt.getTenantDomain()).thenReturn(dummyDomainName);
+        when(mockRequest.getParameter("username")).thenReturn("admin");
+
+        mockStatic(Utils.class);
+        mockStatic(MultitenantUtils.class);
+        mockStatic(IdentityTenantUtil.class);
+        mockStatic(UserCoreUtil.class);
+        mockStatic(BasicAuthenticatorServiceComponent.class);
+        mockStatic(FrameworkUtils.class);
+        mockStatic(SignatureUtil.class);
+
+        JSONObject cookieValue = new JSONObject();
+        cookieValue.put("username", "admin");
+        cookieValue.put("flowType", SIGNUP);
+        String content = cookieValue.toString();
+        JSONObject cookieValueInJson = new JSONObject();
+        cookieValueInJson.put("content", content);
+        cookieValueInJson.put("signature", "eyJzaWduYXR1cmUiOiJBeTRTU1h1bXlhWFpzYzBnS0J1SjdUQzgyNzEzb1BiWlRjSDZs" +
+                "XFxcL29XcE1vaVNJVUFHcWwyb2tWOGZ0c3VPMWlrdUZQaUE1Qm1LNFFpdzNpakVTaXdmbFBzcmdNTVVFdEcrMnE3cEQya09oc0p" +
+                "1NmVuRnQ5Qlc5THl0YjlsSmlmV0hJZXVGRDllckFyUDhiWExocTE1WFFmSnVGSlNtVnBIZTZub0RrNnVIY2ZLTW5aVmF2d0xza2" +
+                "5DZE5mYnZXQitxUkF3dnJBSmtLTG9vZVZpM2t4RlBHbmcwaFlRbnNKeHJcXFwvOTNwVnpmN1xcXC9PcmZhcFU2bzJXNEZvdk01d" +
+                "XJ6SjhDWmVkakpHZm5qdjV5bXNjRlN3U1NWVDljZnhISVVBWDFaQU9CZzRSMVZXNnhlbm9wcjYzTkFIYXZINFNESSs0UFl2Y1Ju" +
+                "S0J1dVR5YTB0dm0rdTVUaVE9PSIsImNvbnRlbnQiOiJ7XCJ1c2VybmFtZVwiOlwiYWRtaW5cIixcImZsb3dUeXBlXCI6XCJTSUdO" +
+                "VVBcIn0ifQ==");
+
+        when(SignatureUtil.validateSignature(any(byte[].class), anyString(), any(byte[].class))).thenReturn(true);
+        when(SignatureUtil.getThumbPrintForAlias("alias")).thenReturn(new byte[0]);
+        when(FrameworkUtils.prependUserStoreDomainToName("admin")).thenReturn("admin" + "@"
+                + dummyDomainName);
+        when(Utils.getConnectorConfig(SELF_REGISTRATION_AUTO_LOGIN, dummyDomainName)).thenReturn("true");
+        when(Utils.getConnectorConfig(SELF_REGISTRATION_AUTO_LOGIN_ALIAS_NAME, dummyDomainName)).thenReturn("alias");
+        when(IdentityTenantUtil.getTenantIdOfUser("admin" + "@" + dummyDomainName)).thenReturn(dummyTenantId);
+        when(UserCoreUtil.getDomainFromThreadLocal()).thenReturn(dummyDomainName);
+
+        mockRealmService = mock(RealmService.class);
+        mockRealm = mock(UserRealm.class);
+        mockUserStoreManager = mock(UserStoreManager.class);
+
+        RealmConfiguration mockRealmConfiguration = mock(RealmConfiguration.class);
+        when(BasicAuthenticatorServiceComponent.getRealmService()).thenReturn(mockRealmService);
+        when(mockRealmService.getTenantUserRealm(dummyTenantId)).thenReturn(mockRealm);
+        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId))
+                .thenReturn(mockRealm);
+        when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
+        when(mockUserStoreManager.getSecondaryUserStoreManager(dummyDomainName)).thenReturn(mockUserStoreManager);
+        when(mockUserStoreManager.getRealmConfiguration()).thenReturn(mockRealmConfiguration);
+        when(mockRealmConfiguration.getUserStoreProperty("MultipleAttributeEnable")).thenReturn("false");
+        when(MultitenantUtils.getTenantDomain("admin" + "@" + dummyDomainName)).thenReturn(dummyDomainName);
+
+        Cookie[] cookies = new Cookie[1];
+        cookies[0] = new Cookie("ALOR",
+                Base64.getEncoder().encodeToString(cookieValueInJson.toString().getBytes()));
+        when(mockRequest.getCookies()).thenReturn(cookies);
+
+        assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt),
+                AuthenticatorFlowStatus.SUCCESS_COMPLETED);
+    }
+    @Test
+    public void isEnableSelfRegistrationAutoLoginTest() throws AuthenticationFailedException, IdentityEventException {
+
+        mockAuthnCtxt = mock(AuthenticationContext.class);
+        mockStatic(Utils.class);
+        when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", dummyDomainName)).thenReturn("true");
+        when(mockAuthnCtxt.getTenantDomain()).thenReturn(dummyDomainName);
+        assertEquals(basicAuthenticator.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt), true);
+    }
+
+    @DataProvider(name = "SelfRegistrationAutoLoginDataProvider")
+    public Object[][] getSelfRegistrationAutoLogin() {
+
+        return new String[][] {
+                {null, "Error occurred while resolving isEnableSelfRegistrationAutoLogin property."},
+        };
+    }
+
+    @Test(dataProvider = "SelfRegistrationAutoLoginDataProvider")
+    public void isEnableSelfRegistrationAutoLoginExceptionTest(String tenant, Object expected ) throws
+
+            IdentityEventException {
+
+        mockAuthnCtxt = mock(AuthenticationContext.class);
+        mockStatic(Utils.class);
+        when(mockAuthnCtxt.getTenantDomain()).thenReturn(tenant);
+        when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", tenant)).
+                thenThrow(new IdentityEventException("Error"));
+        try {
+            basicAuthenticator.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt);
+        } catch (Exception e) {
+            assertEquals(e.getMessage(),expected);
+        }
+    }
+
+    @DataProvider(name = "SelfRegistrationAutoLoginAliasDataProvider")
+    public Object[][] getSelfRegistrationAutoLoginAlias() {
+
+        return new String[][] {
+                {null, "Error occurred while resolving SelfRegistration.AutoLogin.AliasName property."},
+        };
+    }
+
+    @Test(dataProvider = "SelfRegistrationAutoLoginAliasDataProvider")
+    public void getSelfRegistrationAutoLoginAliasExceptionTest(String tenant, Object expected ) throws
+            IdentityEventException {
+
+        mockAuthnCtxt = mock(AuthenticationContext.class);
+        mockStatic(Utils.class);
+        when(mockAuthnCtxt.getTenantDomain()).thenReturn(tenant);
+        when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.AliasName", tenant)).
+                thenThrow(new IdentityEventException("Error"));
+        try {
+            basicAuthenticator.getSelfRegistrationAutoLoginAlias(mockAuthnCtxt);
+        } catch (Exception e) {
+            assertEquals(e.getMessage(),expected);
+        }
+    }
     @Test
     public void processIncompleteTestCase() throws IOException, AuthenticationFailedException, LogoutFailedException {
 
