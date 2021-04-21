@@ -44,7 +44,6 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLog
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
-import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.captcha.connector.recaptcha.SSOLoginReCaptchaConfig;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
@@ -61,6 +60,9 @@ import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserStoreClientException;
 import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.UserStoreManager;
+import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
+import org.wso2.carbon.user.core.common.AuthenticationResult;
+import org.wso2.carbon.user.core.constants.UserCoreClaimConstants;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
@@ -75,6 +77,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -92,14 +95,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String RESEND_CONFIRMATION_RECAPTCHA_ENABLE = "SelfRegistration.ResendConfirmationReCaptcha";
     private static final String AUTO_LOGIN_FLOW_HANDLED = "autoLoginHandled";
     private static final String APPEND_USER_TENANT_TO_USERNAME = "appendUserTenantToUsername";
-    private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
+    private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     private List<String> omittingErrorParams = null;
 
     /**
      * USER_EXIST_THREAD_LOCAL_PROPERTY is used to maintain the state of user existence
      * which has used in org.wso2.carbon.identity.governance.listener.IdentityMgtEventListener.
      */
-    private static String USER_EXIST_THREAD_LOCAL_PROPERTY = "userExistThreadLocalProperty";
+    private static final String USER_EXIST_THREAD_LOCAL_PROPERTY = "userExistThreadLocalProperty";
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -187,10 +190,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         usernameInCookie = FrameworkUtils.prependUserStoreDomainToName(usernameInCookie);
 
-        String tenantDomain = MultitenantUtils.getTenantDomain(usernameInCookie);
-        UserStoreManager userStoreManager = getUserStoreManager(usernameInCookie);
-
-        usernameInCookie = getMultiAttributeUsername(usernameInCookie, tenantDomain, userStoreManager);
         context.setSubject(AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(usernameInCookie));
         return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
     }
@@ -465,23 +464,30 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        String usernameFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
-        FrameworkUtils.validateUsername(usernameFromRequest, context);
+        String loginIdentifierFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+        FrameworkUtils.validateUsername(loginIdentifierFromRequest, context);
         Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
+            // FrameworkUtils.preprocessUsername will not append the tenant domain to username, if you are using
+            // email as username and EnableEmailUserName config is not enabled. So for a SaaS app, this config needs
+            // to be enabled to add the tenant domain to email username if EnableEmailUserName is not enabled in the
+            // system.
             String appendUserTenant = runtimeParams.get(APPEND_USER_TENANT_TO_USERNAME);
-            if (Boolean.valueOf(appendUserTenant)) {
-                usernameFromRequest = usernameFromRequest + "@" + context.getUserTenantDomain();
+            if (Boolean.parseBoolean(appendUserTenant)) {
+                loginIdentifierFromRequest = loginIdentifierFromRequest + "@" + context.getUserTenantDomain();
             }
         }
-        String username = FrameworkUtils.preprocessUsername(usernameFromRequest, context);
+        String username = FrameworkUtils.preprocessUsername(loginIdentifierFromRequest, context);
         String requestTenantDomain = MultitenantUtils.getTenantDomain(username);
+        String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
+        String userId = null;
         ResolvedUserResult resolvedUserResult = FrameworkUtils.processMultiAttributeLoginIdentification(
-                MultitenantUtils.getTenantAwareUsername(username), requestTenantDomain);
+                tenantAwareUsername, requestTenantDomain);
         if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
                 equals(resolvedUserResult.getResolvedStatus())) {
-            username = UserCoreUtil.addTenantDomainToEntry(resolvedUserResult.getUser().getUsername(),
-                    requestTenantDomain);
+            tenantAwareUsername = resolvedUserResult.getUser().getUsername();
+            username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, requestTenantDomain);
+            userId = resolvedUserResult.getUser().getUserID();
         }
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
 
@@ -506,15 +512,25 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         authProperties.put(PASSWORD_PROPERTY, password);
 
-        boolean isAuthenticated;
-        UserStoreManager userStoreManager = getUserStoreManager(username);
+        boolean isAuthenticated = false;
+        AbstractUserStoreManager userStoreManager = getUserStoreManager(username, requestTenantDomain);
         // Reset RE_CAPTCHA_USER_DOMAIN thread local variable before the authentication
         IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
         // Check the authentication
+        AuthenticationResult authenticationResult;
         try {
             setUserExistThreadLocal();
-            isAuthenticated = userStoreManager.authenticate(
-                    MultitenantUtils.getTenantAwareUsername(username), password);
+
+            if (userId != null) {
+                authenticationResult = userStoreManager.authenticateWithID(userId, password);
+            } else {
+                authenticationResult = userStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
+                        tenantAwareUsername, password, UserCoreConstants.DEFAULT_PROFILE);
+            }
+            if (AuthenticationResult.AuthenticationStatus.SUCCESS == authenticationResult.getAuthenticationStatus()
+                    && authenticationResult.getAuthenticatedUser().isPresent()) {
+                isAuthenticated = true;
+            }
             if (isAuthPolicyAccountExistCheck()) {
                 checkUserExistence();
             }
@@ -560,16 +576,17 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     ErrorMessages.INVALID_CREDENTIALS.getMessage(), User.getUserFromUserName(username));
         }
 
-        String tenantDomain = MultitenantUtils.getTenantDomain(username);
-
         //TODO: user tenant domain has to be an attribute in the AuthenticationContext
-        authProperties.put("user-tenant-domain", tenantDomain);
+        authProperties.put("user-tenant-domain", requestTenantDomain);
 
-        username = getMultiAttributeUsername(FrameworkUtils.prependUserStoreDomainToName(username), tenantDomain,
-                userStoreManager);
-        context.setSubject(AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username));
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(authenticationResult.getAuthenticatedUser().get());
+
+        // Update the username from the deprecated multi attribute login feature.
+        updateMultiAttributeUsername(authenticatedUser, requestTenantDomain, userStoreManager);
+
+        context.setSubject(authenticatedUser);
+
         String rememberMe = request.getParameter("chkRemember");
-
         if ("on".equals(rememberMe)) {
             context.setRememberMe(true);
         }
@@ -840,7 +857,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
-    private String getMultiAttributeUsername(String username, String tenantDomain, UserStoreManager userStoreManager) {
+    private void updateMultiAttributeUsername(AuthenticatedUser user, String tenantDomain,
+                                                AbstractUserStoreManager userStoreManager) {
 
         if (getAuthenticatorConfig().getParameterMap() != null) {
             String userNameUri = getAuthenticatorConfig().getParameterMap().get("UserNameAttributeClaimUri");
@@ -857,21 +875,31 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 if (multipleAttributeEnable) {
                     try {
                         if (log.isDebugEnabled()) {
-                            log.debug("Searching for UserNameAttribute value for user " + username +
+                            log.debug("Searching for UserNameAttribute value for user " + user.getUserId() +
                                     " for claim uri : " + userNameUri);
                         }
-                        String usernameValue = userStoreManager.
-                                getUserClaimValue(MultitenantUtils.getTenantAwareUsername(username), userNameUri, null);
+                        // This getUserClaimValue cannot be converted to user id method, since if the value user
+                        // enters is not the actual username, user id will not be available in AuthenticationResult.
+                        String usernameValue;
+                        if (user.getUserStoreDomain() != null
+                                && !UserCoreConstants.PRIMARY_DEFAULT_DOMAIN_NAME.equals(user.getUserStoreDomain())) {
+                            usernameValue =
+                                    userStoreManager.getSecondaryUserStoreManager(user.getUserStoreDomain())
+                                            .getUserClaimValue(user.getUserName(), userNameUri, null);
+                        } else {
+                            usernameValue = userStoreManager.
+                                    getUserClaimValue(user.getUserName(), userNameUri, null);
+                        }
                         if (StringUtils.isNotBlank(usernameValue)) {
-                            usernameValue = FrameworkUtils.prependUserStoreDomainToName(usernameValue);
-                            username = usernameValue + "@" + tenantDomain;
+                            user.setUserName(usernameValue);
                             if (log.isDebugEnabled()) {
-                                log.debug("UserNameAttribute is found for user. Value is :  " + username);
+                                log.debug("UserNameAttribute is found for user + " + user.getUserId()
+                                        + ". Value is: " + usernameValue);
                             }
                         }
                     } catch (UserStoreException e) {
                         if (log.isDebugEnabled()) {
-                            log.debug("Error while retrieving UserNameAttribute for user : " + username, e);
+                            log.debug("Error while retrieving UserNameAttribute for user : " + user.getUserId(), e);
                         }
                     }
                 } else {
@@ -882,16 +910,17 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 }
             }
         }
-        return username;
     }
 
-    private UserStoreManager getUserStoreManager(String username) throws AuthenticationFailedException {
+    private AbstractUserStoreManager getUserStoreManager(String username, String tenantDomain)
+            throws AuthenticationFailedException {
 
         try {
-            int tenantId = IdentityTenantUtil.getTenantIdOfUser(username);
+            int tenantId =
+                    BasicAuthenticatorServiceComponent.getRealmService().getTenantManager().getTenantId(tenantDomain);
             UserRealm userRealm = BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(tenantId);
             if (userRealm != null) {
-                return (UserStoreManager) userRealm.getUserStoreManager();
+                return (AbstractUserStoreManager) userRealm.getUserStoreManager();
             } else {
                 throw new AuthenticationFailedException("Cannot find the user realm for the given tenant: " +
                         tenantId, User.getUserFromUserName(username));
@@ -899,11 +928,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
             if (log.isDebugEnabled()) {
                 log.debug("Can't find the UserStoreManager for the user: " + username, e);
-            }
-            throw new AuthenticationFailedException(e.getMessage(), e);
-        } catch (IdentityRuntimeException e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Can't find the tenant domain for the user: " + username, e);
             }
             throw new AuthenticationFailedException(e.getMessage(), e);
         }

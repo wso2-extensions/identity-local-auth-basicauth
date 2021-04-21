@@ -48,6 +48,7 @@ import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserStoreManager;
+import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
@@ -74,7 +75,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     private static final String SKIP_IDENTIFIER_PRE_PROCESS = "skipIdentifierPreProcess";
     private static final String CONTINUE = "continue";
     private static final String RESET = "reset";
-    private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
+    private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -319,28 +320,36 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         Map<String, String> runtimeParams = getRuntimeParams(context);
+        String identifierFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
         if (runtimeParams != null) {
             String skipPreProcessUsername = runtimeParams.get(SKIP_IDENTIFIER_PRE_PROCESS);
-            if (Boolean.valueOf(skipPreProcessUsername)) {
-                String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
-                persistUsername(context, username);
+            if (Boolean.parseBoolean(skipPreProcessUsername)) {
+                persistUsername(context, identifierFromRequest);
+
+                // Since the pre-processing is skipped, user id is not populated.
                 AuthenticatedUser user = new AuthenticatedUser();
-                user.setUserName(username);
+                user.setUserName(identifierFromRequest);
                 context.setSubject(user);
                 return;
             }
         }
 
-        FrameworkUtils.validateUsername(request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
-        String username = FrameworkUtils.preprocessUsername(
-                request.getParameter(IdentifierHandlerConstants.USER_NAME), context);
+        FrameworkUtils.validateUsername(identifierFromRequest, context);
+        String username = FrameworkUtils.preprocessUsername(identifierFromRequest, context);
+
+        String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
+        String userId = null;
         ResolvedUserResult resolvedUserResult = FrameworkUtils.processMultiAttributeLoginIdentification(
                 MultitenantUtils.getTenantAwareUsername(username), context.getTenantDomain());
         if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
                 equals(resolvedUserResult.getResolvedStatus())) {
-            username = UserCoreUtil.addTenantDomainToEntry(resolvedUserResult.getUser().getUsername(),
+            tenantAwareUsername = resolvedUserResult.getUser().getUsername();
+            username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername,
                     context.getTenantDomain());
+            userId = resolvedUserResult.getUser().getUserID();
         }
+
+        String tenantDomain = MultitenantUtils.getTenantDomain(username);
         Map<String, Object> authProperties = context.getProperties();
         if (authProperties == null) {
             authProperties = new HashMap<>();
@@ -349,19 +358,24 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         if (getAuthenticatorConfig().getParameterMap() != null) {
             String validateUsername = getAuthenticatorConfig().getParameterMap().get("ValidateUsername");
-            if (Boolean.valueOf(validateUsername)) {
-                boolean isUserExists;
-                UserStoreManager userStoreManager;
+            if (Boolean.parseBoolean(validateUsername)) {
+                AbstractUserStoreManager userStoreManager;
                 // Check for the username exists.
                 try {
-                    int tenantId = IdentityTenantUtil.getTenantIdOfUser(username);
+                    int tenantId = IdentifierAuthenticatorServiceComponent
+                            .getRealmService().getTenantManager().getTenantId(tenantDomain);
                     UserRealm userRealm = IdentifierAuthenticatorServiceComponent.getRealmService()
                             .getTenantUserRealm(tenantId);
 
                     if (userRealm != null) {
-                        userStoreManager = (UserStoreManager) userRealm.getUserStoreManager();
-                        isUserExists = userStoreManager.isExistingUser(MultitenantUtils.getTenantAwareUsername
-                                (username));
+                        userStoreManager = (AbstractUserStoreManager) userRealm.getUserStoreManager();
+
+                        // If the user id is already resolved from the multi attribute login, we can assume the user
+                        // exists. If not, we will try to resolve the user id, which will indicate if the user exists
+                        // or not.
+                        if (userId == null) {
+                            userId = userStoreManager.getUserIDFromUserName(tenantAwareUsername);
+                        }
                     } else {
                         throw new AuthenticationFailedException(
                                 ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getCode(), String.format(
@@ -384,7 +398,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                             User.getUserFromUserName(username), e);
                 }
 
-                if (!isUserExists) {
+                if (userId == null) {
                     if (log.isDebugEnabled()) {
                         log.debug("User does not exists");
                     }
@@ -398,7 +412,6 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                             ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
                 }
 
-                String tenantDomain = MultitenantUtils.getTenantDomain(username);
                 //TODO: user tenant domain has to be an attribute in the AuthenticationContext
                 authProperties.put("user-tenant-domain", tenantDomain);
             }
@@ -408,7 +421,20 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         authProperties.put("username", username);
 
         persistUsername(context, username);
-        context.setSubject(AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username));
+
+        AuthenticatedUser user;
+        if (userId != null) {
+            // If the ValidateUsername is set to true, user id will be populated and we can create the user object
+            // based on that.
+            user = new AuthenticatedUser();
+            user.setUserId(userId);
+            user.setTenantDomain(tenantDomain);
+            user.setUserStoreDomain(UserCoreUtil.extractDomainFromName(username));
+            user.setUserName(tenantAwareUsername);
+        } else {
+            user = AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username);
+        }
+        context.setSubject(user);
     }
 
     @Override
@@ -430,7 +456,6 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     public String getName() {
         return IdentifierHandlerConstants.HANDLER_NAME;
     }
-
 
     private void persistUsername(AuthenticationContext context, String username) {
 

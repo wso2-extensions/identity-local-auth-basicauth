@@ -246,20 +246,16 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
     private String getUserId(AuthenticationContext authenticationContext) throws UserIdRetrievalException {
 
         String userId;
-        AuthenticatedUser authenticatedUser = null;
-        try {
-            StepConfig stepConfig = getCurrentSubjectIdentifierStep(authenticationContext);
+        StepConfig stepConfig = getCurrentSubjectIdentifierStep(authenticationContext);
 
-            if (stepConfig != null) {
-                authenticatedUser = stepConfig.getAuthenticatedUser();
-            } else {
-                authenticatedUser = authenticationContext.getSubject();
-            }
-            userId = getUserIDforUser(authenticatedUser);
-        } catch (UserSessionException e) {
-            throw new UserIdRetrievalException("Error occurred while retrieving the userId for user: "
-                    + authenticatedUser.getUserName(), e);
+        AuthenticatedUser authenticatedUser;
+        if (stepConfig != null) {
+            authenticatedUser = stepConfig.getAuthenticatedUser();
+        } else {
+            authenticatedUser = authenticationContext.getSubject();
         }
+        userId = authenticatedUser.getUserId();
+
         return userId;
     }
 
@@ -333,22 +329,4 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         }
         return null;
     }
-
-    private String getUserIDforUser(AuthenticatedUser authenticatedUser) throws UserSessionException {
-
-        String userId = null;
-        if (authenticatedUser != null) {
-            if (authenticatedUser.isFederatedUser()) {
-                userId = UserSessionStore.getInstance().getUserId(authenticatedUser.getUserName(),
-                        IdentityTenantUtil.getTenantId(authenticatedUser.getTenantDomain()),
-                        authenticatedUser.getUserStoreDomain());
-            } else {
-                userId = FrameworkUtils.resolveUserIdFromUsername(
-                        IdentityTenantUtil.getTenantId(authenticatedUser.getTenantDomain()),
-                        authenticatedUser.getUserStoreDomain(), authenticatedUser.getUserName());
-            }
-        }
-        return userId;
-    }
-
 }

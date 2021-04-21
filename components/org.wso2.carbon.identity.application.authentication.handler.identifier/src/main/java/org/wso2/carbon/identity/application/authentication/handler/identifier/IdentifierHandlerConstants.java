@@ -18,6 +18,8 @@
 
 package org.wso2.carbon.identity.application.authentication.handler.identifier;
 
+import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants;
+
 /**
  * Constants used by the IdentifierHandler
  */
@@ -25,7 +27,9 @@ public abstract class IdentifierHandlerConstants {
 
     public static final String HANDLER_NAME = "IdentifierExecutor";
     public static final String HANDLER_FRIENDLY_NAME = "identifier-first";
-    public static final String USER_NAME = "username";
+
+    @Deprecated
+    public static final String USER_NAME = BasicAuthenticatorConstants.USER_NAME;
     public static final String FAILED_USERNAME = "&failedUsername=";
     public static final String ERROR_CODE = "&errorCode=";
     public static final String AUTHENTICATORS = "&authenticators=";
