@@ -17,15 +17,19 @@
  */
 package org.wso2.carbon.identity.application.authenticator.basicauth.internal;
 
+import org.mockito.Mockito;
 import org.osgi.service.component.ComponentContext;
+import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 import org.wso2.carbon.identity.testutil.IdentityBaseTest;
 import org.wso2.carbon.user.core.service.RealmService;
+import org.wso2.securevault.SecretResolverFactory;
 
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.testng.Assert.assertNotNull;
 
+@PrepareForTest(SecretResolverFactory.class)
 public class BasicAuthenticatorServiceComponentTestCase extends IdentityBaseTest {
 
     private RealmService mockRealmService;
@@ -55,5 +59,13 @@ public class BasicAuthenticatorServiceComponentTestCase extends IdentityBaseTest
     public void unSetRealmTestCase() throws NoSuchFieldException, IllegalAccessException {
         mockRealmService = mock(RealmService.class);
         basicAuthenticatorServiceComponent.unsetRealmService(mockRealmService);
+    }
+
+    @Test
+    public void activateTestCase() {
+        ComponentContext componentContext = mock(ComponentContext.class, Mockito.RETURNS_DEEP_STUBS);
+        basicAuthenticatorServiceComponent.activate(componentContext);
+
+        Mockito.verify(componentContext, Mockito.atLeastOnce()).getBundleContext();
     }
 }
