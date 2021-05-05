@@ -32,6 +32,9 @@ import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.user.core.service.RealmService;
+import org.wso2.securevault.SecretResolver;
+import org.wso2.securevault.SecretResolverFactory;
+import org.wso2.securevault.commons.MiscellaneousUtil;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -40,6 +43,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Properties;
 
 @Component(
@@ -133,8 +137,35 @@ public class BasicAuthenticatorServiceComponent {
                     .RE_CAPTCHA_ENABLED));
 
             if (reCaptchaEnabled) {
+                resolveSecrets(properties);
                 BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(properties);
             }
         }
+    }
+
+    /**
+     * Resolves site-key, secret-key and any other property if they are configured using secure vault.
+     *
+     * @param properties    Loaded reCaptcha properties.
+     */
+    private void resolveSecrets(Properties properties) {
+
+        SecretResolver secretResolver = SecretResolverFactory.create(properties);
+        // Iterate through whole config file and find encrypted properties and resolve them
+        if (secretResolver != null && secretResolver.isInitialized()) {
+            for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+                String key = entry.getKey().toString();
+                String value = entry.getValue().toString();
+                if (value != null) {
+                    value = MiscellaneousUtil.resolve(value, secretResolver);
+                }
+                properties.put(key, value);
+            }
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Secret Resolver is not present. Will not resolve encryptions for captcha");
+            }
+        }
+
     }
 }
