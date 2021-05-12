@@ -475,7 +475,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
         }
         String username = FrameworkUtils.preprocessUsername(usernameFromRequest, context);
-        String requestTenantDomain = context.getTenantDomain();
+        String requestTenantDomain = MultitenantUtils.getTenantDomain(username);
         ResolvedUserResult resolvedUserResult = FrameworkUtils.processMultiAttributeLoginIdentification(
                 MultitenantUtils.getTenantAwareUsername(username), requestTenantDomain);
         if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
