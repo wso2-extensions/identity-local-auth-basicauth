@@ -19,32 +19,31 @@ package org.wso2.carbon.identity.application.authenticator.basicauth.internal;
 
 import org.mockito.Mockito;
 import org.osgi.service.component.ComponentContext;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.wso2.carbon.identity.testutil.IdentityBaseTest;
 import org.wso2.carbon.user.core.service.RealmService;
-import org.wso2.securevault.SecretResolverFactory;
 
-import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 
-@PrepareForTest(SecretResolverFactory.class)
-public class BasicAuthenticatorServiceComponentTestCase extends IdentityBaseTest {
+public class BasicAuthenticatorServiceComponentTestCase {
 
     private RealmService mockRealmService;
     private BasicAuthenticatorServiceComponent basicAuthenticatorServiceComponent;
     private ComponentContext mockComponentContext;
 
-    @BeforeTest
-    public void setup() {
+    @BeforeMethod
+    public void init() {
 
         basicAuthenticatorServiceComponent = new BasicAuthenticatorServiceComponent();
+
+        mockRealmService = mock(RealmService.class);
+        mockComponentContext = mock(ComponentContext.class);
     }
 
     @Test
     public void setRealmTestCase() throws NoSuchFieldException, IllegalAccessException {
-        mockRealmService = mock(RealmService.class);
         basicAuthenticatorServiceComponent.setRealmService(mockRealmService);
         assertNotNull(BasicAuthenticatorServiceComponent.getRealmService());
     }
@@ -59,6 +58,7 @@ public class BasicAuthenticatorServiceComponentTestCase extends IdentityBaseTest
     public void unSetRealmTestCase() throws NoSuchFieldException, IllegalAccessException {
         mockRealmService = mock(RealmService.class);
         basicAuthenticatorServiceComponent.unsetRealmService(mockRealmService);
+        assertNull(BasicAuthenticatorServiceComponent.getRealmService());
     }
 
     @Test
