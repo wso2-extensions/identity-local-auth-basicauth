@@ -253,7 +253,6 @@ public class BasicAuthenticatorTestCase {
              MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
              MockedStatic<SignatureUtil> signatureUtil = Mockito.mockStatic(SignatureUtil.class)) {
 
-            mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
             fileBasedConfigurationBuilder
                     .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
             when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
@@ -833,7 +832,6 @@ public class BasicAuthenticatorTestCase {
             basicAuthenticatorServiceComponent
                     .when(BasicAuthenticatorServiceComponent::getRealmService).thenReturn(mockRealmService);
 
-            TenantManager mockTenantManager = mock(TenantManager.class);
             when(mockRealmService.getTenantManager()).thenReturn(mockTenantManager);
             when(mockTenantManager.getTenantId(anyString()))
                     .thenThrow(new org.wso2.carbon.user.api.UserStoreException("Invalid tenant domain of user admin@abc" +
@@ -934,9 +932,6 @@ public class BasicAuthenticatorTestCase {
         try (MockedStatic<FileBasedConfigurationBuilder>
                      fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
              MockedStatic<User> user = Mockito.mockStatic(User.class)) {
-            mockAuthnCtxt = mock(AuthenticationContext.class);
-            mockRequest = mock(HttpServletRequest.class);
-            mockResponse = mock(HttpServletResponse.class);
 
             when(mockRequest.getParameter
                     (BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
