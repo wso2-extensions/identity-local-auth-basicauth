@@ -19,15 +19,13 @@ package org.wso2.carbon.identity.application.authenticator.basicauth;
 
 import org.apache.commons.lang.StringUtils;
 import org.json.simple.JSONObject;
-import org.mockito.invocation.InvocationOnMock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.reflect.internal.WhiteboxImpl;
 import org.testng.Assert;
-import org.testng.IObjectFactory;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 import org.wso2.carbon.CarbonConstants;
 import org.wso2.carbon.core.util.SignatureUtil;
@@ -58,7 +56,6 @@ import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.identity.recovery.util.Utils;
-import org.wso2.carbon.identity.testutil.powermock.PowerMockIdentityBaseTest;
 import org.wso2.carbon.user.api.RealmConfiguration;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
@@ -67,11 +64,11 @@ import org.wso2.carbon.user.core.UserStoreClientException;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
+import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
@@ -84,21 +81,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyString;
-import static org.powermock.api.mockito.PowerMockito.doAnswer;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.powermock.api.mockito.PowerMockito.when;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-import static org.mockito.Matchers.anyMap;
-
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.CONTENT;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.COOKIE_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.CREATED_TIME;
@@ -116,10 +113,7 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.util.
 /**
  * Unit test cases for the Basic Authenticator.
  */
-@PrepareForTest({IdentityTenantUtil.class, BasicAuthenticatorServiceComponent.class, User
-        .class, MultitenantUtils.class, FrameworkUtils.class, FileBasedConfigurationBuilder.class,
-        IdentityUtil.class, UserCoreUtil.class, Utils.class, SignatureUtil.class, BasicAuthenticatorDataHolder.class})
-public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
+public class BasicAuthenticatorTestCase {
 
     private HttpServletRequest mockRequest;
     private HttpServletResponse mockResponse;
@@ -130,56 +124,53 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     private UserStoreManager mockUserStoreManager;
     private FileBasedConfigurationBuilder mockFileBasedConfigurationBuilder;
     private IdentityErrorMsgContext mockIdentityErrorMsgContext;
-    private User mockUser;
-    private IdentityGovernanceService governanceService;
+    private IdentityGovernanceService mockGovernanceService;
+    private RealmConfiguration mockRealmConfiguration;
+    private ConfigurationFacade mockConfigurationFacade;
 
     private AuthenticatedUser authenticatedUser;
-    private Boolean isrememberMe = false;
+    private Boolean isRememberMe = false;
     private Boolean isUserTenantDomainMismatch = true;
     private String redirect;
 
-    private String dummyUserName = "dummyUserName";
-    private String dummyUserNameWithTenant = "dummyUserName@carbon.super";
-    private String dummyQueryParam = "dummyQueryParams";
-    private String dummyLoginPage = "dummyLoginPageurl";
-    private String dummyPassword = "dummyPassword";
-    private int dummyTenantId = -1234;
-    private String dummyVal = "dummyVal";
-    private String dummyDomainName = "dummyDomain";
-    private String dummyRetryURL = "DummyRetryUrl";
-    private String dummyEncodedVal = "DummyRetryUrl?dummyQueryParams";
-    private String callback = dummyLoginPage + "?" + dummyQueryParam + "&authenticators=BasicAuthenticator";
+    private static final String DUMMY_USER_NAME = "dummyUserName";
+    private static final String DUMMY_PASSWORD = "dummyPassword";
+    private static final String DUMMY_QUERY_PARAMS = "dummyQueryParams";
+    private static final String DUMMY_LOGIN_PAGEURL = "dummyLoginPageurl";
+    private static final String DUMMY_DOMAIN = "dummyDomain";
+    private static final String DUMMY_RETRY_URL = "DummyRetryUrl";
+    private static final String DUMMY_RETRY_URL_WITH_QUERY = "DummyRetryUrl?dummyQueryParams";
 
-    private String defaultCaptchaConfigName = "sso.login.recaptcha" +
-            CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE_ALWAYS;
-
-    private BasicAuthenticator basicAuthenticator;
-
-    private String autoLoginSignature = "eyJzaWduYXR1cmUiOiJBeTRTU1h1bXlhWFpzYzBnS0J1SjdUQzgyNzEzb1BiWlRjSDZs" +
-            "XFxcL29XcE1vaVNJVUFHcWwyb2tWOGZ0c3VPMWlrdUZQaUE1Qm1LNFFpdzNpakVTaXdmbFBzcmdNTVVFdEcrMnE3cEQya09oc0p" +
-            "1NmVuRnQ5Qlc5THl0YjlsSmlmV0hJZXVGRDllckFyUDhiWExocTE1WFFmSnVGSlNtVnBIZTZub0RrNnVIY2ZLTW5aVmF2d0xza2" +
-            "5DZE5mYnZXQitxUkF3dnJBSmtLTG9vZVZpM2t4RlBHbmcwaFlRbnNKeHJcXFwvOTNwVnpmN1xcXC9PcmZhcFU2bzJXNEZvdk01d" +
-            "XJ6SjhDWmVkakpHZm5qdjV5bXNjRlN3U1NWVDljZnhISVVBWDFaQU9CZzRSMVZXNnhlbm9wcjYzTkFIYXZINFNESSs0UFl2Y1Ju" +
-            "S0J1dVR5YTB0dm0rdTVUaVE9PSIsImNvbnRlbnQiOiJ7XCJ1c2VybmFtZVwiOlwiYWRtaW5cIixcImZsb3dUeXBlXCI6XCJTSUdO" +
-            "VVBcIn0ifQ==";
+    private final BasicAuthenticator basicAuthenticator = new BasicAuthenticator();
 
     @BeforeTest
-    public void setup() throws IdentityGovernanceException {
-
-        basicAuthenticator = new BasicAuthenticator();
+    public void setup() {
 
         System.setProperty("carbon.config.dir.path", "carbon.home");
+    }
 
-        governanceService = mock(IdentityGovernanceService.class);
+    @BeforeMethod
+    public void init() throws IdentityGovernanceException {
+        mockRequest = mock(HttpServletRequest.class);
+        mockResponse = mock(HttpServletResponse.class);
+        mockAuthnCtxt = mock(AuthenticationContext.class);
+        applicationConfig = mock(ApplicationConfig.class);
+        mockRealmService = mock(RealmService.class);
+        mockRealm = mock(UserRealm.class);
+        mockUserStoreManager = mock(UserStoreManager.class);
+        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
+        mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
+        mockGovernanceService = mock(IdentityGovernanceService.class);
+        mockRealmConfiguration = mock(RealmConfiguration.class);
+        mockConfigurationFacade = mock(ConfigurationFacade.class);
 
         Property[] captchaProperties = new Property[1];
         Property captchaEnabled = new Property();
         captchaEnabled.setDefaultValue("false");
         captchaProperties[0] = captchaEnabled;
 
-        when(governanceService.getConfiguration(any(String[].class), anyString())).thenReturn(captchaProperties);
-
-        BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(governanceService);
+        when(mockGovernanceService.getConfiguration(any(String[].class), anyString())).thenReturn(captchaProperties);
+        BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(mockGovernanceService);
     }
 
     @DataProvider(name = "UsernameAndPasswordProvider")
@@ -197,7 +188,6 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     @Test(dataProvider = "UsernameAndPasswordProvider")
     public void canHandleTestCase(String userName, String password, String expected) {
 
-        mockRequest = mock(HttpServletRequest.class);
         when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(userName);
         when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(password);
         assertEquals(Boolean.valueOf(expected).booleanValue(), basicAuthenticator.canHandle(mockRequest),
@@ -207,9 +197,6 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     @Test
     public void processSuccessTestCase() throws Exception {
 
-        mockRequest = mock(HttpServletRequest.class);
-        mockResponse = mock(HttpServletResponse.class);
-        mockAuthnCtxt = mock(AuthenticationContext.class);
         when(mockAuthnCtxt.isLogoutRequest()).thenReturn(true);
         assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt),
                 AuthenticatorFlowStatus.SUCCESS_COMPLETED);
@@ -218,6 +205,13 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     @DataProvider(name = "getAutoLoginCases")
     public Object[][] getAutoLoginCases() {
 
+        String autoLoginSignature = "eyJzaWduYXR1cmUiOiJBeTRTU1h1bXlhWFpzYzBnS0J1SjdUQzgyNzEzb1BiWlRjSDZs" +
+                "XFxcL29XcE1vaVNJVUFHcWwyb2tWOGZ0c3VPMWlrdUZQaUE1Qm1LNFFpdzNpakVTaXdmbFBzcmdNTVVFdEcrMnE3cEQya09oc0p" +
+                "1NmVuRnQ5Qlc5THl0YjlsSmlmV0hJZXVGRDllckFyUDhiWExocTE1WFFmSnVGSlNtVnBIZTZub0RrNnVIY2ZLTW5aVmF2d0xza2" +
+                "5DZE5mYnZXQitxUkF3dnJBSmtLTG9vZVZpM2t4RlBHbmcwaFlRbnNKeHJcXFwvOTNwVnpmN1xcXC9PcmZhcFU2bzJXNEZvdk01d" +
+                "XJ6SjhDWmVkakpHZm5qdjV5bXNjRlN3U1NWVDljZnhISVVBWDFaQU9CZzRSMVZXNnhlbm9wcjYzTkFIYXZINFNESSs0UFl2Y1Ju" +
+                "S0J1dVR5YTB0dm0rdTVUaVE9PSIsImNvbnRlbnQiOiJ7XCJ1c2VybmFtZVwiOlwiYWRtaW5cIixcImZsb3dUeXBlXCI6XCJTSUdO" +
+                "VVBcIn0ifQ==";
         return new Object[][]{
                 {SIGNUP, null, System.currentTimeMillis(), autoLoginSignature,
                         AuthenticatorFlowStatus.SUCCESS_COMPLETED.toString()},
@@ -242,88 +236,104 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("BasicAuthenticator", true,
                 parameterMap);
 
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
-        when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder
+                     = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<Utils> utils = Mockito.mockStatic(Utils.class);
+             MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
+             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+             MockedStatic<UserCoreUtil> userCoreUtil = Mockito.mockStatic(UserCoreUtil.class);
+             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
+                     Mockito.mockStatic(BasicAuthenticatorServiceComponent.class);
+             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+             MockedStatic<SignatureUtil> signatureUtil = Mockito.mockStatic(SignatureUtil.class)) {
 
-        mockRequest = mock(HttpServletRequest.class);
-        mockResponse = mock(HttpServletResponse.class);
-        mockAuthnCtxt = mock(AuthenticationContext.class);
+            mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
 
-        when(mockAuthnCtxt.isLogoutRequest()).thenReturn(false);
-        when(mockAuthnCtxt.getTenantDomain()).thenReturn(dummyDomainName);
-        when(mockRequest.getParameter("username")).thenReturn("admin");
-        when((mockAuthnCtxt.getSequenceConfig())).thenReturn(new SequenceConfig());
-        mockStatic(Utils.class);
-        mockStatic(MultitenantUtils.class);
-        mockStatic(IdentityTenantUtil.class);
-        mockStatic(UserCoreUtil.class);
-        mockStatic(BasicAuthenticatorServiceComponent.class);
-        mockStatic(FrameworkUtils.class);
-        mockStatic(SignatureUtil.class);
+            when(mockAuthnCtxt.isLogoutRequest()).thenReturn(false);
+            when(mockAuthnCtxt.getTenantDomain()).thenReturn(DUMMY_DOMAIN);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn("admin");
+            when((mockAuthnCtxt.getSequenceConfig())).thenReturn(new SequenceConfig());
 
-        when(SignatureUtil.validateSignature(anyString(), any(byte[].class))).thenReturn(true);
-        when(SignatureUtil.validateSignature(any(byte[].class), anyString(), any(byte[].class))).thenReturn(true);
-        when(SignatureUtil.getThumbPrintForAlias("alias")).thenReturn(new byte[0]);
-        when(FrameworkUtils.prependUserStoreDomainToName("admin")).thenReturn("admin" + "@"
-                + dummyDomainName);
-        when(Utils.getConnectorConfig(RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN, dummyDomainName)).thenReturn("true");
-        when(Utils.getConnectorConfig(SELF_REGISTRATION_AUTO_LOGIN, dummyDomainName)).thenReturn("true");
-        when(Utils.getConnectorConfig(SELF_REGISTRATION_AUTO_LOGIN_ALIAS_NAME, dummyDomainName)).thenReturn("alias");
-        when(IdentityTenantUtil.getTenantIdOfUser("admin" + "@" + dummyDomainName)).thenReturn(dummyTenantId);
-        when(UserCoreUtil.getDomainFromThreadLocal()).thenReturn(dummyDomainName);
+            signatureUtil.when(() -> SignatureUtil.validateSignature(anyString(), any(byte[].class))).thenReturn(true);
+            signatureUtil.when(() -> SignatureUtil.validateSignature(any(byte[].class), anyString(),
+                    any(byte[].class))).thenReturn(true);
+            signatureUtil.when(() -> SignatureUtil.getThumbPrintForAlias("alias")).thenReturn(new byte[0]);
 
-        mockRealmService = mock(RealmService.class);
-        mockRealm = mock(UserRealm.class);
-        mockUserStoreManager = mock(UserStoreManager.class);
+            frameworkUtils.when(
+                    () -> FrameworkUtils.prependUserStoreDomainToName("admin"))
+                    .thenReturn("admin" + "@" + DUMMY_DOMAIN);
 
-        RealmConfiguration mockRealmConfiguration = mock(RealmConfiguration.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService()).thenReturn(mockRealmService);
-        when(mockRealmService.getTenantUserRealm(dummyTenantId)).thenReturn(mockRealm);
-        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId))
-                .thenReturn(mockRealm);
-        when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
-        when(mockUserStoreManager.getSecondaryUserStoreManager(dummyDomainName)).thenReturn(mockUserStoreManager);
-        when(mockUserStoreManager.getRealmConfiguration()).thenReturn(mockRealmConfiguration);
-        when(mockRealmConfiguration.getUserStoreProperty("MultipleAttributeEnable")).thenReturn("false");
-        when(MultitenantUtils.getTenantDomain("admin" + "@" + dummyDomainName)).thenReturn(dummyDomainName);
+            utils.when(() -> Utils.getConnectorConfig(RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN, DUMMY_DOMAIN))
+                    .thenReturn("true");
+            utils.when(() -> Utils.getConnectorConfig(SELF_REGISTRATION_AUTO_LOGIN, DUMMY_DOMAIN))
+                    .thenReturn("true");
+            utils.when(() -> Utils.getConnectorConfig(SELF_REGISTRATION_AUTO_LOGIN_ALIAS_NAME, DUMMY_DOMAIN))
+                    .thenReturn("alias");
 
-        JSONObject cookieValue = new JSONObject();
-        cookieValue.put(USERNAME, "admin");
-        cookieValue.put(FLOW_TYPE, flowType);
-        cookieValue.put(DOMAIN, domain);
-        cookieValue.put(CREATED_TIME, createdTime);
-        String content = cookieValue.toString();
-        JSONObject cookieValueInJson = new JSONObject();
-        cookieValueInJson.put(CONTENT, content);
-        cookieValueInJson.put(SIGNATURE, signature);
+            identityTenantUtil.when(
+                    () -> IdentityTenantUtil.getTenantIdOfUser("admin" + "@" + DUMMY_DOMAIN))
+                    .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+            userCoreUtil.when(UserCoreUtil::getDomainFromThreadLocal).thenReturn(DUMMY_DOMAIN);
 
-        Cookie[] cookies = new Cookie[1];
-        cookies[0] = new Cookie(COOKIE_NAME,
-                Base64.getEncoder().encodeToString(cookieValueInJson.toString().getBytes()));
-        when(mockRequest.getCookies()).thenReturn(cookies);
+            basicAuthenticatorService.when(BasicAuthenticatorServiceComponent::getRealmService)
+                    .thenReturn(mockRealmService);
+            when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
+            when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
+            when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
+            when(mockUserStoreManager.getSecondaryUserStoreManager(DUMMY_DOMAIN)).thenReturn(mockUserStoreManager);
+            when(mockUserStoreManager.getRealmConfiguration()).thenReturn(mockRealmConfiguration);
+            when(mockRealmConfiguration.getUserStoreProperty("MultipleAttributeEnable")).thenReturn("false");
 
-        assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt).toString(), status);
+            multitenantUtils.when(
+                    () -> MultitenantUtils.getTenantDomain("admin" + "@" + DUMMY_DOMAIN)).thenReturn(DUMMY_DOMAIN);
+
+            JSONObject cookieValue = new JSONObject();
+            cookieValue.put(USERNAME, "admin");
+            cookieValue.put(FLOW_TYPE, flowType);
+            cookieValue.put(DOMAIN, domain);
+            cookieValue.put(CREATED_TIME, createdTime);
+            String content = cookieValue.toString();
+            JSONObject cookieValueInJson = new JSONObject();
+            cookieValueInJson.put(CONTENT, content);
+            cookieValueInJson.put(SIGNATURE, signature);
+
+            Cookie[] cookies = new Cookie[1];
+            cookies[0] = new Cookie(COOKIE_NAME,
+                    Base64.getEncoder().encodeToString(cookieValueInJson.toString().getBytes()));
+            when(mockRequest.getCookies()).thenReturn(cookies);
+
+            assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt).toString(), status);
+        }
     }
 
     @Test
     public void processIncompleteTestCase() throws IOException, AuthenticationFailedException, LogoutFailedException {
 
-        initiateAuthenticationRequest();
-        when(mockAuthnCtxt.isLogoutRequest()).thenReturn(false);
-        assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt),
-                AuthenticatorFlowStatus.INCOMPLETE);
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade>
+                     configurationFacade = Mockito.mockStatic(ConfigurationFacade.class)) {
+
+            initiateAuthenticationRequest(fileBasedConfigurationBuilder, configurationFacade);
+            when(mockAuthnCtxt.isLogoutRequest()).thenReturn(false);
+            assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt),
+                    AuthenticatorFlowStatus.INCOMPLETE);
+        }
     }
 
     @Test
-    public void isEnableSelfRegistrationAutoLoginTest() throws AuthenticationFailedException, IdentityEventException {
+    public void isEnableSelfRegistrationAutoLoginTest() throws AuthenticationFailedException {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        mockStatic(Utils.class);
-        when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", dummyDomainName)).thenReturn("true");
-        when(mockAuthnCtxt.getTenantDomain()).thenReturn(dummyDomainName);
-        assertEquals(basicAuthenticator.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt), true);
+        try (MockedStatic<Utils> utilities = Mockito.mockStatic(Utils.class)) {
+            utilities.when(() -> Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", DUMMY_DOMAIN))
+                    .thenReturn("true");
+
+            when(mockAuthnCtxt.getTenantDomain()).thenReturn(DUMMY_DOMAIN);
+            assertTrue(basicAuthenticator.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt));
+        }
     }
 
     @DataProvider(name = "SelfRegistrationAutoLoginDataProvider")
@@ -339,15 +349,18 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
             IdentityEventException {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        mockStatic(Utils.class);
-        when(mockAuthnCtxt.getTenantDomain()).thenReturn(tenant);
-        when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", tenant)).
-                thenThrow(new IdentityEventException("Error"));
-        try {
-            basicAuthenticator.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt);
-        } catch (Exception e) {
-            assertEquals(e.getMessage(),expected);
+        try (MockedStatic<Utils> utilities = Mockito.mockStatic(Utils.class)) {
+            utilities.when(() -> Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", tenant))
+                    .thenReturn("Error");
+
+            when(mockAuthnCtxt.getTenantDomain()).thenReturn(tenant);
+            when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", tenant)).
+                    thenThrow(new IdentityEventException("Error"));
+            try {
+                basicAuthenticator.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt);
+            } catch (Exception e) {
+                assertEquals(e.getMessage(),expected);
+            }
         }
     }
 
@@ -360,18 +373,18 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     }
 
     @Test(dataProvider = "SelfRegistrationAutoLoginAliasDataProvider")
-    public void getSelfRegistrationAutoLoginAliasExceptionTest(String tenant, Object expected ) throws
-            IdentityEventException {
+    public void getSelfRegistrationAutoLoginAliasExceptionTest(String tenant, Object expected ) {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        mockStatic(Utils.class);
-        when(mockAuthnCtxt.getTenantDomain()).thenReturn(tenant);
-        when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.AliasName", tenant)).
-                thenThrow(new IdentityEventException("Error"));
-        try {
-            basicAuthenticator.getSelfRegistrationAutoLoginAlias(mockAuthnCtxt);
-        } catch (Exception e) {
-            assertEquals(e.getMessage(),expected);
+        try (MockedStatic<Utils> utilities = Mockito.mockStatic(Utils.class)) {
+
+            utilities.when(() -> Utils.getConnectorConfig("SelfRegistration.AutoLogin.AliasName", tenant))
+                    .thenThrow(new IdentityEventException("Error"));
+            when(mockAuthnCtxt.getTenantDomain()).thenReturn(tenant);
+            try {
+                basicAuthenticator.getSelfRegistrationAutoLoginAlias(mockAuthnCtxt);
+            } catch (Exception e) {
+                assertEquals(e.getMessage(),expected);
+            }
         }
     }
 
@@ -396,9 +409,9 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     @Test
     public void getContextIdentifierTestCase() {
 
-        mockRequest = mock(HttpServletRequest.class);
-        when(mockRequest.getParameter("sessionDataKey")).thenReturn(dummyVal);
-        assertEquals(basicAuthenticator.getContextIdentifier(mockRequest), dummyVal);
+        String dummySessionDataKey = "dummyVal";
+        when(mockRequest.getParameter("sessionDataKey")).thenReturn(dummySessionDataKey);
+        assertEquals(basicAuthenticator.getContextIdentifier(mockRequest), dummySessionDataKey);
     }
 
     @DataProvider(name = "realmProvider")
@@ -408,8 +421,9 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         mockUserStoreManager = mock(UserStoreManager.class);
 
         return new Object[][]{
-                {null, "Cannot find the user realm for the given tenant: " + dummyTenantId, null, null},
-                {mockRealm, "User authentication failed due to invalid credentials", dummyVal, null},
+                {null, "Cannot find the user realm for the given tenant: " + MultitenantConstants.SUPER_TENANT_ID,
+                        null, null},
+                {mockRealm, "User authentication failed due to invalid credentials", "someDomain", null},
                 {mockRealm, "User authentication failed due to invalid credentials", null, null},
                 {mockRealm, "Credential mismatch.", null, new HashMap<String, String>() {{
                     put(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, "dummyUsername2");
@@ -421,47 +435,52 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     public void processAuthenticationResponseTestCaseForException(Object realm, Object expected, Object
             recapchaUserDomain, Object authenticatorParams) throws Exception {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        when(mockAuthnCtxt.getProperties()).thenReturn(new HashMap<String, Object>());
-        when(mockAuthnCtxt.getAuthenticatorParams("common"))
-                .thenReturn((Map<String, String>) authenticatorParams);
+        try (MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
+             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+             MockedStatic<User> user = Mockito.mockStatic(User.class);
+             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
+                     Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
 
-        mockRequest = mock(HttpServletRequest.class);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(dummyPassword);
+            when(mockAuthnCtxt.getProperties()).thenReturn(new HashMap<>());
+            when(mockAuthnCtxt.getAuthenticatorParams("common"))
+                    .thenReturn((Map<String, String>) authenticatorParams);
 
-        mockResponse = mock(HttpServletResponse.class);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_PASSWORD);
 
-        mockStatic(IdentityTenantUtil.class);
-        when(IdentityTenantUtil.getTenantIdOfUser(dummyUserName)).thenReturn(dummyTenantId);
+            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+                    .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
 
-        mockStatic(BasicAuthenticatorServiceComponent.class);
-        mockRealmService = mock(RealmService.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService()).thenReturn(mockRealmService);
-        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId)).thenReturn((UserRealm) realm);
-        when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
+            basicAuthenticatorService
+                    .when(BasicAuthenticatorServiceComponent::getRealmService).thenReturn(mockRealmService);
+            when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn((UserRealm) realm);
 
-        mockStatic(MultitenantUtils.class);
-        when(MultitenantUtils.getTenantAwareUsername(dummyUserName)).thenReturn(dummyUserName);
-        when(mockUserStoreManager.authenticate(
-                MultitenantUtils.getTenantAwareUsername(dummyUserName), dummyPassword)).thenReturn(false);
+            if (realm != null) {
+                when(((UserRealm) realm).getUserStoreManager()).thenReturn(mockUserStoreManager);
+            }
 
-        mockStatic(IdentityUtil.class);
-        Map<String, Object> mockedThreadLocalMap = new HashMap<>();
-        mockedThreadLocalMap.put("user-domain-recaptcha", recapchaUserDomain);
-        IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
+            multitenantUtils.when(() -> MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME))
+                    .thenReturn(DUMMY_USER_NAME);
+            when(mockUserStoreManager.authenticate(
+                    MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD)).thenReturn(false);
 
-        mockStatic(FrameworkUtils.class);
-        when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
+            Map<String, Object> mockedThreadLocalMap = new HashMap<>();
+            mockedThreadLocalMap.put("user-domain-recaptcha", recapchaUserDomain);
+            IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
 
-        mockUser = mock(User.class);
-        when(mockUser.getUserName()).thenReturn(dummyUserName);
-        mockStatic(User.class);
-        when(User.getUserFromUserName(anyString())).thenReturn(mockUser);
-        try {
-            basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
-        } catch (Exception ex) {
-            assertEquals(ex.getMessage(), expected);
+            frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
+                    .thenReturn(DUMMY_USER_NAME);
+
+            User userFromUsername = new User();
+            userFromUsername.setUserName(DUMMY_USER_NAME);
+            user.when(() -> User.getUserFromUserName(anyString())).thenReturn(userFromUsername);
+
+            try {
+                basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
+            } catch (Exception ex) {
+                assertEquals(ex.getMessage(), expected);
+            }
         }
     }
 
@@ -470,322 +489,313 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         String dummyUserNameValue = "dummyusernameValue";
         return new String[][]{
-                {null, dummyUserName, null, null, "true", "false"},
-                {null, dummyUserName, null, "", "true", "false"},
-                {null, dummyUserName, null, dummyUserNameValue, "true", "true"},
-                {null, dummyUserName, null, dummyUserNameValue, "true", "false"},
-                {null, dummyUserName, null, null, "false", "true"},
-                {null, dummyUserName, "off", null, "false", "false"},
-                {"", dummyUserName, "off", null, "false", "false"},
-                {dummyDomainName, dummyUserName, "off", null, "false", "false"},
-                {null, "", "on", null, "false", "false"},
-                {null, null, "on", null, "false", "false"}
+                {null, DUMMY_USER_NAME, null, null, "true"},
+                {null, DUMMY_USER_NAME, null, "", "true"},
+                {null, DUMMY_USER_NAME, null, dummyUserNameValue, "true"},
+                {null, DUMMY_USER_NAME, null, null, "false"},
+                {null, DUMMY_USER_NAME, "off", null, "false"},
+                {"", DUMMY_USER_NAME, "off", null, "false"},
+                {DUMMY_DOMAIN, DUMMY_USER_NAME, "off", null, "false"},
+                {null, "", "on", null, "false"},
+                {null, null, "on", null, "false"}
         };
     }
 
     @Test(dataProvider = "multipleAttributeprovider")
     public void processAuthenticationResponseTestcaseWithMultiAttribute(String domainName, String userNameUri, String
-            chkRemember, String userNameValue, String multipleAttributeEnable, String debugEnabled)
-            throws UserStoreException, NoSuchMethodException, InvocationTargetException, IllegalAccessException,
-            AuthenticationFailedException, NoSuchFieldException {
+            chkRemember, String userNameValue, String multipleAttributeEnable)
+            throws UserStoreException,
+            AuthenticationFailedException {
 
-        Map<String, String> parameterMap = new HashMap<>();
-        parameterMap.put("UserNameAttributeClaimUri", userNameUri);
-        AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig(dummyUserName, true, parameterMap);
+        try (MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+             MockedStatic<User> user = Mockito.mockStatic(User.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);
+             MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
+             MockedStatic<UserCoreUtil> userCoreUtil = Mockito.mockStatic(UserCoreUtil.class);
+             MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorServiceComponent =
+                     Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
 
-        processAuthenticationResponseStartUp();
+            Map<String, String> parameterMap = new HashMap<>();
+            parameterMap.put("UserNameAttributeClaimUri", userNameUri);
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig(DUMMY_USER_NAME, true, parameterMap);
 
-        when(mockRequest.getParameter("chkRemember")).thenReturn(chkRemember);
+            processAuthenticationResponseStartUp(identityTenantUtil, basicAuthenticatorServiceComponent,
+                    multitenantUtils, user, frameworkUtils);
 
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
-        when(FileBasedConfigurationBuilder.getInstance().getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+            when(mockRequest.getParameter("chkRemember")).thenReturn(chkRemember);
 
-        mockStatic(UserCoreUtil.class);
-        when(UserCoreUtil.getDomainFromThreadLocal()).thenReturn(domainName);
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
 
-        RealmConfiguration mockRealmConfiguration = mock(RealmConfiguration.class);
+            userCoreUtil.when(UserCoreUtil::getDomainFromThreadLocal).thenReturn(domainName);
 
-        if (StringUtils.isNotBlank(domainName)) {
-            when(mockUserStoreManager.getSecondaryUserStoreManager(dummyDomainName)).thenReturn(mockUserStoreManager);
-        }
+            if (StringUtils.isNotBlank(domainName)) {
+                when(mockUserStoreManager.getSecondaryUserStoreManager(DUMMY_DOMAIN))
+                        .thenReturn(mockUserStoreManager);
+            }
 
-        when(mockUserStoreManager
-                .getRealmConfiguration()).thenReturn(mockRealmConfiguration);
+            when(mockUserStoreManager.getRealmConfiguration()).thenReturn(mockRealmConfiguration);
 
-        when(mockRealmConfiguration.getUserStoreProperty("MultipleAttributeEnable"))
-                .thenReturn(multipleAttributeEnable);
+            when(mockRealmConfiguration.getUserStoreProperty("MultipleAttributeEnable"))
+                    .thenReturn(multipleAttributeEnable);
 
-        when(mockUserStoreManager.
-                getUserClaimValue(MultitenantUtils.getTenantAwareUsername(dummyUserName), dummyUserName, null))
-                .thenReturn(userNameValue);
+            when(mockUserStoreManager.
+                    getUserClaimValue(MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_USER_NAME, null))
+                    .thenReturn(userNameValue);
 
-        when(MultitenantUtils.getTenantDomain(dummyUserName)).thenReturn("dummyTenantDomain");
-        when(FrameworkUtils.prependUserStoreDomainToName(userNameValue)).thenReturn(dummyDomainName +
-                CarbonConstants.DOMAIN_SEPARATOR + userNameValue);
+            multitenantUtils.when(() -> MultitenantUtils.getTenantDomain(DUMMY_USER_NAME))
+                    .thenReturn("dummyTenantDomain");
+            frameworkUtils.when(() -> FrameworkUtils.prependUserStoreDomainToName(userNameValue))
+                    .thenReturn(DUMMY_DOMAIN + CarbonConstants.DOMAIN_SEPARATOR + userNameValue);
 
-        mockStatic(IdentityUtil.class);
-        when(IdentityUtil.getPrimaryDomainName()).thenReturn(dummyDomainName);
+            identityUtil.when(IdentityUtil::getPrimaryDomainName).thenReturn(DUMMY_DOMAIN);
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
+            doAnswer((Answer<Object>) invocation -> {
 
                 authenticatedUser = (AuthenticatedUser) invocation.getArguments()[0];
                 return null;
-            }
-        }).when(mockAuthnCtxt).setSubject(any(AuthenticatedUser.class));
+            }).when(mockAuthnCtxt).setSubject(any(AuthenticatedUser.class));
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
+            doAnswer((Answer<Object>) invocation -> {
 
-                isrememberMe = (Boolean) invocation.getArguments()[0];
+                isRememberMe = (Boolean) invocation.getArguments()[0];
                 return null;
+            }).when(mockAuthnCtxt).setRememberMe(anyBoolean());
+
+            Map<String, Object> mockedThreadLocalMap = new HashMap<>();
+            mockedThreadLocalMap.put("userExistThreadLocalProperty", false);
+            IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
+
+            when(IdentityUtil.getProperty(BasicAuthenticatorConstants.AUTHENTICATION_POLICY_CONFIG)).
+                    thenReturn("true");
+            IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants
+                    .ErrorCode.USER_DOES_NOT_EXIST);
+            ThreadLocal<IdentityErrorMsgContext> IdentityError = new ThreadLocal<>();
+            IdentityError.set(customErrorMessageContext);
+
+            basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
+
+            if (StringUtils.isNotBlank(userNameValue)) {
+                assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), DUMMY_DOMAIN +
+                        CarbonConstants.DOMAIN_SEPARATOR + userNameValue + "@" + "dummyTenantDomain");
+            } else {
+                assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), DUMMY_USER_NAME);
             }
-        }).when(mockAuthnCtxt).setRememberMe(anyBoolean());
-
-        Map<String, Object> mockedThreadLocalMap = new HashMap<>();
-        mockedThreadLocalMap.put("userExistThreadLocalProperty", false);
-        IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
-
-        when(IdentityUtil.getProperty(BasicAuthenticatorConstants.AUTHENTICATION_POLICY_CONFIG)).
-                thenReturn("true");
-        IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants
-                .ErrorCode.USER_DOES_NOT_EXIST);
-        ThreadLocal<IdentityErrorMsgContext> IdentityError = new ThreadLocal();
-        IdentityError.set(customErrorMessageContext);
-
-        basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
-
-        if (StringUtils.isNotBlank(userNameValue)) {
-            assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), dummyDomainName +
-                    CarbonConstants.DOMAIN_SEPARATOR + userNameValue + "@" + "dummyTenantDomain");
-        } else {
-            assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), dummyUserName);
-        }
-        if (Boolean.valueOf(chkRemember)) {
-            assertEquals(isrememberMe, (Boolean) true);
+            if (Boolean.parseBoolean(chkRemember)) {
+                assertEquals(isRememberMe, (Boolean) true);
+            }
         }
     }
 
-    private void processAuthenticationResponseStartUp() throws UserStoreException {
+    private void processAuthenticationResponseStartUp(
+            MockedStatic<IdentityTenantUtil> identityTenantUtil,
+            MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorServiceComponent,
+            MockedStatic<MultitenantUtils> multitenantUtils, MockedStatic<User> user,
+            MockedStatic<FrameworkUtils> frameworkUtils) throws UserStoreException {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
         when(mockAuthnCtxt.getProperties()).thenReturn(null);
 
-        mockRequest = mock(HttpServletRequest.class);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(dummyUserName);
+        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+        when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_USER_NAME);
 
-        mockResponse = mock(HttpServletResponse.class);
+        identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+                .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
 
-        mockStatic(IdentityTenantUtil.class);
-        when(IdentityTenantUtil.getTenantIdOfUser(dummyUserName)).thenReturn(dummyTenantId);
-
-        mockStatic(BasicAuthenticatorServiceComponent.class);
-        mockRealmService = mock(RealmService.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService()).thenReturn(mockRealmService);
-        mockRealm = mock(UserRealm.class);
-        mockUserStoreManager = mock(UserStoreManager.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId)).thenReturn(mockRealm);
+        basicAuthenticatorServiceComponent.when(BasicAuthenticatorServiceComponent::getRealmService)
+                .thenReturn(mockRealmService);
+        when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
         when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
 
-        mockStatic(MultitenantUtils.class);
-        when(MultitenantUtils.getTenantAwareUsername(dummyUserName)).thenReturn(dummyUserName);
+        multitenantUtils.when(() -> MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME))
+                .thenReturn(DUMMY_USER_NAME);
         when(mockUserStoreManager.authenticate(
-                MultitenantUtils.getTenantAwareUsername(dummyUserName), dummyUserName)).thenReturn(true);
+                MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_USER_NAME)).thenReturn(true);
 
-        mockUser = mock(User.class);
-        when(mockUser.getUserName()).thenReturn(dummyUserName);
-        mockStatic(User.class);
-        when(User.getUserFromUserName(anyString())).thenReturn(mockUser);
+        User userFromUsername = new User();
+        userFromUsername.setUserName(DUMMY_USER_NAME);
+        user.when(() -> User.getUserFromUserName(anyString())).thenReturn(userFromUsername);
 
-        mockStatic(FrameworkUtils.class);
-        when(MultitenantUtils.getTenantDomain(anyString())).thenReturn("carbon.super");
-        when(FrameworkUtils.prependUserStoreDomainToName(anyString())).thenReturn(dummyUserName);
-        when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
+        frameworkUtils.when(() -> MultitenantUtils.getTenantDomain(anyString())).thenReturn("carbon.super");
+        frameworkUtils.when(() -> FrameworkUtils.prependUserStoreDomainToName(anyString())).thenReturn(DUMMY_USER_NAME);
+        frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
+                .thenReturn(DUMMY_USER_NAME);
     }
 
     @Test
     public void processAuthenticationResponseTestcaseWithUserStoreException() throws UserStoreException {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        when(mockAuthnCtxt.getProperties()).thenReturn(null);
+        try (MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
+             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+             MockedStatic<User> user = Mockito.mockStatic(User.class);
+             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
+                     Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
 
-        mockRequest = mock(HttpServletRequest.class);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(dummyPassword);
+            when(mockAuthnCtxt.getProperties()).thenReturn(null);
 
-        mockResponse = mock(HttpServletResponse.class);
-        when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(anyMap());
-        when(mockAuthnCtxt.getAuthenticatorParams("BasicAuthenticator")).thenReturn(anyMap());
-        mockStatic(IdentityTenantUtil.class);
-        when(IdentityTenantUtil.getTenantIdOfUser(dummyUserName)).thenReturn(dummyTenantId);
-        mockStatic(FrameworkUtils.class);
-        when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_PASSWORD);
 
-        mockStatic(User.class);
-        mockUser = mock(User.class);
-        when(User.getUserFromUserName(anyString())).thenReturn(mockUser);
+            when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(anyMap());
+            when(mockAuthnCtxt.getAuthenticatorParams("BasicAuthenticator")).thenReturn(anyMap());
+            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+                    .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+            frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
+                    .thenReturn(DUMMY_USER_NAME);
 
-        mockStatic(IdentityUtil.class);
-        Map<String, Object> mockedThreadLocalMap = new HashMap<>();
-        IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
-        mockStatic(BasicAuthenticatorServiceComponent.class);
-        mockRealmService = mock(RealmService.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService()).thenReturn(mockRealmService);
-        mockRealm = mock(UserRealm.class);
-        mockUserStoreManager = mock(UserStoreManager.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId))
-                .thenReturn(mockRealm);
-        when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
-        mockStatic(MultitenantUtils.class);
-        when(MultitenantUtils.getTenantAwareUsername(dummyUserName)).thenReturn(dummyUserName);
-        when(mockUserStoreManager.authenticate(
-                MultitenantUtils.getTenantAwareUsername(dummyUserName), dummyPassword))
-                .thenThrow(new org.wso2.carbon.user.core.UserStoreException(new UserStoreClientException()));
-        try {
-            basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
-        } catch (AuthenticationFailedException e) {
-            assertNotNull(e);
+            User userFromUsername = new User();
+            user.when(() -> User.getUserFromUserName(anyString())).thenReturn(userFromUsername);
+
+            Map<String, Object> mockedThreadLocalMap = new HashMap<>();
+            IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
+
+            basicAuthenticatorService
+                    .when(BasicAuthenticatorServiceComponent::getRealmService).thenReturn(mockRealmService);
+            when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
+            when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
+
+            multitenantUtils.when(
+                    () -> MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockUserStoreManager.authenticate(
+                    MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD))
+                    .thenThrow(new org.wso2.carbon.user.core.UserStoreException(new UserStoreClientException()));
+            try {
+                basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
+            } catch (AuthenticationFailedException e) {
+                assertNotNull(e);
+            }
         }
     }
 
     @Test
     public void processAuthenticationResponseTestcaseWithUserStoreClientException() throws UserStoreException {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        when(mockAuthnCtxt.getProperties()).thenReturn(null);
+        try (MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
+             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+             MockedStatic<User> user = Mockito.mockStatic(User.class);
+             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
+                     Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
 
-        mockRequest = mock(HttpServletRequest.class);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(dummyPassword);
+            when(mockAuthnCtxt.getProperties()).thenReturn(null);
 
-        mockResponse = mock(HttpServletResponse.class);
-        when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(anyMap());
-        when(mockAuthnCtxt.getAuthenticatorParams("BasicAuthenticator")).thenReturn(anyMap());
-        mockStatic(IdentityTenantUtil.class);
-        when(IdentityTenantUtil.getTenantIdOfUser(dummyUserName)).thenReturn(dummyTenantId);
-        mockStatic(FrameworkUtils.class);
-        when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_PASSWORD);
 
-        mockStatic(User.class);
-        mockUser = mock(User.class);
-        when(User.getUserFromUserName(anyString())).thenReturn(mockUser);
+            when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(anyMap());
+            when(mockAuthnCtxt.getAuthenticatorParams("BasicAuthenticator")).thenReturn(anyMap());
 
-        mockStatic(IdentityUtil.class);
-        Map<String, Object> mockedThreadLocalMap = new HashMap<>();
-        IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
-        mockStatic(BasicAuthenticatorServiceComponent.class);
-        mockRealmService = mock(RealmService.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService()).thenReturn(mockRealmService);
-        mockRealm = mock(UserRealm.class);
-        mockUserStoreManager = mock(UserStoreManager.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId)).thenReturn(mockRealm);
-        when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
+            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+                    .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
 
-        mockStatic(MultitenantUtils.class);
-        when(MultitenantUtils.getTenantAwareUsername(dummyUserName)).thenReturn(dummyUserName);
-        when(mockUserStoreManager.authenticate(
-                MultitenantUtils.getTenantAwareUsername(dummyUserName), dummyPassword))
-                .thenThrow(new UserStoreClientException());
-        try {
-            basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
-        } catch (AuthenticationFailedException e) {
-            assertNotNull(e);
+            frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
+                    .thenReturn(DUMMY_USER_NAME);
+
+            User userFromUsername = new User();
+            user.when(() -> User.getUserFromUserName(anyString())).thenReturn(userFromUsername);
+
+            Map<String, Object> mockedThreadLocalMap = new HashMap<>();
+            IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
+
+            basicAuthenticatorService.when(BasicAuthenticatorServiceComponent::getRealmService)
+                    .thenReturn(mockRealmService);
+
+            when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
+            when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
+
+            multitenantUtils.when(
+                    () -> MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockUserStoreManager.authenticate(
+                    MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD))
+                    .thenThrow(new UserStoreClientException());
+            try {
+                basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
+            } catch (AuthenticationFailedException e) {
+                assertNotNull(e);
+            }
         }
     }
 
     @Test
     public void processAuthenticationResponseTestcaseWithUserStoreManagerException() throws Exception {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        when(mockAuthnCtxt.getProperties()).thenReturn(null);
+        try (MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+             MockedStatic<User> user = Mockito.mockStatic(User.class);
+             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorServiceComponent =
+                     Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
 
-        mockRequest = mock(HttpServletRequest.class);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(dummyUserName);
+            when(mockAuthnCtxt.getProperties()).thenReturn(null);
 
-        mockResponse = mock(HttpServletResponse.class);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_USER_NAME);
 
-        mockStatic(IdentityTenantUtil.class);
-        when(IdentityTenantUtil.getTenantIdOfUser(dummyUserName)).thenReturn(-1234);
+            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME)).thenReturn(-1234);
 
-        mockStatic(FrameworkUtils.class);
-        when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
+            frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
+                    .thenReturn(DUMMY_USER_NAME);
 
-        mockStatic(User.class);
-        mockUser = mock(User.class);
-        when(User.getUserFromUserName(anyString())).thenReturn(mockUser);
+            User userFromUsername = new User();
+            user.when(() -> User.getUserFromUserName(anyString())).thenReturn(userFromUsername);
 
-        mockStatic(BasicAuthenticatorServiceComponent.class);
-        mockRealmService = mock(RealmService.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService()).thenReturn(mockRealmService);
-        mockRealm = mock(UserRealm.class);
-        mockUserStoreManager = mock(UserStoreManager.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId))
-                .thenThrow(new org.wso2.carbon.user.api.UserStoreException());
-        try {
-            basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
-        } catch (AuthenticationFailedException e) {
-            assertNotNull(e);
+            basicAuthenticatorServiceComponent
+                    .when(BasicAuthenticatorServiceComponent::getRealmService).thenReturn(mockRealmService);
+            when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID))
+                    .thenThrow(new org.wso2.carbon.user.api.UserStoreException());
+            try {
+                basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
+            } catch (AuthenticationFailedException e) {
+                assertNotNull(e);
+            }
         }
     }
 
     @Test
     public void processAuthenticationResponseTestcaseWithIdentityRuntimeException() throws UserStoreException {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        when(mockAuthnCtxt.getProperties()).thenReturn(null);
+        try (MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+             MockedStatic<User> user = Mockito.mockStatic(User.class);
+             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorServiceComponent =
+                     Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
 
-        mockRequest = mock(HttpServletRequest.class);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(dummyUserName);
+            when(mockAuthnCtxt.getProperties()).thenReturn(null);
 
-        mockResponse = mock(HttpServletResponse.class);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_USER_NAME);
 
-        mockStatic(IdentityTenantUtil.class);
-        when(IdentityTenantUtil.getTenantIdOfUser(dummyUserName))
-                .thenThrow(new IdentityRuntimeException("Invalid tenant domain of user admin@abc.com"));
+            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+                    .thenThrow(new IdentityRuntimeException("Invalid tenant domain of user admin@abc.com"));
 
-        mockStatic(FrameworkUtils.class);
-        when(FrameworkUtils.preprocessUsername(dummyUserName, mockAuthnCtxt)).thenReturn(dummyUserName);
+            frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
+                    .thenReturn(DUMMY_USER_NAME);
 
-        mockStatic(User.class);
-        mockUser = mock(User.class);
-        when(User.getUserFromUserName(anyString())).thenReturn(mockUser);
+            User userFromUsername = new User();
+            user.when(() -> User.getUserFromUserName(anyString())).thenReturn(userFromUsername);
 
-        mockStatic(BasicAuthenticatorServiceComponent.class);
-        mockRealmService = mock(RealmService.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService()).thenReturn(mockRealmService);
-        mockRealm = mock(UserRealm.class);
-        mockUserStoreManager = mock(UserStoreManager.class);
-        when(BasicAuthenticatorServiceComponent.getRealmService().getTenantUserRealm(dummyTenantId))
-                .thenReturn(mockRealm);
-        try {
-            basicAuthenticator.processAuthenticationResponse(
-                    mockRequest, mockResponse, mockAuthnCtxt);
-        } catch (AuthenticationFailedException e) {
-            assertNotNull(e);
+            basicAuthenticatorServiceComponent
+                    .when(BasicAuthenticatorServiceComponent::getRealmService).thenReturn(mockRealmService);
+
+            when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
+            try {
+                basicAuthenticator.processAuthenticationResponse(
+                        mockRequest, mockResponse, mockAuthnCtxt);
+            } catch (AuthenticationFailedException e) {
+                assertNotNull(e);
+            }
         }
     }
 
-    @DataProvider(name = "statusProvider")
-    public Object[][] getStatus() {
-
-        return new Boolean[][]{
-                {true},
-                {false}
-        };
-    }
 
     @DataProvider(name = "enableStatusProvider")
     public Object[][] getEnabledOption() {
 
         return new String[][]{
-                {"true", dummyVal, null, null},
+                {"true", "dummyReason", null, null},
                 {"false", null, null, null},
                 {"true", null, "false", null},
                 {"true", null, "false", "true"}
@@ -797,131 +807,137 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
             showAuthFailureReason, String constexprUserTenantDomainMismatch, String contextInvalidEmailUsername) throws
             AuthenticationFailedException, IOException {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        mockRequest = mock(HttpServletRequest.class);
-        mockResponse = mock(HttpServletResponse.class);
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class)) {
 
-        AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig();
-        Map<String, String> paramMap = new HashMap<>();
-        paramMap.put("showAuthFailureReason", showAuthFailureReason);
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig();
+            Map<String, String> paramMap = new HashMap<>();
+            paramMap.put("showAuthFailureReason", showAuthFailureReason);
 
-        authenticatorConfig.setParameterMap(paramMap);
+            authenticatorConfig.setParameterMap(paramMap);
 
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
-        when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
 
-        when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(Boolean.valueOf(
-                constexprUserTenantDomainMismatch));
-        when(mockAuthnCtxt.getProperty("InvalidEmailUsername")).thenReturn(Boolean.valueOf(contextInvalidEmailUsername));
-        when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
-        when(mockAuthnCtxt.isRetrying()).thenReturn(Boolean.valueOf(statusProvider));
+            when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(Boolean.valueOf(
+                    constexprUserTenantDomainMismatch));
+            when(mockAuthnCtxt.getProperty("InvalidEmailUsername"))
+                    .thenReturn(Boolean.valueOf(contextInvalidEmailUsername));
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(Boolean.valueOf(statusProvider));
+
+            doAnswer((Answer<Object>) invocation -> {
 
                 redirect = (String) invocation.getArguments()[0];
                 return null;
+            }).when(mockResponse).sendRedirect(anyString());
+
+            when(mockIdentityErrorMsgContext.getErrorCode()).thenReturn("dummyErrorCode");
+
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(mockIdentityErrorMsgContext);
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+
+            if (Boolean.parseBoolean(statusProvider) && !Boolean.parseBoolean(constexprUserTenantDomainMismatch)
+                    && !Boolean.parseBoolean(contextInvalidEmailUsername)) {
+                assertEquals(redirect, DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
+                        + BasicAuthenticatorConstants.AUTHENTICATORS
+                        + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":"
+                        + BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=login.fail.message");
+            } else if (!Boolean.parseBoolean(statusProvider)
+                    && !Boolean.parseBoolean(constexprUserTenantDomainMismatch)) {
+                assertEquals(redirect, DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
+                        + BasicAuthenticatorConstants.AUTHENTICATORS
+                        + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":"
+                        + BasicAuthenticatorConstants.LOCAL + "");
+            } else if (Boolean.parseBoolean(statusProvider) && Boolean.parseBoolean(contextInvalidEmailUsername)) {
+                assertEquals(redirect, DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
+                        + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME
+                        + ":" + BasicAuthenticatorConstants.LOCAL
+                        + "&authFailure=true&authFailureMsg=emailusername.fail.message");
+            } else {
+                assertEquals(redirect, DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
+                        + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME
+                        + ":" + BasicAuthenticatorConstants.LOCAL
+                        + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message");
             }
-        }).when(mockResponse).sendRedirect(anyString());
-
-        mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
-        when(mockIdentityErrorMsgContext.getErrorCode()).thenReturn("dummyErrorCode");
-        mockStatic(IdentityUtil.class);
-        when(IdentityUtil.getIdentityErrorMsg()).thenReturn(mockIdentityErrorMsgContext);
-
-        basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
-
-        if (Boolean.valueOf(statusProvider) && !Boolean.valueOf(constexprUserTenantDomainMismatch)
-                && !Boolean.valueOf(contextInvalidEmailUsername)) {
-            assertEquals(redirect, dummyLoginPage + "?" + dummyQueryParam
-                    + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
-                    BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=login.fail.message");
-        } else if (!Boolean.valueOf(statusProvider) && !Boolean.valueOf(constexprUserTenantDomainMismatch)) {
-            assertEquals(redirect, dummyLoginPage + "?" + dummyQueryParam
-                    + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
-                    BasicAuthenticatorConstants.LOCAL + "");
-        } else if (Boolean.valueOf(statusProvider) && Boolean.valueOf(contextInvalidEmailUsername)) {
-            assertEquals(redirect,dummyLoginPage + "?" + dummyQueryParam
-                    + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
-                    BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=emailusername.fail.message");
-        } else {
-            assertEquals(redirect, dummyLoginPage + "?" + dummyQueryParam
-                    + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
-                    BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch" +
-                    ".message");
         }
     }
 
     @Test
     public void initiateAuthenticationRequestTestcaseWithException() throws IOException {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        mockRequest = mock(HttpServletRequest.class);
-        mockResponse = mock(HttpServletResponse.class);
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<User> user = Mockito.mockStatic(User.class)) {
+            mockAuthnCtxt = mock(AuthenticationContext.class);
+            mockRequest = mock(HttpServletRequest.class);
+            mockResponse = mock(HttpServletResponse.class);
 
-        when(mockRequest.getParameter
-                (BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
+            when(mockRequest.getParameter
+                    (BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
 
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
-        when(FileBasedConfigurationBuilder.getInstance().getAuthenticatorBean(anyString())).thenReturn(null);
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(null);
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
+            doAnswer((Answer<Object>) invocation -> {
 
                 isUserTenantDomainMismatch = (Boolean) invocation.getArguments()[1];
                 return null;
-            }
-        }).when(mockAuthnCtxt).setProperty(anyString(), anyBoolean());
+            }).when(mockAuthnCtxt).setProperty(anyString(), anyBoolean());
 
-        when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
-        when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
-        when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+            when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
 
-        mockStatic(User.class);
-        User user = new User();
-        user.setUserName(dummyUserName);
-        when(User.getUserFromUserName(dummyUserName)).thenReturn(user);
+            User userFromName = new User();
+            userFromName.setUserName(DUMMY_USER_NAME);
+            user.when(() -> User.getUserFromUserName(DUMMY_USER_NAME)).thenReturn(userFromName);
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
+            doAnswer((Answer<Object>) invocation -> {
 
                 throw new IOException();
-            }
-        }).when(mockResponse).sendRedirect(anyString());
+            }).when(mockResponse).sendRedirect(anyString());
 
-        try {
-            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
-        } catch (AuthenticationFailedException ex) {
-            assertEquals(ex.getUser().getUserName(), dummyUserName);
+            try {
+                basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+            } catch (AuthenticationFailedException ex) {
+                assertEquals(ex.getUser().getUserName(), DUMMY_USER_NAME);
+            }
         }
     }
 
-    @Test(dataProvider = "statusProvider")
-    public void initiateAuthenticationRequestTestcaseWithoutErrorCtxt(boolean isDebugEnabled) throws
-            AuthenticationFailedException, IOException, NoSuchFieldException, IllegalAccessException {
+    @Test
+    public void initiateAuthenticationRequestTestcaseWithoutErrorCtxt() throws
+            AuthenticationFailedException, IOException {
 
-        initiateAuthenticationRequest();
-        basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
-        assertEquals(isUserTenantDomainMismatch, (Boolean) false);
-        assertEquals(redirect, dummyLoginPage + "?" + dummyQueryParam
-                + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
-                BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch" +
-                ".message");
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade>
+                     configurationFacade = Mockito.mockStatic(ConfigurationFacade.class)) {
+
+            initiateAuthenticationRequest(fileBasedConfigurationBuilder, configurationFacade);
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+            assertEquals(isUserTenantDomainMismatch, (Boolean) false);
+            assertEquals(redirect, DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
+                    + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME
+                    + ":" + BasicAuthenticatorConstants.LOCAL
+                    + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message");
+        }
     }
 
     @DataProvider(name = "captchaConfigData")
     public Object[][] getCaptchaConfig() {
 
-        String basicUrl = dummyLoginPage + "?" + dummyQueryParam + BasicAuthenticatorConstants
+        String basicUrl = DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + BasicAuthenticatorConstants
                 .AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
                 BasicAuthenticatorConstants.LOCAL +
                 BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
@@ -943,149 +959,177 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     public void initiateAuthenticationRequestWithCaptchaEnabled(String captchaEnable, String captchaKey, String
             captchaApi, String captchaSecret, String captchaUrl, String expectedRedirectUrl) throws Exception {
 
-        mockStatic(IdentityUtil.class);
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade>
+                     configurationFacade = Mockito.mockStatic(ConfigurationFacade.class)) {
 
-        Property[] captchaProperties = new Property[1];
-        Property captchaEnabled = new Property();
-        captchaEnabled.setName(defaultCaptchaConfigName);
-        captchaEnabled.setValue("true");
-        captchaProperties[0] = captchaEnabled;
+            Property[] captchaProperties = new Property[1];
+            Property captchaEnabled = new Property();
+            String defaultCaptchaConfigName = "sso.login.recaptcha" +
+                    CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE_ALWAYS;
+            captchaEnabled.setName(defaultCaptchaConfigName);
+            captchaEnabled.setValue("true");
+            captchaProperties[0] = captchaEnabled;
 
-        when(governanceService.getConfiguration(any(String[].class), anyString())).thenReturn(captchaProperties);
-        Properties properties = new Properties();
-        properties.setProperty(CaptchaConstants.RE_CAPTCHA_ENABLED, captchaEnable);
-        properties.setProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY, captchaKey);
-        properties.setProperty(CaptchaConstants.RE_CAPTCHA_API_URL, captchaApi);
-        properties.setProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY, captchaSecret);
-        properties.setProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL, captchaUrl);
+            when(mockGovernanceService.getConfiguration(any(String[].class), anyString()))
+                    .thenReturn(captchaProperties);
+            Properties properties = new Properties();
+            properties.setProperty(CaptchaConstants.RE_CAPTCHA_ENABLED, captchaEnable);
+            properties.setProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY, captchaKey);
+            properties.setProperty(CaptchaConstants.RE_CAPTCHA_API_URL, captchaApi);
+            properties.setProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY, captchaSecret);
+            properties.setProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL, captchaUrl);
 
-        BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(properties);
-        BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(governanceService);
+            BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(properties);
 
-        initiateAuthenticationRequest();
-        basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
-        assertEquals(isUserTenantDomainMismatch, (Boolean) false);
-        assertEquals(redirect, expectedRedirectUrl);
+            when(mockAuthnCtxt.getUserTenantDomain()).thenReturn(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
+
+            initiateAuthenticationRequest(fileBasedConfigurationBuilder, configurationFacade);
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+            assertEquals(isUserTenantDomainMismatch, (Boolean) false);
+            assertEquals(redirect, expectedRedirectUrl);
+        }
     }
 
     @DataProvider(name = "errorCodeProvider")
     public Object[][] getErrorcodes() throws UnsupportedEncodingException {
 
         String super_tenant = "carbon.super";
+        String callback = DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + "&authenticators=BasicAuthenticator";
         return new String[][]{
                 {
                         IdentityCoreConstants.USER_ACCOUNT_NOT_CONFIRMED_ERROR_CODE,
-                        dummyLoginPage + "?" + dummyQueryParam + BasicAuthenticatorConstants.FAILED_USERNAME
-                                + URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
-                                BasicAuthenticatorConstants.ERROR_CODE +
-                                IdentityCoreConstants.USER_ACCOUNT_NOT_CONFIRMED_ERROR_CODE + BasicAuthenticatorConstants
-                                .AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
-                                BasicAuthenticatorConstants.LOCAL +
-                                "&authFailure=true&authFailureMsg=account.confirmation.pending", "1", "1"
+                        DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + BasicAuthenticatorConstants.FAILED_USERNAME
+                                + URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8)
+                                + BasicAuthenticatorConstants.ERROR_CODE
+                                + IdentityCoreConstants.USER_ACCOUNT_NOT_CONFIRMED_ERROR_CODE
+                                + BasicAuthenticatorConstants.AUTHENTICATORS
+                                + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":"
+                                + BasicAuthenticatorConstants.LOCAL
+                                + "&authFailure=true&authFailureMsg=account.confirmation.pending", "1", "1"
                 },
                 {
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE,
-                        dummyLoginPage + "?" + dummyQueryParam +
-                                BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(dummyUserName,
-                                BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.ERROR_CODE +
-                                IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE +
-                                BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME +
-                                ":" + BasicAuthenticatorConstants.LOCAL +
-                                "&authFailure=true&authFailureMsg=password.reset.pending", "1", "1"
+                        DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
+                                + BasicAuthenticatorConstants.FAILED_USERNAME
+                                + URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8)
+                                + BasicAuthenticatorConstants.ERROR_CODE
+                                + IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE
+                                + BasicAuthenticatorConstants.AUTHENTICATORS
+                                + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":"
+                                + BasicAuthenticatorConstants.LOCAL
+                                + "&authFailure=true&authFailureMsg=password.reset.pending", "1", "1"
                 },
                 {
                         UserCoreConstants.ErrorCode.INVALID_CREDENTIAL + ":dummyerrorcode",
-                        dummyLoginPage + "?" + dummyQueryParam
-                                + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME +
-                                ":" + BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=user" +
-                                ".tenant.domain.mismatch.message" + BasicAuthenticatorConstants.ERROR_CODE +
-                                UserCoreConstants.ErrorCode.INVALID_CREDENTIAL + BasicAuthenticatorConstants.FAILED_USERNAME +
-                                URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
-                                "&remainingAttempts=" + 2, "3", "1"
+                        DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
+                                + BasicAuthenticatorConstants.AUTHENTICATORS
+                                + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":"
+                                + BasicAuthenticatorConstants.LOCAL
+                                + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message"
+                                + BasicAuthenticatorConstants.ERROR_CODE
+                                + UserCoreConstants.ErrorCode.INVALID_CREDENTIAL
+                                + BasicAuthenticatorConstants.FAILED_USERNAME +
+                                URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8)
+                                + "&remainingAttempts=" + 2, "3", "1"
 
                 },
                 {
                         UserCoreConstants.ErrorCode.INVALID_CREDENTIAL + ":",
-                        dummyLoginPage + "?" + dummyQueryParam
-                                + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME +
-                                ":" + BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=user" +
-                                ".tenant.domain.mismatch.message" + BasicAuthenticatorConstants.ERROR_CODE +
-                                UserCoreConstants.ErrorCode.INVALID_CREDENTIAL + BasicAuthenticatorConstants.FAILED_USERNAME +
-                                URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
-                                "&remainingAttempts=" + 2, "3", "1"
+                        DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
+                                + BasicAuthenticatorConstants.AUTHENTICATORS
+                                + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":"
+                                + BasicAuthenticatorConstants.LOCAL
+                                + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message"
+                                + BasicAuthenticatorConstants.ERROR_CODE
+                                + UserCoreConstants.ErrorCode.INVALID_CREDENTIAL
+                                + BasicAuthenticatorConstants.FAILED_USERNAME
+                                + URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8)
+                                + "&remainingAttempts=" + 2, "3", "1"
                 },
                 {
-                        UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST, dummyLoginPage + "?" +
-                        dummyQueryParam + BasicAuthenticatorConstants.AUTHENTICATORS +
+                        UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST, DUMMY_LOGIN_PAGEURL + "?" +
+                        DUMMY_QUERY_PARAMS + BasicAuthenticatorConstants.AUTHENTICATORS +
                         BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" + BasicAuthenticatorConstants.LOCAL +
                         "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message" +
                         BasicAuthenticatorConstants.ERROR_CODE + UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST +
-                        BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(dummyUserName,
+                        BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(DUMMY_USER_NAME,
                         BasicAuthenticatorConstants.UTF_8), "1", "1"
                 },
                 {
-                        IdentityCoreConstants.USER_ACCOUNT_DISABLED_ERROR_CODE, dummyLoginPage + "?" + dummyQueryParam
-                        + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
-                        BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message"
-                        + BasicAuthenticatorConstants.ERROR_CODE + IdentityCoreConstants.USER_ACCOUNT_DISABLED_ERROR_CODE
-                        + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder
-                        .encode(dummyUserName, BasicAuthenticatorConstants.UTF_8), "1", "1"
+                        IdentityCoreConstants.USER_ACCOUNT_DISABLED_ERROR_CODE, DUMMY_LOGIN_PAGEURL + "?"
+                        + DUMMY_QUERY_PARAMS+ BasicAuthenticatorConstants.AUTHENTICATORS
+                        + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" + BasicAuthenticatorConstants.LOCAL
+                        + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message"
+                        + BasicAuthenticatorConstants.ERROR_CODE
+                        + IdentityCoreConstants.USER_ACCOUNT_DISABLED_ERROR_CODE
+                        + BasicAuthenticatorConstants.FAILED_USERNAME
+                        + URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8), "1", "1"
                 },
                 {
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE,
-                        dummyLoginPage + "?" + dummyQueryParam + BasicAuthenticatorConstants.FAILED_USERNAME +
-                                URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
+                        DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + BasicAuthenticatorConstants.FAILED_USERNAME +
+                                URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8) +
                                 BasicAuthenticatorConstants.ERROR_CODE +
                                 IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE +
-                                BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME +
+                                BasicAuthenticatorConstants.AUTHENTICATORS +
+                                BasicAuthenticatorConstants.AUTHENTICATOR_NAME +
                                 ":" + BasicAuthenticatorConstants.LOCAL +
                                 "&authFailure=true&authFailureMsg=login.fail.message", "1", "1"
                 },
                 {
-                        "dummycode", dummyLoginPage + "?" + dummyQueryParam
-                        + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":"
-                        + BasicAuthenticatorConstants.LOCAL + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message"
-                        + BasicAuthenticatorConstants.ERROR_CODE + "dummycode" + BasicAuthenticatorConstants.FAILED_USERNAME +
-                        URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8), "1", "1"
+                        "dummycode", DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
+                        + BasicAuthenticatorConstants.AUTHENTICATORS
+                        + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":"
+                        + BasicAuthenticatorConstants.LOCAL
+                        + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message"
+                        + BasicAuthenticatorConstants.ERROR_CODE + "dummycode"
+                        + BasicAuthenticatorConstants.FAILED_USERNAME +
+                        URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8), "1", "1"
                 },
                 {
-                        UserCoreConstants.ErrorCode.USER_IS_LOCKED, dummyEncodedVal +
+                        UserCoreConstants.ErrorCode.USER_IS_LOCKED, DUMMY_RETRY_URL_WITH_QUERY +
                         BasicAuthenticatorConstants.ERROR_CODE + UserCoreConstants.ErrorCode.USER_IS_LOCKED +
-                        BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(dummyUserName,
+                        BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(DUMMY_USER_NAME,
                         BasicAuthenticatorConstants.UTF_8) + "&remainingAttempts=0", "1", "1"
                 },
                 {
-                        UserCoreConstants.ErrorCode.USER_IS_LOCKED + ":dummyReason", dummyEncodedVal +
+                        UserCoreConstants.ErrorCode.USER_IS_LOCKED + ":dummyReason", DUMMY_RETRY_URL_WITH_QUERY +
                         BasicAuthenticatorConstants.ERROR_CODE + UserCoreConstants.ErrorCode.USER_IS_LOCKED +
                         "&lockedReason=dummyReason" + BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode
-                        (dummyUserName, BasicAuthenticatorConstants.UTF_8) + "&remainingAttempts=0", "1", "1"
+                        (DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8) + "&remainingAttempts=0", "1", "1"
                 },
                 {
-                        UserCoreConstants.ErrorCode.USER_IS_LOCKED, dummyEncodedVal +
+                        UserCoreConstants.ErrorCode.USER_IS_LOCKED, DUMMY_RETRY_URL_WITH_QUERY +
                         BasicAuthenticatorConstants.ERROR_CODE + UserCoreConstants.ErrorCode.USER_IS_LOCKED +
-                        BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(dummyUserName,
+                        BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(DUMMY_USER_NAME,
                         BasicAuthenticatorConstants.UTF_8), "4", "1"
                 },
                 {
-                        UserCoreConstants.ErrorCode.USER_IS_LOCKED + ":dummyReason", dummyEncodedVal +
+                        UserCoreConstants.ErrorCode.USER_IS_LOCKED + ":dummyReason", DUMMY_RETRY_URL_WITH_QUERY +
                         BasicAuthenticatorConstants.ERROR_CODE + UserCoreConstants.ErrorCode.USER_IS_LOCKED +
                         "&lockedReason=dummyReason" + BasicAuthenticatorConstants.FAILED_USERNAME +
-                        URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8), "4", "1"
-                },
-                {
-                        IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE, "accountrecoveryendpoint/confirmrecovery.do?" + dummyQueryParam +
-                        BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
-                        BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM + URLEncoder.encode(super_tenant, BasicAuthenticatorConstants.UTF_8) +
-                        BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(dummyPassword, BasicAuthenticatorConstants.UTF_8), "1", "1"
+                        URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8), "4", "1"
                 },
                 {
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE,
-                        "accountrecoveryendpoint/confirmrecovery.do?" + dummyQueryParam +
+                        "accountrecoveryendpoint/confirmrecovery.do?" + DUMMY_QUERY_PARAMS
+                                + BasicAuthenticatorConstants.USER_NAME_PARAM
+                                + URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8)
+                                + BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM
+                                + URLEncoder.encode(super_tenant, BasicAuthenticatorConstants.UTF_8)
+                                + BasicAuthenticatorConstants.CONFIRMATION_PARAM
+                                + URLEncoder.encode(DUMMY_PASSWORD, BasicAuthenticatorConstants.UTF_8), "1", "1"
+                },
+                {
+                        IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE,
+                        "accountrecoveryendpoint/confirmrecovery.do?" + DUMMY_QUERY_PARAMS +
                                 BasicAuthenticatorConstants.USER_NAME_PARAM +
-                                URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
+                                URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8) +
                                 BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
                                 URLEncoder.encode(super_tenant, BasicAuthenticatorConstants.UTF_8) +
-                                BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(dummyPassword,
+                                BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(DUMMY_PASSWORD,
                                 BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
                                 URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
                                 BasicAuthenticatorConstants.REASON_PARAM +
@@ -1093,6 +1137,122 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                                         BasicAuthenticatorConstants.UTF_8), "1", "1"
                 }
         };
+    }
+
+    @Test(dataProvider = "errorCodeProvider")
+    public void initiateAuthenticationRequestTestcaseWithErrorCode(String errorCode, String expected, String maxLogin,
+                                                                   String minLogin)
+            throws AuthenticationFailedException, IOException, URISyntaxException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockResponse.encodeRedirectURL(DUMMY_RETRY_URL + "?" + DUMMY_QUERY_PARAMS))
+                    .thenReturn(DUMMY_RETRY_URL_WITH_QUERY);
+
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+
+            HashMap<String, String> paramMap = new HashMap<>();
+            paramMap.put("showAuthFailureReason", "true");
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("test", true, paramMap);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+
+            when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(DUMMY_PASSWORD);
+            SequenceConfig conf = new SequenceConfig();
+            conf.setApplicationConfig(applicationConfig);
+            when(applicationConfig.isSaaSApp()).thenReturn(false);
+            when((mockAuthnCtxt.getSequenceConfig())).thenReturn(conf);
+
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+
+            when(mockIdentityErrorMsgContext.getErrorCode()).thenReturn(errorCode);
+            when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(Integer.valueOf(maxLogin));
+            when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(Integer.valueOf(minLogin));
+
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(mockIdentityErrorMsgContext);
+
+            doAnswer((Answer<Object>) invocation -> {
+
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }).when(mockResponse).sendRedirect(anyString());
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+            validateResponseParams(expected, redirect);
+        }
+    }
+
+    private void validateResponseParams(String expected, String actual) throws URISyntaxException {
+
+        URI expectedURI = new URI(expected);
+        String[] expectedQueryParams = expected.split("&");
+
+        for (String expectedQueryParam : expectedQueryParams) {
+            if (!actual.contains(expectedQueryParam)) {
+                Assert.fail("Expected param: '" + expectedQueryParam + "'  not available in response: " + actual);
+            }
+        }
+    }
+
+    @Test
+    public void initiateAuthenticationRequestTestcaseWithUserNotFoundErrorCodeMasking()
+            throws AuthenticationFailedException, IOException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockResponse.encodeRedirectURL(DUMMY_RETRY_URL + "?" + DUMMY_QUERY_PARAMS))
+                    .thenReturn(DUMMY_RETRY_URL_WITH_QUERY);
+
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+
+            HashMap<String, String> paramMap = new HashMap<>();
+            paramMap.put("showAuthFailureReason", "true");
+            paramMap.put("maskUserNotExistsErrorCode", "true");
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("test", true, paramMap);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+
+            when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(DUMMY_PASSWORD);
+
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+
+            when(mockIdentityErrorMsgContext.getErrorCode())
+                    .thenReturn(UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST);
+            when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(1);
+            when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(1);
+
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(mockIdentityErrorMsgContext);
+
+            doAnswer((Answer<Object>) invocation -> {
+
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }).when(mockResponse).sendRedirect(anyString());
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+            if (StringUtils.contains(redirect,UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST)) {
+                Assert.fail("Response contains error code for USER_DOES_NOT_EXIST: "
+                        + UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST + ". Response: " + redirect);
+            }
+        }
     }
 
     @DataProvider(name = "omitErrorParamsProvider")
@@ -1111,168 +1271,59 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         };
     }
 
-    @Test(dataProvider = "errorCodeProvider")
-    public void initiateAuthenticationRequestTestcaseWithErrorCode(String errorCode, String expected, String maxLogin,
-                                                                   String minLogin) throws AuthenticationFailedException,
-            IOException, NoSuchFieldException, IllegalAccessException, URISyntaxException {
-
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        mockRequest = mock(HttpServletRequest.class);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
-        mockResponse = mock(HttpServletResponse.class);
-        when(mockResponse.encodeRedirectURL(dummyRetryURL + "?" + dummyQueryParam)).thenReturn(dummyEncodedVal);
-
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
-
-        AuthenticatorConfig mockAuthenticatorConfig = mock(AuthenticatorConfig.class);
-        HashMap<String, String> paramMap = new HashMap<>();
-        paramMap.put("showAuthFailureReason", "true");
-        when(mockAuthenticatorConfig.getParameterMap()).thenReturn(paramMap);
-        when(FileBasedConfigurationBuilder.getInstance().getAuthenticatorBean(anyString())).thenReturn(mockAuthenticatorConfig);
-
-        when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
-        when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
-        when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(dummyPassword);
-        SequenceConfig conf = new SequenceConfig();
-        applicationConfig = mock(ApplicationConfig.class);
-        conf.setApplicationConfig(applicationConfig);
-        when(applicationConfig.isSaaSApp()).thenReturn(false);
-        when((mockAuthnCtxt.getSequenceConfig())).thenReturn(conf);
-
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL()).thenReturn(dummyRetryURL);
-        when(mockAuthnCtxt.isRetrying()).thenReturn(true);
-
-        mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
-        when(mockIdentityErrorMsgContext.getErrorCode()).thenReturn(errorCode);
-        when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(Integer.valueOf(maxLogin));
-        when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(Integer.valueOf(minLogin));
-
-        mockStatic(IdentityUtil.class);
-        when(IdentityUtil.getIdentityErrorMsg()).thenReturn(mockIdentityErrorMsgContext);
-
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-
-                redirect = (String) invocation.getArguments()[0];
-                return null;
-            }
-        }).when(mockResponse).sendRedirect(anyString());
-
-        basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
-        validateResponseParams(expected, redirect);
-    }
-
-    @Test
-    public void initiateAuthenticationRequestTestcaseWithUserNotFoundErrorCodeMasking()
-            throws AuthenticationFailedException, IOException {
-
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        mockRequest = mock(HttpServletRequest.class);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
-        mockResponse = mock(HttpServletResponse.class);
-        when(mockResponse.encodeRedirectURL(dummyRetryURL + "?" + dummyQueryParam)).thenReturn(dummyEncodedVal);
-
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
-
-        AuthenticatorConfig mockAuthenticatorConfig = mock(AuthenticatorConfig.class);
-        HashMap<String, String> paramMap = new HashMap<>();
-        paramMap.put("showAuthFailureReason", "true");
-        paramMap.put("maskUserNotExistsErrorCode", "true");
-        when(mockAuthenticatorConfig.getParameterMap()).thenReturn(paramMap);
-        when(FileBasedConfigurationBuilder.getInstance().getAuthenticatorBean(anyString()))
-                .thenReturn(mockAuthenticatorConfig);
-
-        when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
-        when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
-        when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(dummyPassword);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL()).thenReturn(dummyRetryURL);
-        when(mockAuthnCtxt.isRetrying()).thenReturn(true);
-
-        mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
-        when(mockIdentityErrorMsgContext.getErrorCode()).thenReturn(UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST);
-        when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(1);
-        when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(1);
-
-        mockStatic(IdentityUtil.class);
-        when(IdentityUtil.getIdentityErrorMsg()).thenReturn(mockIdentityErrorMsgContext);
-
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-
-                redirect = (String) invocation.getArguments()[0];
-                return null;
-            }
-        }).when(mockResponse).sendRedirect(anyString());
-
-        basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
-        if (StringUtils.contains(redirect,UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST)) {
-            Assert.fail("Response contains error code for USER_DOES_NOT_EXIST: "
-                    + UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST + ". Response: " + redirect);
-        }
-    }
-
     @Test(dataProvider = "omitErrorParamsProvider")
     public void initiateAuthenticationRequestTestcaseWithOmittedErrorParams(String omittedParams)
             throws AuthenticationFailedException, IOException {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        mockRequest = mock(HttpServletRequest.class);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
-        mockResponse = mock(HttpServletResponse.class);
-        when(mockResponse.encodeRedirectURL(dummyRetryURL + "?" + dummyQueryParam)).thenReturn(dummyEncodedVal);
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
 
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockResponse.encodeRedirectURL(DUMMY_RETRY_URL + "?" + DUMMY_QUERY_PARAMS))
+                    .thenReturn(DUMMY_RETRY_URL_WITH_QUERY);
 
-        AuthenticatorConfig mockAuthenticatorConfig = mock(AuthenticatorConfig.class);
-        HashMap<String, String> paramMap = new HashMap<>();
-        paramMap.put("showAuthFailureReason", "true");
-        paramMap.put("errorParamsToOmit", omittedParams);
-        when(mockAuthenticatorConfig.getParameterMap()).thenReturn(paramMap);
-        when(FileBasedConfigurationBuilder.getInstance().getAuthenticatorBean(anyString()))
-                .thenReturn(mockAuthenticatorConfig);
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
 
-        when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
-        when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
-        when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(dummyPassword);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL()).thenReturn(dummyRetryURL);
-        when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+            HashMap<String, String> paramMap = new HashMap<>();
+            paramMap.put("showAuthFailureReason", "true");
+            paramMap.put("errorParamsToOmit", omittedParams);
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("test", true, paramMap);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
 
-        mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
-        when(mockIdentityErrorMsgContext.getErrorCode()).thenReturn(UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST);
-        when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(1);
-        when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(1);
+            when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(DUMMY_PASSWORD);
 
-        mockStatic(IdentityUtil.class);
-        when(IdentityUtil.getIdentityErrorMsg()).thenReturn(mockIdentityErrorMsgContext);
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
+            when(mockIdentityErrorMsgContext.getErrorCode())
+                    .thenReturn(UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST);
+            when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(1);
+            when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(1);
+
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(mockIdentityErrorMsgContext);
+
+            doAnswer((Answer<Object>) invocation -> {
 
                 redirect = (String) invocation.getArguments()[0];
                 return null;
-            }
-        }).when(mockResponse).sendRedirect(anyString());
+            }).when(mockResponse).sendRedirect(anyString());
 
-        basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
 
-        omittedParams = omittedParams.replace(" ","");
-        List<String> omittedParamList = new ArrayList<>(Arrays.asList(omittedParams.split(",")));
+            omittedParams = omittedParams.replace(" ","");
+            List<String> omittedParamList = new ArrayList<>(Arrays.asList(omittedParams.split(",")));
 
-        for (String omittedParam : omittedParamList) {
-            if (redirect.contains(omittedParam)) {
-                Assert.fail("Response contains omitted param: " + omittedParam + ". Response: " + redirect);
+            for (String omittedParam : omittedParamList) {
+                if (redirect.contains(omittedParam)) {
+                    Assert.fail("Response contains omitted param: " + omittedParam + ". Response: " + redirect);
+                }
             }
         }
     }
@@ -1281,52 +1332,50 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
     public void initiateAuthenticationRequestTestcaseWithPasswordResetErrorOmitted()
             throws AuthenticationFailedException, IOException, URISyntaxException {
 
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        mockRequest = mock(HttpServletRequest.class);
-        when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(dummyUserName);
-        mockResponse = mock(HttpServletResponse.class);
-        when(mockResponse.encodeRedirectURL(dummyRetryURL + "?" + dummyQueryParam)).thenReturn(dummyEncodedVal);
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder
+                     = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
 
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockResponse.encodeRedirectURL(DUMMY_RETRY_URL + "?" + DUMMY_QUERY_PARAMS))
+                    .thenReturn(DUMMY_RETRY_URL_WITH_QUERY);
 
-        AuthenticatorConfig mockAuthenticatorConfig = mock(AuthenticatorConfig.class);
-        HashMap<String, String> paramMap = new HashMap<>();
-        paramMap.put("maskAdminForcedPasswordResetErrorCode", "true");
-        when(mockAuthenticatorConfig.getParameterMap()).thenReturn(paramMap);
-        when(FileBasedConfigurationBuilder.getInstance().getAuthenticatorBean(anyString()))
-                .thenReturn(mockAuthenticatorConfig);
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
 
-        when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
-        when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
-        when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(dummyPassword);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL()).thenReturn(dummyRetryURL);
-        when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+            HashMap<String, String> paramMap = new HashMap<>();
+            paramMap.put("maskAdminForcedPasswordResetErrorCode", "true");
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("test", true, paramMap);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
 
-        mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
-        when(mockIdentityErrorMsgContext.getErrorCode())
-                .thenReturn(IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE);
-        when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(1);
-        when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(1);
+            when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(DUMMY_PASSWORD);
 
-        mockStatic(IdentityUtil.class);
-        when(IdentityUtil.getIdentityErrorMsg()).thenReturn(mockIdentityErrorMsgContext);
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
+            when(mockIdentityErrorMsgContext.getErrorCode())
+                    .thenReturn(IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE);
+            when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(1);
+            when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(1);
+
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(mockIdentityErrorMsgContext);
+
+            doAnswer((Answer<Object>) invocation -> {
 
                 redirect = (String) invocation.getArguments()[0];
                 return null;
-            }
-        }).when(mockResponse).sendRedirect(anyString());
+            }).when(mockResponse).sendRedirect(anyString());
 
-        basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
 
-        validateResponseParam(BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM.replaceAll("&", ""), redirect,
-                "login.fail.message");
+            validateResponseParam(BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM.replaceAll("&", ""), redirect,
+                    "login.fail.message");
+        }
     }
 
     private void validateResponseParam(String param, String actual, String expected) throws URISyntaxException {
@@ -1341,84 +1390,31 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
         }
     }
 
-    private void validateResponseParams(String expected, String actual) throws URISyntaxException {
+    private void initiateAuthenticationRequest(
+            MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder,
+            MockedStatic<ConfigurationFacade> configurationFacade) throws IOException {
 
-        URI expectedURI = new URI(expected);
-        String[] expectedQueryParams = expected.split("&");
+        fileBasedConfigurationBuilder
+                .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+        when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(null);
 
-        for (String expectedQueryParam : expectedQueryParams) {
-            if (!actual.contains(expectedQueryParam)) {
-                Assert.fail("Expected param: '" + expectedQueryParam + "'  not available in response: " + actual);
-            }
-        }
-    }
+        doAnswer((Answer<Object>) invocation -> {
 
-    private void initiateAuthenticationRequest() throws IOException {
-
-        mockAuthnCtxt = mock(AuthenticationContext.class);
-        mockRequest = mock(HttpServletRequest.class);
-        mockResponse = mock(HttpServletResponse.class);
-
-        mockStatic(FileBasedConfigurationBuilder.class);
-        mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
-        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(mockFileBasedConfigurationBuilder);
-        when(FileBasedConfigurationBuilder.getInstance().getAuthenticatorBean(anyString())).thenReturn(null);
-
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-
-                isUserTenantDomainMismatch = (Boolean) invocation.getArguments()[1];
-                return null;
-            }
+            isUserTenantDomainMismatch = (Boolean) invocation.getArguments()[1];
+            return null;
         }).when(mockAuthnCtxt).setProperty(anyString(), anyBoolean());
 
         when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
-        when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(dummyQueryParam);
-        when(ConfigurationFacade.getInstance().getAuthenticationEndpointURL()).thenReturn(dummyLoginPage);
+        when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+
+        configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+        when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
         when(mockAuthnCtxt.isRetrying()).thenReturn(true);
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
+        doAnswer((Answer<Object>) invocation -> {
 
-                redirect = (String) invocation.getArguments()[0];
-                return null;
-            }
+            redirect = (String) invocation.getArguments()[0];
+            return null;
         }).when(mockResponse).sendRedirect(anyString());
-    }
-
-    @DataProvider(name = "GetTenantDomainFromUserNameProvider")
-    public Object[][] getTenantDomainFromUserName() {
-
-        // isSaasApp, isTenantQualifiedUrlEnabled
-        return new String[][]{
-                {"true", "false", "carbon.super"},
-                {"false", "true", "abc.com"},
-                {"false", "false", "carbon.super"}
-        };
-    }
-
-    @Test(dataProvider = "GetTenantDomainFromUserNameProvider")
-    public void testgetTenantDomainFromUserName(String isSaasApp, String isTenantQualifiedUrl,
-                                                String expectedTenant) throws Exception {
-
-        SequenceConfig conf = new SequenceConfig();
-        applicationConfig = mock(ApplicationConfig.class);
-        conf.setApplicationConfig(applicationConfig);
-        when(applicationConfig.isSaaSApp()).thenReturn(Boolean.valueOf(isSaasApp));
-        when((mockAuthnCtxt.getSequenceConfig())).thenReturn(conf);
-        mockStatic(IdentityTenantUtil.class);
-        when(IdentityTenantUtil.isTenantQualifiedUrlsEnabled()).thenReturn(Boolean.valueOf(isTenantQualifiedUrl));
-        when(IdentityTenantUtil.getTenantDomainFromContext()).thenReturn("abc.com");
-        String tenantDomain = WhiteboxImpl.invokeMethod(basicAuthenticator, "getTenantDomainFromUserName",
-                mockAuthnCtxt, dummyUserNameWithTenant);
-        Assert.assertEquals(tenantDomain, expectedTenant);
-    }
-
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 }
