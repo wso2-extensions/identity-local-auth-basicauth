@@ -30,18 +30,13 @@ import org.wso2.carbon.identity.application.authentication.framework.config.mode
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
-import org.wso2.carbon.identity.application.authentication.framework.exception.UserSessionException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.session.mgt.SessionManagementException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.UserSession;
-import org.wso2.carbon.identity.application.authentication.framework.store.UserSessionStore;
-import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
-import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserIdRetrievalException;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionRetrievalException;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionTerminationException;
 import org.wso2.carbon.identity.application.authentication.handler.session.internal.ActiveSessionsLimitHandlerServiceHolder;
 import org.wso2.carbon.identity.core.model.UserAgent;
-import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -50,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -127,8 +123,6 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                     this.publishAuthenticationStepAttempt(request, context, context.getSubject(), true);
                     return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
                 }
-            } catch (UserIdRetrievalException e) {
-                throw new AuthenticationFailedException("Error occurred while retrieving the userId.", e);
             } catch (UserSessionRetrievalException e) {
                 this.publishAuthenticationStepAttempt(request, context, context.getSubject(), false);
                 throw new AuthenticationFailedException("Error occurred while retrieving user sessions.", e);
@@ -176,8 +170,6 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                     throw new AuthenticationFailedException("Active session count: " + userSessions.size()
                             + " exceeds the specified limit: " + maxSessionCountParamValue);
                 }
-            } catch (UserIdRetrievalException e) {
-                throw new AuthenticationFailedException("Error occurred while retrieving the userId.", e);
             } catch (UserSessionTerminationException e) {
                 throw new AuthenticationFailedException("Error occurred while terminating user sessions.", e);
             } catch (UserSessionRetrievalException e) {
@@ -243,7 +235,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         return userSessions;
     }
 
-    private String getUserId(AuthenticationContext authenticationContext) throws UserIdRetrievalException {
+    private String getUserId(AuthenticationContext authenticationContext) {
 
         String userId;
         StepConfig stepConfig = getCurrentSubjectIdentifierStep(authenticationContext);

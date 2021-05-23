@@ -59,7 +59,6 @@ import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserStoreClientException;
 import org.wso2.carbon.user.core.UserStoreException;
-import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.common.AuthenticationResult;
 import org.wso2.carbon.user.core.constants.UserCoreClaimConstants;
@@ -582,7 +581,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         AuthenticatedUser authenticatedUser = new AuthenticatedUser(authenticationResult.getAuthenticatedUser().get());
 
         // Update the username from the deprecated multi attribute login feature.
-        updateMultiAttributeUsername(authenticatedUser, requestTenantDomain, userStoreManager);
+        updateMultiAttributeUsername(authenticatedUser, userStoreManager);
 
         context.setSubject(authenticatedUser);
 
@@ -857,21 +856,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
-    private void updateMultiAttributeUsername(AuthenticatedUser user, String tenantDomain,
-                                                AbstractUserStoreManager userStoreManager) {
+    private void updateMultiAttributeUsername(AuthenticatedUser user, AbstractUserStoreManager userStoreManager) {
 
         if (getAuthenticatorConfig().getParameterMap() != null) {
             String userNameUri = getAuthenticatorConfig().getParameterMap().get("UserNameAttributeClaimUri");
             if (StringUtils.isNotBlank(userNameUri)) {
-                boolean multipleAttributeEnable;
                 String domain = UserCoreUtil.getDomainFromThreadLocal();
-                if (StringUtils.isNotBlank(domain)) {
-                    multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.getSecondaryUserStoreManager(domain)
-                            .getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
-                } else {
-                    multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.
-                            getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
-                }
+                boolean multipleAttributeEnable = isMultipleAttributeEnable(userStoreManager, domain);
                 if (multipleAttributeEnable) {
                     try {
                         if (log.isDebugEnabled()) {
@@ -880,16 +871,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         }
                         // This getUserClaimValue cannot be converted to user id method, since if the value user
                         // enters is not the actual username, user id will not be available in AuthenticationResult.
-                        String usernameValue;
-                        if (user.getUserStoreDomain() != null
-                                && !UserCoreConstants.PRIMARY_DEFAULT_DOMAIN_NAME.equals(user.getUserStoreDomain())) {
-                            usernameValue =
-                                    userStoreManager.getSecondaryUserStoreManager(user.getUserStoreDomain())
-                                            .getUserClaimValue(user.getUserName(), userNameUri, null);
-                        } else {
-                            usernameValue = userStoreManager.
-                                    getUserClaimValue(user.getUserName(), userNameUri, null);
-                        }
+                        String usernameValue = getMultiAttributeUsername(user, userStoreManager, userNameUri);
                         if (StringUtils.isNotBlank(usernameValue)) {
                             user.setUserName(usernameValue);
                             if (log.isDebugEnabled()) {
@@ -910,6 +892,42 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 }
             }
         }
+    }
+
+    private String getMultiAttributeUsername(AuthenticatedUser user, AbstractUserStoreManager userStoreManager,
+                                             String userNameUri) throws UserStoreException {
+
+        String usernameValue;
+        if (user.getUserStoreDomain() != null
+                && !UserCoreConstants.PRIMARY_DEFAULT_DOMAIN_NAME.equals(user.getUserStoreDomain())) {
+            usernameValue =
+                    userStoreManager.getSecondaryUserStoreManager(user.getUserStoreDomain())
+                            .getUserClaimValue(user.getUserName(), userNameUri, null);
+        } else {
+            usernameValue = userStoreManager.
+                    getUserClaimValue(user.getUserName(), userNameUri, null);
+        }
+        return usernameValue;
+    }
+
+    /**
+     * Check if the ldap based multi attribute login is enabled.
+     *
+     * @param userStoreManager Primary user store manager.
+     * @param domain user store domain.
+     * @return if multi attributed enabled.
+     */
+    private boolean isMultipleAttributeEnable(AbstractUserStoreManager userStoreManager, String domain) {
+
+        boolean multipleAttributeEnable;
+        if (StringUtils.isNotBlank(domain)) {
+            multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.getSecondaryUserStoreManager(domain)
+                    .getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
+        } else {
+            multipleAttributeEnable = Boolean.parseBoolean(userStoreManager.
+                    getRealmConfiguration().getUserStoreProperty("MultipleAttributeEnable"));
+        }
+        return multipleAttributeEnable;
     }
 
     private AbstractUserStoreManager getUserStoreManager(String username, String tenantDomain)
