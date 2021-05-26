@@ -58,7 +58,7 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
 
     private static final Log log = LogFactory.getLog(JWTBasicAuthenticator.class);
 
-    private static long DEFAULT_TIMESTAMP_SKEW = 300;
+    private static final long DEFAULT_TIMESTAMP_SKEW = 300;
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -93,7 +93,7 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
                 authProperties.put("user-tenant-domain", user.getTenantDomain());
                 context.setSubject(AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username));
                 String rememberMe = request.getParameter("chkRemember");
-                if (rememberMe != null && "on".equals(rememberMe)) {
+                if ("on".equals(rememberMe)) {
                     context.setRememberMe(true);
                 }
             } else {
@@ -119,11 +119,11 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
     private SignedJWT getSignedJWT(String jwtAssertion) throws AuthenticationFailedException {
 
         String errorMessage = "No Valid JWT Assertion was found.";
-        SignedJWT signedJWT;
         if (StringUtils.isBlank(jwtAssertion)) {
             throw new AuthenticationFailedException(ErrorMessages.INVALID_TOKEN.getCode(), errorMessage);
         }
 
+        SignedJWT signedJWT;
         try {
             signedJWT = SignedJWT.parse(jwtAssertion);
         } catch (ParseException e) {
@@ -134,9 +134,6 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
                     "Error while parsing the JWT.");
         }
 
-        if (signedJWT == null) {
-            throw new AuthenticationFailedException(ErrorMessages.INVALID_TOKEN.getCode(), errorMessage);
-        }
         return signedJWT;
     }
 

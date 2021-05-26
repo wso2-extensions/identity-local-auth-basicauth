@@ -102,10 +102,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
                             if (isPrompt) {
                                 String identifierConsent = request.getParameter(IDENTIFIER_CONSENT);
-                                if (identifierConsent != null && CONTINUE.equals(identifierConsent)) {
+                                if (CONTINUE.equals(identifierConsent)) {
                                     context.setSubject(local.getUser());
                                     return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
-                                } else if (identifierConsent != null && RESET.equals(identifierConsent)) {
+                                } else if (RESET.equals(identifierConsent)) {
                                     initiateAuthenticationRequest(request, response, context);
                                     return AuthenticatorFlowStatus.INCOMPLETE;
                                 } else if (request.getParameter(IdentifierHandlerConstants.USER_NAME) != null) {
@@ -205,7 +205,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                             .AUTHENTICATORS + getName() + ":" + IdentifierHandlerConstants.LOCAL + retryParam;
                     response.sendRedirect(redirectURL);
 
-                } else if (showAuthFailureReason != null && "true".equals(showAuthFailureReason)) {
+                } else if ("true".equals(showAuthFailureReason)) {
 
                     String reason = null;
                     if (errorCode.contains(":")) {
@@ -420,18 +420,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         persistUsername(context, username);
 
-        AuthenticatedUser user;
-        if (userId != null) {
-            // If the ValidateUsername is set to true, user id will be populated and we can create the user object
-            // based on that.
-            user = new AuthenticatedUser();
-            user.setUserId(userId);
-            user.setTenantDomain(tenantDomain);
-            user.setUserStoreDomain(UserCoreUtil.extractDomainFromName(username));
-            user.setUserName(tenantAwareUsername);
-        } else {
-            user = AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username);
-        }
+        AuthenticatedUser user = new AuthenticatedUser();
+        user.setUserId(userId);
+        user.setUserName(tenantAwareUsername);
+        user.setUserStoreDomain(UserCoreUtil.extractDomainFromName(username));
+        user.setTenantDomain(tenantDomain);
         context.setSubject(user);
     }
 

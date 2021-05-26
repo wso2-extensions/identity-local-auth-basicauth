@@ -78,7 +78,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             String maxSessionCountParamValue =
                     getAuthenticatorParams
                             (ActiveSessionsLimitHandlerConstants.MAX_SESSION_COUNT, DEFAULT_MAX_SESSION_COUNT, context);
-            Integer maxSessionCount;
+            int maxSessionCount;
             try {
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
             } catch (NumberFormatException e) {
@@ -108,7 +108,6 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             }
 
             try {
-
                 String userId = getUserId(context);
 
                 List<UserSession> userSessions = null;
@@ -157,12 +156,13 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             String maxSessionCountParamValue =
                     getAuthenticatorParams(ActiveSessionsLimitHandlerConstants.MAX_SESSION_COUNT
                             , DEFAULT_MAX_SESSION_COUNT, context);
-            Integer maxSessionCount;
+            int maxSessionCount;
             List<UserSession> userSessions;
             try {
                 String userId = getUserId(context);
-                String[] sessionIds = request.getParameterValues(ActiveSessionsLimitHandlerConstants.SESSIONS_TO_TERMINATE);
-                terminateSessions(userId, sessionIds);
+                String[] sessionIdsToTerminate
+                        = request.getParameterValues(ActiveSessionsLimitHandlerConstants.SESSIONS_TO_TERMINATE);
+                terminateSessions(userId, sessionIdsToTerminate);
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
                 userSessions = getUserSessions(userId);
                 if (userSessions != null && userSessions.size() >= maxSessionCount) {
@@ -316,9 +316,6 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         Map<Integer, StepConfig> stepConfigs = authenticationContext.getSequenceConfig().getStepMap();
         Optional<StepConfig> subjectIdentifierStep = stepConfigs.values().stream()
                 .filter(stepConfig -> (stepConfig.isCompleted() && stepConfig.isSubjectIdentifierStep())).findFirst();
-        if (subjectIdentifierStep.isPresent()) {
-            return subjectIdentifierStep.get();
-        }
-        return null;
+        return subjectIdentifierStep.orElse(null);
     }
 }
