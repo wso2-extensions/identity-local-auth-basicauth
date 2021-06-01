@@ -96,16 +96,10 @@
             <artifactId>org.wso2.carbon.identity.application.authenticator.basicauth</artifactId>
         </dependency>
         <dependency>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>org.apache.felix.scr.ds-annotations</artifactId>
-                <scope>provided</scope>
-            </dependency>
-        <dependency>
             <groupId>org.wso2.carbon.identity.framework</groupId>
             <artifactId>org.wso2.carbon.identity.multi.attribute.login.mgt</artifactId>
-            <version>${carbon.identity.framework.version}</version>
         </dependency>
-        </dependencies>
+    </dependencies>
     <build>
         <plugins>
             <plugin>

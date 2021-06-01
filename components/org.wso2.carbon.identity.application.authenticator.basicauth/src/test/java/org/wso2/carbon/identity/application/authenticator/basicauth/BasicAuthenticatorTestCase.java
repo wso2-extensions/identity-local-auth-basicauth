@@ -54,6 +54,7 @@ import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.identity.recovery.util.Utils;
 import org.wso2.carbon.user.api.RealmConfiguration;
@@ -61,8 +62,11 @@ import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserStoreClientException;
-import org.wso2.carbon.user.core.UserStoreManager;
+import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
+import org.wso2.carbon.user.core.common.AuthenticationResult;
+import org.wso2.carbon.user.core.constants.UserCoreClaimConstants;
 import org.wso2.carbon.user.core.service.RealmService;
+import org.wso2.carbon.user.core.tenant.TenantManager;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
@@ -121,9 +125,10 @@ public class BasicAuthenticatorTestCase {
     private ApplicationConfig applicationConfig;
     private RealmService mockRealmService;
     private UserRealm mockRealm;
-    private UserStoreManager mockUserStoreManager;
+    private AbstractUserStoreManager mockUserStoreManager;
     private FileBasedConfigurationBuilder mockFileBasedConfigurationBuilder;
     private IdentityErrorMsgContext mockIdentityErrorMsgContext;
+    private TenantManager mockTenantManager;
     private IdentityGovernanceService mockGovernanceService;
     private RealmConfiguration mockRealmConfiguration;
     private ConfigurationFacade mockConfigurationFacade;
@@ -157,12 +162,13 @@ public class BasicAuthenticatorTestCase {
         applicationConfig = mock(ApplicationConfig.class);
         mockRealmService = mock(RealmService.class);
         mockRealm = mock(UserRealm.class);
-        mockUserStoreManager = mock(UserStoreManager.class);
+        mockUserStoreManager = mock(AbstractUserStoreManager.class);
         mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
         mockIdentityErrorMsgContext = mock(IdentityErrorMsgContext.class);
         mockGovernanceService = mock(IdentityGovernanceService.class);
         mockRealmConfiguration = mock(RealmConfiguration.class);
         mockConfigurationFacade = mock(ConfigurationFacade.class);
+        mockTenantManager = mock(TenantManager.class);
 
         Property[] captchaProperties = new Property[1];
         Property captchaEnabled = new Property();
@@ -247,7 +253,6 @@ public class BasicAuthenticatorTestCase {
              MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
              MockedStatic<SignatureUtil> signatureUtil = Mockito.mockStatic(SignatureUtil.class)) {
 
-            mockFileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
             fileBasedConfigurationBuilder
                     .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
             when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
@@ -281,7 +286,9 @@ public class BasicAuthenticatorTestCase {
             basicAuthenticatorService.when(BasicAuthenticatorServiceComponent::getRealmService)
                     .thenReturn(mockRealmService);
             when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
-            when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
+            when(mockRealmService.getTenantManager()).thenReturn(mockTenantManager);
+            when(mockTenantManager.getTenantId(anyString())).thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+
             when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
             when(mockUserStoreManager.getSecondaryUserStoreManager(DUMMY_DOMAIN)).thenReturn(mockUserStoreManager);
             when(mockUserStoreManager.getRealmConfiguration()).thenReturn(mockRealmConfiguration);
@@ -418,7 +425,7 @@ public class BasicAuthenticatorTestCase {
     public Object[][] getRealm() {
 
         mockRealm = mock(UserRealm.class);
-        mockUserStoreManager = mock(UserStoreManager.class);
+        mockUserStoreManager = mock(AbstractUserStoreManager.class);
 
         return new Object[][]{
                 {null, "Cannot find the user realm for the given tenant: " + MultitenantConstants.SUPER_TENANT_ID,
@@ -455,15 +462,16 @@ public class BasicAuthenticatorTestCase {
             basicAuthenticatorService
                     .when(BasicAuthenticatorServiceComponent::getRealmService).thenReturn(mockRealmService);
             when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn((UserRealm) realm);
-
+            when(mockRealmService.getTenantManager()).thenReturn(mockTenantManager);
+            when(mockTenantManager.getTenantId(anyString())).thenReturn(MultitenantConstants.SUPER_TENANT_ID);
             if (realm != null) {
                 when(((UserRealm) realm).getUserStoreManager()).thenReturn(mockUserStoreManager);
             }
 
             multitenantUtils.when(() -> MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME))
                     .thenReturn(DUMMY_USER_NAME);
-            when(mockUserStoreManager.authenticate(
-                    MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD)).thenReturn(false);
+            multitenantUtils.when(() -> MultitenantUtils.getTenantDomain(DUMMY_USER_NAME))
+                    .thenReturn(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
 
             Map<String, Object> mockedThreadLocalMap = new HashMap<>();
             mockedThreadLocalMap.put("user-domain-recaptcha", recapchaUserDomain);
@@ -471,6 +479,10 @@ public class BasicAuthenticatorTestCase {
 
             frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
                     .thenReturn(DUMMY_USER_NAME);
+            when(mockUserStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
+                    MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD,
+                    UserCoreConstants.DEFAULT_PROFILE))
+                    .thenReturn(new AuthenticationResult(AuthenticationResult.AuthenticationStatus.FAIL));
 
             User userFromUsername = new User();
             userFromUsername.setUserName(DUMMY_USER_NAME);
@@ -488,24 +500,18 @@ public class BasicAuthenticatorTestCase {
     public Object[][] getMultipleAttributeProvider() {
 
         String dummyUserNameValue = "dummyusernameValue";
-        return new String[][]{
-                {null, DUMMY_USER_NAME, null, null, "true"},
-                {null, DUMMY_USER_NAME, null, "", "true"},
-                {null, DUMMY_USER_NAME, null, dummyUserNameValue, "true"},
-                {null, DUMMY_USER_NAME, null, null, "false"},
-                {null, DUMMY_USER_NAME, "off", null, "false"},
-                {"", DUMMY_USER_NAME, "off", null, "false"},
-                {DUMMY_DOMAIN, DUMMY_USER_NAME, "off", null, "false"},
-                {null, "", "on", null, "false"},
-                {null, null, "on", null, "false"}
+        return new Object[][]{
+                {DUMMY_DOMAIN, DUMMY_USER_NAME, "off", dummyUserNameValue, "false", false},
+                {DUMMY_DOMAIN, DUMMY_USER_NAME, "off", dummyUserNameValue, "false", true},
+                {DUMMY_DOMAIN, DUMMY_USER_NAME, "off", dummyUserNameValue, "true", false},
+                {null, DUMMY_USER_NAME, "off", dummyUserNameValue, "true", false}
         };
     }
 
     @Test(dataProvider = "multipleAttributeprovider")
     public void processAuthenticationResponseTestcaseWithMultiAttribute(String domainName, String userNameUri, String
-            chkRemember, String userNameValue, String multipleAttributeEnable)
-            throws UserStoreException,
-            AuthenticationFailedException {
+            chkRemember, String userNameValue, String oldMultipleAttributeEnable, boolean newMultipleAttributeEnable)
+            throws UserStoreException, AuthenticationFailedException {
 
         try (MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
              MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
@@ -518,12 +524,25 @@ public class BasicAuthenticatorTestCase {
              MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorServiceComponent =
                      Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
 
+            ResolvedUserResult resolvedUserResult;
+            org.wso2.carbon.user.core.common.User userObj
+                    = new org.wso2.carbon.user.core.common.User("c2de9b28-f258-4df0-ba29-f4803e4e821a",
+                    userNameValue, userNameValue);
+            userObj.setTenantDomain("dummyTenantDomain");
+            userObj.setUserStoreDomain(domainName);
+            if (newMultipleAttributeEnable) {
+                resolvedUserResult = new ResolvedUserResult(ResolvedUserResult.UserResolvedStatus.SUCCESS);
+                resolvedUserResult.setUser(userObj);
+            } else {
+                resolvedUserResult = new ResolvedUserResult(ResolvedUserResult.UserResolvedStatus.FAIL);
+            }
+
             Map<String, String> parameterMap = new HashMap<>();
             parameterMap.put("UserNameAttributeClaimUri", userNameUri);
             AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig(DUMMY_USER_NAME, true, parameterMap);
 
             processAuthenticationResponseStartUp(identityTenantUtil, basicAuthenticatorServiceComponent,
-                    multitenantUtils, user, frameworkUtils);
+                    multitenantUtils, user, frameworkUtils, userObj);
 
             when(mockRequest.getParameter("chkRemember")).thenReturn(chkRemember);
 
@@ -532,6 +551,8 @@ public class BasicAuthenticatorTestCase {
             when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
 
             userCoreUtil.when(UserCoreUtil::getDomainFromThreadLocal).thenReturn(domainName);
+            userCoreUtil.when(() -> UserCoreUtil.addTenantDomainToEntry(userNameValue, "dummyTenantDomain"))
+                    .thenReturn(userNameValue + "@" + "dummyTenantDomain");
 
             if (StringUtils.isNotBlank(domainName)) {
                 when(mockUserStoreManager.getSecondaryUserStoreManager(DUMMY_DOMAIN))
@@ -541,18 +562,24 @@ public class BasicAuthenticatorTestCase {
             when(mockUserStoreManager.getRealmConfiguration()).thenReturn(mockRealmConfiguration);
 
             when(mockRealmConfiguration.getUserStoreProperty("MultipleAttributeEnable"))
-                    .thenReturn(multipleAttributeEnable);
+                    .thenReturn(oldMultipleAttributeEnable);
+
+            if (StringUtils.isNotBlank(domainName)) {
+                when(mockUserStoreManager.getSecondaryUserStoreManager(domainName)).thenReturn(mockUserStoreManager);
+            }
 
             when(mockUserStoreManager.
                     getUserClaimValue(MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_USER_NAME, null))
                     .thenReturn(userNameValue);
 
-            multitenantUtils.when(() -> MultitenantUtils.getTenantDomain(DUMMY_USER_NAME))
-                    .thenReturn("dummyTenantDomain");
             frameworkUtils.when(() -> FrameworkUtils.prependUserStoreDomainToName(userNameValue))
                     .thenReturn(DUMMY_DOMAIN + CarbonConstants.DOMAIN_SEPARATOR + userNameValue);
+            frameworkUtils.when(() -> FrameworkUtils
+                    .processMultiAttributeLoginIdentification(anyString(), anyString())).thenReturn(resolvedUserResult);
 
             identityUtil.when(IdentityUtil::getPrimaryDomainName).thenReturn(DUMMY_DOMAIN);
+            identityUtil.when(() -> IdentityUtil.addDomainToName(userNameValue + "@" + "dummyTenantDomain", domainName))
+                    .thenReturn(domainName + "/" + userNameValue + "@" + "dummyTenantDomain");
 
             doAnswer((Answer<Object>) invocation -> {
 
@@ -580,8 +607,13 @@ public class BasicAuthenticatorTestCase {
             basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
 
             if (StringUtils.isNotBlank(userNameValue)) {
-                assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), DUMMY_DOMAIN +
-                        CarbonConstants.DOMAIN_SEPARATOR + userNameValue + "@" + "dummyTenantDomain");
+                if (StringUtils.isNotBlank(domainName)) {
+                    assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), domainName +
+                            CarbonConstants.DOMAIN_SEPARATOR + userNameValue + "@" + "dummyTenantDomain");
+                } else {
+                    assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), userNameValue + "@" +
+                            "dummyTenantDomain");
+                }
             } else {
                 assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), DUMMY_USER_NAME);
             }
@@ -595,7 +627,8 @@ public class BasicAuthenticatorTestCase {
             MockedStatic<IdentityTenantUtil> identityTenantUtil,
             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorServiceComponent,
             MockedStatic<MultitenantUtils> multitenantUtils, MockedStatic<User> user,
-            MockedStatic<FrameworkUtils> frameworkUtils) throws UserStoreException {
+            MockedStatic<FrameworkUtils> frameworkUtils, org.wso2.carbon.user.core.common.User userObj)
+            throws UserStoreException {
 
         when(mockAuthnCtxt.getProperties()).thenReturn(null);
 
@@ -608,25 +641,34 @@ public class BasicAuthenticatorTestCase {
         basicAuthenticatorServiceComponent.when(BasicAuthenticatorServiceComponent::getRealmService)
                 .thenReturn(mockRealmService);
         when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
+        when(mockRealmService.getTenantManager()).thenReturn(mockTenantManager);
+
+        when(mockTenantManager.getTenantId(anyString())).thenReturn(MultitenantConstants.SUPER_TENANT_ID);
         when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
 
         multitenantUtils.when(() -> MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME))
                 .thenReturn(DUMMY_USER_NAME);
-        when(mockUserStoreManager.authenticate(
-                MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_USER_NAME)).thenReturn(true);
+        AuthenticationResult authenticationResult =
+                new AuthenticationResult(AuthenticationResult.AuthenticationStatus.SUCCESS);
+        authenticationResult.setAuthenticatedUser(userObj);
+        when(mockUserStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
+                MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_USER_NAME,
+                UserCoreConstants.DEFAULT_PROFILE))
+                .thenReturn(authenticationResult);
+        when(mockUserStoreManager.authenticateWithID(userObj.getUserID(), DUMMY_USER_NAME))
+                .thenReturn(authenticationResult);
 
         User userFromUsername = new User();
         userFromUsername.setUserName(DUMMY_USER_NAME);
         user.when(() -> User.getUserFromUserName(anyString())).thenReturn(userFromUsername);
 
-        frameworkUtils.when(() -> MultitenantUtils.getTenantDomain(anyString())).thenReturn("carbon.super");
-        frameworkUtils.when(() -> FrameworkUtils.prependUserStoreDomainToName(anyString())).thenReturn(DUMMY_USER_NAME);
+        multitenantUtils.when(() -> MultitenantUtils.getTenantDomain(anyString())).thenReturn("carbon.super");
         frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
                 .thenReturn(DUMMY_USER_NAME);
     }
 
     @Test
-    public void processAuthenticationResponseTestcaseWithUserStoreException() throws UserStoreException {
+    public void processAuthenticationResponseTestcaseWithUserStoreExceptionInAuthenticate() throws UserStoreException {
 
         try (MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
              MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
@@ -656,12 +698,16 @@ public class BasicAuthenticatorTestCase {
             basicAuthenticatorService
                     .when(BasicAuthenticatorServiceComponent::getRealmService).thenReturn(mockRealmService);
             when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
+            when(mockRealmService.getTenantManager()).thenReturn(mockTenantManager);
+            when(mockTenantManager.getTenantId(anyString())).thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+
             when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
 
             multitenantUtils.when(
                     () -> MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME)).thenReturn(DUMMY_USER_NAME);
-            when(mockUserStoreManager.authenticate(
-                    MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD))
+            when(mockUserStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
+                    MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD,
+                    UserCoreConstants.DEFAULT_PROFILE))
                     .thenThrow(new org.wso2.carbon.user.core.UserStoreException(new UserStoreClientException()));
             try {
                 basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
@@ -705,12 +751,16 @@ public class BasicAuthenticatorTestCase {
                     .thenReturn(mockRealmService);
 
             when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
+            when(mockRealmService.getTenantManager()).thenReturn(mockTenantManager);
+
+            when(mockTenantManager.getTenantId(anyString())).thenReturn(MultitenantConstants.SUPER_TENANT_ID);
             when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
 
             multitenantUtils.when(
                     () -> MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME)).thenReturn(DUMMY_USER_NAME);
-            when(mockUserStoreManager.authenticate(
-                    MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD))
+            when(mockUserStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
+                    MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD,
+                    UserCoreConstants.DEFAULT_PROFILE))
                     .thenThrow(new UserStoreClientException());
             try {
                 basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
@@ -746,6 +796,8 @@ public class BasicAuthenticatorTestCase {
                     .when(BasicAuthenticatorServiceComponent::getRealmService).thenReturn(mockRealmService);
             when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID))
                     .thenThrow(new org.wso2.carbon.user.api.UserStoreException());
+            when(mockRealmService.getTenantManager()).thenReturn(mockTenantManager);
+            when(mockTenantManager.getTenantId(anyString())).thenReturn(MultitenantConstants.SUPER_TENANT_ID);
             try {
                 basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
             } catch (AuthenticationFailedException e) {
@@ -755,7 +807,7 @@ public class BasicAuthenticatorTestCase {
     }
 
     @Test
-    public void processAuthenticationResponseTestcaseWithIdentityRuntimeException() throws UserStoreException {
+    public void processAuthenticationResponseTestcaseWithUserStoreExceptionInGetTenantId() throws UserStoreException {
 
         try (MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
              MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
@@ -780,6 +832,10 @@ public class BasicAuthenticatorTestCase {
             basicAuthenticatorServiceComponent
                     .when(BasicAuthenticatorServiceComponent::getRealmService).thenReturn(mockRealmService);
 
+            when(mockRealmService.getTenantManager()).thenReturn(mockTenantManager);
+            when(mockTenantManager.getTenantId(anyString()))
+                    .thenThrow(new org.wso2.carbon.user.api.UserStoreException("Invalid tenant domain of user admin@abc" +
+                            ".com"));
             when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
             try {
                 basicAuthenticator.processAuthenticationResponse(
@@ -876,9 +932,6 @@ public class BasicAuthenticatorTestCase {
         try (MockedStatic<FileBasedConfigurationBuilder>
                      fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
              MockedStatic<User> user = Mockito.mockStatic(User.class)) {
-            mockAuthnCtxt = mock(AuthenticationContext.class);
-            mockRequest = mock(HttpServletRequest.class);
-            mockResponse = mock(HttpServletResponse.class);
 
             when(mockRequest.getParameter
                     (BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);

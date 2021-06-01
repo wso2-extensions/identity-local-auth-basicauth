@@ -30,18 +30,13 @@ import org.wso2.carbon.identity.application.authentication.framework.config.mode
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
-import org.wso2.carbon.identity.application.authentication.framework.exception.UserSessionException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.session.mgt.SessionManagementException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.UserSession;
-import org.wso2.carbon.identity.application.authentication.framework.store.UserSessionStore;
-import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
-import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserIdRetrievalException;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionRetrievalException;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionTerminationException;
 import org.wso2.carbon.identity.application.authentication.handler.session.internal.ActiveSessionsLimitHandlerServiceHolder;
 import org.wso2.carbon.identity.core.model.UserAgent;
-import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -50,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -82,7 +78,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             String maxSessionCountParamValue =
                     getAuthenticatorParams
                             (ActiveSessionsLimitHandlerConstants.MAX_SESSION_COUNT, DEFAULT_MAX_SESSION_COUNT, context);
-            Integer maxSessionCount;
+            int maxSessionCount;
             try {
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
             } catch (NumberFormatException e) {
@@ -112,7 +108,6 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             }
 
             try {
-
                 String userId = getUserId(context);
 
                 List<UserSession> userSessions = null;
@@ -127,8 +122,6 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                     this.publishAuthenticationStepAttempt(request, context, context.getSubject(), true);
                     return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
                 }
-            } catch (UserIdRetrievalException e) {
-                throw new AuthenticationFailedException("Error occurred while retrieving the userId.", e);
             } catch (UserSessionRetrievalException e) {
                 this.publishAuthenticationStepAttempt(request, context, context.getSubject(), false);
                 throw new AuthenticationFailedException("Error occurred while retrieving user sessions.", e);
@@ -163,12 +156,13 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             String maxSessionCountParamValue =
                     getAuthenticatorParams(ActiveSessionsLimitHandlerConstants.MAX_SESSION_COUNT
                             , DEFAULT_MAX_SESSION_COUNT, context);
-            Integer maxSessionCount;
+            int maxSessionCount;
             List<UserSession> userSessions;
             try {
                 String userId = getUserId(context);
-                String[] sessionIds = request.getParameterValues(ActiveSessionsLimitHandlerConstants.SESSIONS_TO_TERMINATE);
-                terminateSessions(userId, sessionIds);
+                String[] sessionIdsToTerminate
+                        = request.getParameterValues(ActiveSessionsLimitHandlerConstants.SESSIONS_TO_TERMINATE);
+                terminateSessions(userId, sessionIdsToTerminate);
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
                 userSessions = getUserSessions(userId);
                 if (userSessions != null && userSessions.size() >= maxSessionCount) {
@@ -176,8 +170,6 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                     throw new AuthenticationFailedException("Active session count: " + userSessions.size()
                             + " exceeds the specified limit: " + maxSessionCountParamValue);
                 }
-            } catch (UserIdRetrievalException e) {
-                throw new AuthenticationFailedException("Error occurred while retrieving the userId.", e);
             } catch (UserSessionTerminationException e) {
                 throw new AuthenticationFailedException("Error occurred while terminating user sessions.", e);
             } catch (UserSessionRetrievalException e) {
@@ -243,23 +235,19 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         return userSessions;
     }
 
-    private String getUserId(AuthenticationContext authenticationContext) throws UserIdRetrievalException {
+    private String getUserId(AuthenticationContext authenticationContext) {
 
         String userId;
-        AuthenticatedUser authenticatedUser = null;
-        try {
-            StepConfig stepConfig = getCurrentSubjectIdentifierStep(authenticationContext);
+        StepConfig stepConfig = getCurrentSubjectIdentifierStep(authenticationContext);
 
-            if (stepConfig != null) {
-                authenticatedUser = stepConfig.getAuthenticatedUser();
-            } else {
-                authenticatedUser = authenticationContext.getSubject();
-            }
-            userId = getUserIDforUser(authenticatedUser);
-        } catch (UserSessionException e) {
-            throw new UserIdRetrievalException("Error occurred while retrieving the userId for user: "
-                    + authenticatedUser.getUserName(), e);
+        AuthenticatedUser authenticatedUser;
+        if (stepConfig != null) {
+            authenticatedUser = stepConfig.getAuthenticatedUser();
+        } else {
+            authenticatedUser = authenticationContext.getSubject();
         }
+        userId = authenticatedUser.getUserId();
+
         return userId;
     }
 
@@ -328,27 +316,6 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         Map<Integer, StepConfig> stepConfigs = authenticationContext.getSequenceConfig().getStepMap();
         Optional<StepConfig> subjectIdentifierStep = stepConfigs.values().stream()
                 .filter(stepConfig -> (stepConfig.isCompleted() && stepConfig.isSubjectIdentifierStep())).findFirst();
-        if (subjectIdentifierStep.isPresent()) {
-            return subjectIdentifierStep.get();
-        }
-        return null;
+        return subjectIdentifierStep.orElse(null);
     }
-
-    private String getUserIDforUser(AuthenticatedUser authenticatedUser) throws UserSessionException {
-
-        String userId = null;
-        if (authenticatedUser != null) {
-            if (authenticatedUser.isFederatedUser()) {
-                userId = UserSessionStore.getInstance().getUserId(authenticatedUser.getUserName(),
-                        IdentityTenantUtil.getTenantId(authenticatedUser.getTenantDomain()),
-                        authenticatedUser.getUserStoreDomain());
-            } else {
-                userId = FrameworkUtils.resolveUserIdFromUsername(
-                        IdentityTenantUtil.getTenantId(authenticatedUser.getTenantDomain()),
-                        authenticatedUser.getUserStoreDomain(), authenticatedUser.getUserName());
-            }
-        }
-        return userId;
-    }
-
 }
