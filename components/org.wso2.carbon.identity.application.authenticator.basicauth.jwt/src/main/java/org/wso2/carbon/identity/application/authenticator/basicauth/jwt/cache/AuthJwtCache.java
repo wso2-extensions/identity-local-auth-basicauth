@@ -18,13 +18,13 @@
 
 package org.wso2.carbon.identity.application.authenticator.basicauth.jwt.cache;
 
-import org.wso2.carbon.identity.application.common.cache.BaseCache;
+import org.wso2.carbon.identity.application.authentication.framework.cache.AuthenticationBaseCache;
 import org.wso2.carbon.utils.CarbonUtils;
 
 /**
  * Implements a cache to store JWT references
  */
-public class AuthJwtCache extends BaseCache<String,String> {
+public class AuthJwtCache extends AuthenticationBaseCache<String,String> {
     public static final String AUTH_JWT_CACHE = "AuthJWT";
     private static volatile AuthJwtCache instance;
 
