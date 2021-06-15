@@ -448,7 +448,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         BasicAuthenticatorConstants.LOCAL + retryParam;
             }
 
-            redirectURL += getCaptchaParams(context.getUserTenantDomain());
+            redirectURL += getCaptchaParams(context.getLoginTenantDomain());
             response.sendRedirect(redirectURL);
         } catch (IOException e) {
             throw new AuthenticationFailedException(ErrorMessages.SYSTEM_ERROR_WHILE_AUTHENTICATING.getCode(),

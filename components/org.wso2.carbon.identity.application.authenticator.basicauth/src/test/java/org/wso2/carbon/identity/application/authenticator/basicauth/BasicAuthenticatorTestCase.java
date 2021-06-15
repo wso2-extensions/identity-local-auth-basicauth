@@ -1036,7 +1036,7 @@ public class BasicAuthenticatorTestCase {
 
             BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(properties);
 
-            when(mockAuthnCtxt.getUserTenantDomain()).thenReturn(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
+            when(mockAuthnCtxt.getLoginTenantDomain()).thenReturn(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
 
             initiateAuthenticationRequest(fileBasedConfigurationBuilder, configurationFacade);
             basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
