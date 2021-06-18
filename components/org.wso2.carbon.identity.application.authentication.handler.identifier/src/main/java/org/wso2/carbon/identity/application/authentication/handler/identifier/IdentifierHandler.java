@@ -311,9 +311,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        FrameworkUtils.validateUsername(request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
-        String username = FrameworkUtils.preprocessUsername(
-                request.getParameter(IdentifierHandlerConstants.USER_NAME), context);
+        String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+        if (!IdentityUtil.isEmailUsernameValidationDisabled()) {
+            FrameworkUtils.validateUsername(username, context);
+            username = FrameworkUtils.preprocessUsername(username, context);
+        }
         ResolvedUserResult resolvedUserResult = FrameworkUtils.processMultiAttributeLoginIdentification(
                 MultitenantUtils.getTenantAwareUsername(username), context.getTenantDomain());
         if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.

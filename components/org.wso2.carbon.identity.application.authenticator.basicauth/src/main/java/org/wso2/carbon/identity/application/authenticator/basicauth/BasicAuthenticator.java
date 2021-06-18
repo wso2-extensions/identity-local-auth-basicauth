@@ -439,9 +439,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        String usernameFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
-        FrameworkUtils.validateUsername(usernameFromRequest, context);
-        String username = FrameworkUtils.preprocessUsername(usernameFromRequest, context);
+        String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+        if (!IdentityUtil.isEmailUsernameValidationDisabled()) {
+            FrameworkUtils.validateUsername(username, context);
+            username = FrameworkUtils.preprocessUsername(username, context);
+        }
         String requestTenantDomain = MultitenantUtils.getTenantDomain(username);
         ResolvedUserResult resolvedUserResult = FrameworkUtils.processMultiAttributeLoginIdentification(
                 MultitenantUtils.getTenantAwareUsername(username), requestTenantDomain);
