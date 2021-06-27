@@ -464,7 +464,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         String loginIdentifierFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
-        FrameworkUtils.validateUsername(loginIdentifierFromRequest, context);
         Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
             // FrameworkUtils.preprocessUsername will not append the tenant domain to username, if you are using
@@ -476,7 +475,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 loginIdentifierFromRequest = loginIdentifierFromRequest + "@" + context.getUserTenantDomain();
             }
         }
-        String username = FrameworkUtils.preprocessUsername(loginIdentifierFromRequest, context);
+
+        String username = loginIdentifierFromRequest;
+        if (!IdentityUtil.isEmailUsernameValidationDisabled()) {
+            FrameworkUtils.validateUsername(loginIdentifierFromRequest, context);
+            username = FrameworkUtils.preprocessUsername(loginIdentifierFromRequest, context);
+        }
+
         String requestTenantDomain = MultitenantUtils.getTenantDomain(username);
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
         String userId = null;
