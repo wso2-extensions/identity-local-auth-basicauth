@@ -332,8 +332,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             }
         }
 
-        FrameworkUtils.validateUsername(identifierFromRequest, context);
-        String username = FrameworkUtils.preprocessUsername(identifierFromRequest, context);
+        String username = identifierFromRequest;
+        if (!IdentityUtil.isEmailUsernameValidationDisabled()) {
+            FrameworkUtils.validateUsername(identifierFromRequest, context);
+            username = FrameworkUtils.preprocessUsername(identifierFromRequest, context);
+        }
 
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
         String userId = null;
