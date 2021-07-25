@@ -404,10 +404,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             paramMap.put(BasicAuthenticatorConstants.REMAINING_ATTEMPTS, "0");
                         }
                         if (Boolean.parseBoolean(showAuthFailureReasonOnLoginPage)) {
-                            retryParam = retryParam + buildErrorParamString(paramMap);
                             redirectURL = loginPage + ("?" + queryParams)
                                     + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
-                                    BasicAuthenticatorConstants.LOCAL + retryParam;
+                                    BasicAuthenticatorConstants.LOCAL + buildErrorParamString(paramMap);
                         } else {
                             redirectURL = response.encodeRedirectURL(retryPage + ("?" + queryParams))
                                     + buildErrorParamString(paramMap);
