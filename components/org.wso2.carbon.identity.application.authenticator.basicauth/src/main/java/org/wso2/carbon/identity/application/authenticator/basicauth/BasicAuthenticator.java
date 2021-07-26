@@ -200,6 +200,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
         String showAuthFailureReason = null;
+        String showAuthFailureReasonOnLoginPage = null;
         String maskUserNotExistsErrorCode = null;
         String maskAdminForcedPasswordResetErrorCode = null;
         if (parameterMap != null) {
@@ -215,7 +216,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     log.debug(BasicAuthenticatorConstants.CONF_MASK_USER_NOT_EXISTS_ERROR_CODE +
                             " has been set as : " + maskUserNotExistsErrorCode);
                 }
-
+                showAuthFailureReasonOnLoginPage =
+                        parameterMap.get(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE);
+                if (log.isDebugEnabled()) {
+                    log.debug(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE +
+                            " has been set as : " + showAuthFailureReasonOnLoginPage);
+                }
                 String errorParamsToOmit = parameterMap.get(BasicAuthenticatorConstants.CONF_ERROR_PARAMS_TO_OMIT);
                 if (log.isDebugEnabled()) {
                     log.debug(BasicAuthenticatorConstants.CONF_ERROR_PARAMS_TO_OMIT + " has been set as : " +
@@ -397,9 +403,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         if (remainingAttempts == 0) {
                             paramMap.put(BasicAuthenticatorConstants.REMAINING_ATTEMPTS, "0");
                         }
-
-                        redirectURL = response.encodeRedirectURL(retryPage + ("?" + queryParams))
-                                + buildErrorParamString(paramMap);
+                        if (Boolean.parseBoolean(showAuthFailureReasonOnLoginPage)) {
+                            redirectURL = loginPage + ("?" + queryParams)
+                                    + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
+                                    BasicAuthenticatorConstants.LOCAL + buildErrorParamString(paramMap);
+                        } else {
+                            redirectURL = response.encodeRedirectURL(retryPage + ("?" + queryParams))
+                                    + buildErrorParamString(paramMap);
+                        }
                     } else if (errorCode.equals(
                             IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE)) {
                         Map<String, String> paramMap = new HashMap<>();
