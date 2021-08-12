@@ -428,9 +428,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     } else {
                         Map<String, String> paramMap = new HashMap<>();
                         paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
-                        paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
-                                URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
-                                        BasicAuthenticatorConstants.UTF_8));
+                        if (request.getParameter(BasicAuthenticatorConstants.USER_NAME) != null){
+                            paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
+                                    URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
+                                            BasicAuthenticatorConstants.UTF_8));
+                        }
                         if (StringUtils.isNotBlank(reason)) {
                             retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
                                     BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + URLEncoder.encode(reason,
