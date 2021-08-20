@@ -461,7 +461,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         BasicAuthenticatorConstants.LOCAL + retryParam;
             }
 
-            redirectURL += getCaptchaParams(context.getLoginTenantDomain());
+            int failedLoginAttempts = errorContext == null ? 0 : errorContext.getFailedLoginAttempts();
+            redirectURL += getCaptchaParams(context.getLoginTenantDomain(), failedLoginAttempts);
             response.sendRedirect(redirectURL);
         } catch (IOException e) {
             throw new AuthenticationFailedException(ErrorMessages.SYSTEM_ERROR_WHILE_AUTHENTICATING.getCode(),
@@ -656,15 +657,19 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     /**
      * Append the recaptcha related params if recaptcha is enabled for the authentication always.
      *
-     * @param tenantDomain tenant domain of the application
+     * @param tenantDomain        Tenant domain of the application.
+     * @param failedLoginAttempts Number of failed login attempts.
      * @return string with the appended recaptcha params
      */
-    private String getCaptchaParams(String tenantDomain) {
+    private String getCaptchaParams(String tenantDomain, int failedLoginAttempts) {
 
         SSOLoginReCaptchaConfig connector = new SSOLoginReCaptchaConfig();
         String defaultCaptchaConfigName = connector.getName() +
                 CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE_ALWAYS;
-
+        String maxFailedAttemptCaptchaConfigName = connector.getName() +
+                CaptchaConstants.ReCaptchaConnectorPropertySuffixes.MAX_ATTEMPTS;
+        String captchaEnabledConfigName = connector.getName() +
+                CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE;
         String captchaParams = "";
         Property[] connectorConfigs;
         Properties captchaConfigs = getCaptchaConfigs();
@@ -674,9 +679,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
             try {
                 connectorConfigs = BasicAuthenticatorDataHolder.getInstance().getIdentityGovernanceService()
-                        .getConfiguration(new String[]{defaultCaptchaConfigName, RESEND_CONFIRMATION_RECAPTCHA_ENABLE},
-                                tenantDomain);
-
+                        .getConfiguration(new String[]{defaultCaptchaConfigName, RESEND_CONFIRMATION_RECAPTCHA_ENABLE,
+                                captchaEnabledConfigName}, tenantDomain);
                 for (Property connectorConfig : connectorConfigs) {
                     if (defaultCaptchaConfigName.equals(connectorConfig.getName())) {
                         // SSO Login Captcha Config
@@ -694,6 +698,34 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         } else {
                             if (log.isDebugEnabled()) {
                                 log.debug("Enforcing recaptcha for resend confirmation is not enabled.");
+                            }
+                        }
+                    } else if (captchaEnabledConfigName.equals(connectorConfig.getName())) {
+                        if (Boolean.parseBoolean(connectorConfig.getValue())) {
+                            Property[] maxFailedConfig = BasicAuthenticatorDataHolder.getInstance()
+                                    .getIdentityGovernanceService()
+                                    .getConfiguration(new String[]{maxFailedAttemptCaptchaConfigName}, tenantDomain);
+                            Property maxFailedProperty = maxFailedConfig[0];
+                            try {
+                                if (Integer.valueOf(maxFailedProperty.getValue()) < failedLoginAttempts) {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Number of failed attempts is higher than max failed " +
+                                                "attempts for reCaptcha. Recaptcha will be enforced");
+                                    }
+                                    captchaParams += BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
+                                } else {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Number of failed attempts is less than max failed " +
+                                                "attempts for reCaptcha. Recaptcha will not be enforced");
+                                    }
+                                }
+                            } catch (NumberFormatException e) {
+                                log.error(String.format("Invalid Max failed attempts for reCaptcha: %s",
+                                        maxFailedProperty.getValue()), e);
+                            }
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Enforcing recaptcha for SSO Login is not enabled.");
                             }
                         }
                     }
