@@ -340,14 +340,19 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
         String userId = null;
-        ResolvedUserResult resolvedUserResult = FrameworkUtils.processMultiAttributeLoginIdentification(
-                MultitenantUtils.getTenantAwareUsername(username), context.getTenantDomain());
-        if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
-                equals(resolvedUserResult.getResolvedStatus())) {
-            tenantAwareUsername = resolvedUserResult.getUser().getUsername();
-            username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername,
-                    context.getTenantDomain());
-            userId = resolvedUserResult.getUser().getUserID();
+        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
+            ResolvedUserResult resolvedUserResult = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().
+                    resolveUser(MultitenantUtils.getTenantAwareUsername(username), context.getTenantDomain());
+            if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                    equals(resolvedUserResult.getResolvedStatus())) {
+                tenantAwareUsername = resolvedUserResult.getUser().getUsername();
+                username = UserCoreUtil.addTenantDomainToEntry(resolvedUserResult.getUser().getUsername(),
+                        context.getTenantDomain());
+                userId = resolvedUserResult.getUser().getUserID();
+            } else {
+                throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
+                        ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
+            }
         }
 
         String tenantDomain = MultitenantUtils.getTenantDomain(username);
