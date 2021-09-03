@@ -17,6 +17,7 @@
  */
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
+import com.sun.org.apache.xpath.internal.operations.Mult;
 import org.apache.commons.lang.StringUtils;
 import org.json.simple.JSONObject;
 import org.mockito.MockedStatic;
@@ -54,6 +55,7 @@ import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.identity.recovery.util.Utils;
@@ -132,6 +134,7 @@ public class BasicAuthenticatorTestCase {
     private IdentityGovernanceService mockGovernanceService;
     private RealmConfiguration mockRealmConfiguration;
     private ConfigurationFacade mockConfigurationFacade;
+    private MultiAttributeLoginService mockMultiAttributeLoginService;
 
     private AuthenticatedUser authenticatedUser;
     private Boolean isRememberMe = false;
@@ -169,6 +172,7 @@ public class BasicAuthenticatorTestCase {
         mockRealmConfiguration = mock(RealmConfiguration.class);
         mockConfigurationFacade = mock(ConfigurationFacade.class);
         mockTenantManager = mock(TenantManager.class);
+        mockMultiAttributeLoginService = mock(MultiAttributeLoginService.class);
 
         Property[] captchaProperties = new Property[1];
         Property captchaEnabled = new Property();
@@ -177,6 +181,7 @@ public class BasicAuthenticatorTestCase {
 
         when(mockGovernanceService.getConfiguration(any(String[].class), anyString())).thenReturn(captchaProperties);
         BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(mockGovernanceService);
+        BasicAuthenticatorDataHolder.getInstance().setMultiAttributeLogin(mockMultiAttributeLoginService);
     }
 
     @DataProvider(name = "UsernameAndPasswordProvider")
