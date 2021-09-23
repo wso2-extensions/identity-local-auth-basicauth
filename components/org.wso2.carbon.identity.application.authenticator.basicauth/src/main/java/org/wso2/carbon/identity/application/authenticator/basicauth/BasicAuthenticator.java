@@ -706,32 +706,33 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             }
                         }
                     } else if (captchaEnabledConfigName.equals(connectorConfig.getName())) {
-                        if (Boolean.parseBoolean(connectorConfig.getValue())) {
-                            Property[] maxFailedConfig = BasicAuthenticatorDataHolder.getInstance()
-                                    .getIdentityGovernanceService()
-                                    .getConfiguration(new String[]{maxFailedAttemptCaptchaConfigName}, tenantDomain);
-                            Property maxFailedProperty = maxFailedConfig[0];
-                            try {
-                                if (Integer.valueOf(maxFailedProperty.getValue()) < failedLoginAttempts) {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Number of failed attempts is higher than max failed " +
-                                                "attempts for reCaptcha. Recaptcha will be enforced");
-                                    }
-                                    captchaParams += BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
-                                } else {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Number of failed attempts is less than max failed " +
-                                                "attempts for reCaptcha. Recaptcha will not be enforced");
-                                    }
-                                }
-                            } catch (NumberFormatException e) {
-                                log.error(String.format("Invalid Max failed attempts for reCaptcha: %s",
-                                        maxFailedProperty.getValue()), e);
-                            }
-                        } else {
+                        if (!Boolean.parseBoolean(connectorConfig.getValue())) {
                             if (log.isDebugEnabled()) {
-                                log.debug("Enforcing recaptcha for SSO Login is not enabled.");
+                                log.debug("Enforcing recaptcha for exceeding max failed login is not enabled.");
                             }
+                            continue;
+                        }
+                        Property[] maxFailedConfig =
+                                BasicAuthenticatorDataHolder.getInstance().getIdentityGovernanceService()
+                                        .getConfiguration(new String[]{maxFailedAttemptCaptchaConfigName},
+                                                tenantDomain);
+                        Property maxFailedProperty = maxFailedConfig[0];
+                        try {
+                            if (Integer.valueOf(maxFailedProperty.getValue()) >= failedLoginAttempts) {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Number of failed attempts is less than max failed " +
+                                            "attempts for reCaptcha. Recaptcha will not be enforced");
+                                }
+                                continue;
+                            }
+                            if (log.isDebugEnabled()) {
+                                log.debug("Number of failed attempts is higher than max failed " +
+                                        "attempts for reCaptcha. Recaptcha will be enforced");
+                            }
+                            captchaParams += BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
+                        } catch (NumberFormatException e) {
+                            log.error(String.format("Invalid value for Max failed attempts for reCaptcha: %s. " +
+                                    "Hence, reCaptcha flow will be skipped.", maxFailedProperty.getValue()), e);
                         }
                     }
                 }
