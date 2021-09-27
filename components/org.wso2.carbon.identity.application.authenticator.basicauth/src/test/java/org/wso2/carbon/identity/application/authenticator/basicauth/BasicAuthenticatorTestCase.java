@@ -612,13 +612,7 @@ public class BasicAuthenticatorTestCase {
             basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
 
             if (StringUtils.isNotBlank(userNameValue)) {
-                if (StringUtils.isNotBlank(domainName)) {
-                    assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), domainName +
-                            CarbonConstants.DOMAIN_SEPARATOR + userNameValue + "@" + "dummyTenantDomain");
-                } else {
-                    assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), userNameValue + "@" +
-                            "dummyTenantDomain");
-                }
+                assertEquals(authenticatedUser.getUserName(), userNameValue);
             } else {
                 assertEquals(authenticatedUser.getAuthenticatedSubjectIdentifier(), DUMMY_USER_NAME);
             }

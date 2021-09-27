@@ -30,6 +30,7 @@ import org.wso2.carbon.identity.application.authentication.framework.config.mode
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.exception.UserIdNotFoundException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.session.mgt.SessionManagementException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.UserSession;
@@ -235,7 +236,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         return userSessions;
     }
 
-    private String getUserId(AuthenticationContext authenticationContext) {
+    private String getUserId(AuthenticationContext authenticationContext) throws AuthenticationFailedException {
 
         String userId;
         StepConfig stepConfig = getCurrentSubjectIdentifierStep(authenticationContext);
@@ -246,8 +247,12 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         } else {
             authenticatedUser = authenticationContext.getSubject();
         }
-        userId = authenticatedUser.getUserId();
-
+        try {
+            userId = authenticatedUser.getUserId();
+        } catch (UserIdNotFoundException e) {
+            throw new AuthenticationFailedException("User id is not available for user: " +
+                    authenticatedUser.getUserName(), e);
+        }
         return userId;
     }
 
