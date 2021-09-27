@@ -1069,6 +1069,16 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                                 BasicAuthenticatorConstants.REASON_PARAM +
                                 URLEncoder.encode(RecoveryScenarios.ADMIN_FORCED_PASSWORD_RESET_VIA_OTP.name(),
                                         BasicAuthenticatorConstants.UTF_8), "1", "1"
+                },
+                {
+                        IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE,
+                        dummyLoginPage + "?" + dummyQueryParam + BasicAuthenticatorConstants.FAILED_USERNAME
+                                + URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.ERROR_CODE +
+                                IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE +
+                                BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.
+                                AUTHENTICATOR_NAME + ":" + BasicAuthenticatorConstants.LOCAL +
+                                "&authFailure=true&authFailureMsg=account.pending.approval", "1", "1"
                 }
         };
     }
