@@ -346,6 +346,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.REASON_PARAM +
                             URLEncoder.encode(reason, BasicAuthenticatorConstants.UTF_8);
+                } else if (errorCode.equals(
+                        IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE)) {
+                    retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                            BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "account.pending.approval";
+                    String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+
+                    redirectURL = loginPage + ("?" + queryParams) + BasicAuthenticatorConstants.FAILED_USERNAME
+                            + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
+                            BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants
+                            .AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
                 } else if ("true".equals(showAuthFailureReason)) {
 
                     if (Boolean.parseBoolean(maskUserNotExistsErrorCode) &&
