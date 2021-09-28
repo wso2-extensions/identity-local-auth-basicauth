@@ -922,7 +922,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 if (multipleAttributeEnable) {
                     try {
                         if (log.isDebugEnabled()) {
-                            log.debug("Searching for UserNameAttribute value for user " + user.getUserId() +
+                            log.debug("Searching for UserNameAttribute value for user " + user.getLoggableUserId() +
                                     " for claim uri : " + userNameUri);
                         }
                         // This getUserClaimValue cannot be converted to user id method, since if the value user
@@ -931,13 +931,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         if (StringUtils.isNotBlank(usernameValue)) {
                             user.setUserName(usernameValue);
                             if (log.isDebugEnabled()) {
-                                log.debug("UserNameAttribute is found for user + " + user.getUserId()
+                                log.debug("UserNameAttribute is found for user + " + user.getLoggableUserId()
                                         + ". Value is: " + usernameValue);
                             }
                         }
                     } catch (UserStoreException e) {
                         if (log.isDebugEnabled()) {
-                            log.debug("Error while retrieving UserNameAttribute for user : " + user.getUserId(), e);
+                            log.debug("Error while retrieving UserNameAttribute for user : " +
+                                    user.getLoggableUserId(), e);
                         }
                     }
                 } else {
