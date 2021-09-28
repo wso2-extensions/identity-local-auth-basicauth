@@ -20,6 +20,7 @@ package org.wso2.carbon.identity.application.authenticator.basicauth;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.json.simple.JSONObject;
@@ -707,23 +708,29 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                         .getConfiguration(new String[]{maxFailedAttemptCaptchaConfigName},
                                                 tenantDomain);
                         Property maxFailedProperty = maxFailedConfig[0];
-                        try {
-                            if (Integer.valueOf(maxFailedProperty.getValue()) >= failedLoginAttempts) {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("Number of failed attempts is less than max failed " +
-                                            "attempts for reCaptcha. Recaptcha will not be enforced");
-                                }
-                                continue;
-                            }
+                        int maxFailedAttempts;
+                        if (NumberUtils.isNumber(maxFailedProperty.getValue())) {
+                            maxFailedAttempts = Integer.valueOf(maxFailedProperty.getValue());
+                        } else {
                             if (log.isDebugEnabled()) {
-                                log.debug("Number of failed attempts is higher than max failed " +
-                                        "attempts for reCaptcha. Recaptcha will be enforced");
+                                log.debug(String.format("Invalid value for Max failed attempts for reCaptcha: %s. " +
+                                        "Default value will be used.", maxFailedProperty.getValue()));
                             }
-                            captchaParams += BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
-                        } catch (NumberFormatException e) {
-                            log.error(String.format("Invalid value for Max failed attempts for reCaptcha: %s. " +
-                                    "Hence, reCaptcha flow will be skipped.", maxFailedProperty.getValue()), e);
+                            // Setting up default value for max failed login attempts before reCaptcha.
+                            maxFailedAttempts = 3;
                         }
+                        if (maxFailedAttempts >= failedLoginAttempts) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Number of failed attempts is less than or equal to max failed " +
+                                        "login attempts before reCaptcha. Recaptcha will not be enforced.");
+                            }
+                            continue;
+                        }
+                        if (log.isDebugEnabled()) {
+                            log.debug("Number of failed attempts is higher than max failed login" +
+                                    "attempts before reCaptcha. Recaptcha will be enforced.");
+                        }
+                        captchaParams += BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
                     }
                 }
 
