@@ -36,4 +36,6 @@ public class AutoLoginConstant {
     public static final String SIGNUP = "SIGNUP";
     public static final String RECOVERY = "RECOVERY";
     public static final String DEFAULT_COOKIE_MAX_AGE = "300";
+    public static final String IDF_AUTO_LOGIN_FLOW_HANDLED = "idfAutoLoginHandled";
+    public static final String BASIC_AUTH_AUTO_LOGIN_FLOW_HANDLED = "basicAuthAutoLoginHandled";
 }

@@ -21,6 +21,7 @@ package org.wso2.carbon.identity.application.authentication.handler.identifier;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.json.simple.JSONObject;
 import org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticationFlowHandler;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
@@ -37,7 +38,9 @@ import org.wso2.carbon.identity.application.authentication.framework.util.Framew
 import org.wso2.carbon.identity.application.authentication.handler.identifier.internal.IdentifierAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
@@ -52,9 +55,11 @@ import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -81,7 +86,9 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         String userName = request.getParameter(IdentifierHandlerConstants.USER_NAME);
         String identifierConsent = request.getParameter(IDENTIFIER_CONSENT);
         String restart = request.getParameter(RESTART_FLOW);
-        return userName != null || identifierConsent != null || restart != null;
+        Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
+
+        return userName != null || identifierConsent != null || restart != null || autoLoginCookie != null;
     }
 
     @Override
@@ -89,8 +96,36 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                            HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException, LogoutFailedException {
 
+        Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
         if (context.isLogoutRequest()) {
             return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
+        } else if (autoLoginCookie != null &&
+                !Boolean.TRUE.equals(
+                        context.getProperty(AutoLoginConstant.IDF_AUTO_LOGIN_FLOW_HANDLED)) &&
+                AutoLoginUtilities.isEnableAutoLoginEnabled(context, autoLoginCookie)) {
+            try {
+                context.setProperty(AutoLoginConstant.IDF_AUTO_LOGIN_FLOW_HANDLED, true);
+                return executeAutoLoginFlow(context, autoLoginCookie, response);
+            } catch (AuthenticationFailedException e) {
+                request.setAttribute(FrameworkConstants.REQ_ATTR_HANDLED, true);
+                // Decide whether we need to redirect to the login page to retry authentication.
+                boolean sendToMultiOptionPage =
+                        isStepHasMultiOption(context) && isRedirectToMultiOptionPageOnFailure();
+                if (retryAuthenticationEnabled(context) && !sendToMultiOptionPage) {
+                    // The Authenticator will re-initiate the authentication and retry.
+                    context.setCurrentAuthenticator(getName());
+                    initiateAuthenticationRequest(request, response, context);
+                    return AuthenticatorFlowStatus.INCOMPLETE;
+                } else {
+                    context.setProperty(FrameworkConstants.LAST_FAILED_AUTHENTICATOR, getName());
+                    // By throwing this exception step handler will redirect to multi options page if
+                    // multi-option are available in the step.
+                    if (log.isDebugEnabled()) {
+                        log.debug("Error occurred while executing the Auto Login from Cookie flow: " + e);
+                    }
+                    throw e;
+                }
+            }
         } else {
             if (context.getPreviousAuthenticatedIdPs().get(BasicAuthenticatorConstants.LOCAL) != null) {
                 AuthenticatedIdPData local = context.getPreviousAuthenticatedIdPs().get(BasicAuthenticatorConstants.LOCAL);
@@ -439,6 +474,40 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     @Override
     protected boolean retryAuthenticationEnabled() {
         return true;
+    }
+
+    protected AuthenticatorFlowStatus executeAutoLoginFlow(AuthenticationContext context, Cookie autoLoginCookie,
+                                                           HttpServletResponse response)
+            throws AuthenticationFailedException {
+
+        String decodedValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
+        JSONObject cookieValueJSON = AutoLoginUtilities.transformToJSON(decodedValue);
+        String signature = (String) cookieValueJSON.get(AutoLoginConstant.SIGNATURE);
+        String content = (String) cookieValueJSON.get(AutoLoginConstant.CONTENT);
+        JSONObject contentJSON = AutoLoginUtilities.transformToJSON(content);
+        try {
+            AutoLoginUtilities.validateAutoLoginCookie(context, getAuthenticatorConfig(), content, signature);
+        } catch (AuthenticationFailedException e) {
+            // Remove Auto login cookie in the response, if cookie validation failed.
+            AutoLoginUtilities.removeAutoLoginCookieInResponse(response, autoLoginCookie);
+            throw e;
+        }
+
+        String usernameInCookie = (String) contentJSON.get(AutoLoginConstant.USERNAME);
+
+        if (log.isDebugEnabled()) {
+            log.debug("Started executing Auto Login from Cookie flow.");
+        }
+
+        String userStoreDomain = UserCoreUtil.extractDomainFromName(usernameInCookie);
+        // Set the user store domain in thread local as downstream code depends on it. This will be cleared at the
+        // end of the request at the framework.
+        UserCoreUtil.setDomainInThreadLocal(userStoreDomain);
+
+        usernameInCookie = FrameworkUtils.prependUserStoreDomainToName(usernameInCookie);
+
+        context.setSubject(AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(usernameInCookie));
+        return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
     }
 
     @Override
