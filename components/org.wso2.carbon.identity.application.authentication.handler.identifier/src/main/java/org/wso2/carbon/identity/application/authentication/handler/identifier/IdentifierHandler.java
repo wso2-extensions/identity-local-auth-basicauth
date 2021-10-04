@@ -40,7 +40,7 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthent
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
-import org.wso2.carbon.identity.application.authenticator.basicauth.util.Utilities;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
@@ -86,7 +86,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         String userName = request.getParameter(IdentifierHandlerConstants.USER_NAME);
         String identifierConsent = request.getParameter(IDENTIFIER_CONSENT);
         String restart = request.getParameter(RESTART_FLOW);
-        Cookie autoLoginCookie = Utilities.getAutoLoginCookie(request.getCookies());
+        Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
 
         return userName != null || identifierConsent != null || restart != null || autoLoginCookie != null;
     }
@@ -96,16 +96,16 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                            HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException, LogoutFailedException {
 
-        Cookie autoLoginCookie = Utilities.getAutoLoginCookie(request.getCookies());
+        Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
         if (context.isLogoutRequest()) {
             return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
         } else if (autoLoginCookie != null &&
                 !Boolean.TRUE.equals(
                         context.getProperty(AutoLoginConstant.IDF_AUTO_LOGIN_FLOW_HANDLED)) &&
-                Utilities.isEnableAutoLoginEnabled(context, autoLoginCookie)) {
+                AutoLoginUtilities.isEnableAutoLoginEnabled(context, autoLoginCookie)) {
             try {
                 context.setProperty(AutoLoginConstant.IDF_AUTO_LOGIN_FLOW_HANDLED, true);
-                return executeAutoLoginFlow(context, autoLoginCookie);
+                return executeAutoLoginFlow(context, autoLoginCookie, response);
             } catch (AuthenticationFailedException e) {
                 request.setAttribute(FrameworkConstants.REQ_ATTR_HANDLED, true);
                 // Decide whether we need to redirect to the login page to retry authentication.
@@ -476,15 +476,22 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         return true;
     }
 
-    protected AuthenticatorFlowStatus executeAutoLoginFlow(AuthenticationContext context, Cookie autoLoginCookie)
+    protected AuthenticatorFlowStatus executeAutoLoginFlow(AuthenticationContext context, Cookie autoLoginCookie,
+                                                           HttpServletResponse response)
             throws AuthenticationFailedException {
 
         String decodedValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
-        JSONObject cookieValueJSON = Utilities.transformToJSON(decodedValue);
+        JSONObject cookieValueJSON = AutoLoginUtilities.transformToJSON(decodedValue);
         String signature = (String) cookieValueJSON.get(AutoLoginConstant.SIGNATURE);
         String content = (String) cookieValueJSON.get(AutoLoginConstant.CONTENT);
-        JSONObject contentJSON = Utilities.transformToJSON(content);
-        Utilities.validateAutoLoginCookie(context, getAuthenticatorConfig(), content, signature);
+        JSONObject contentJSON = AutoLoginUtilities.transformToJSON(content);
+        try {
+            AutoLoginUtilities.validateAutoLoginCookie(context, getAuthenticatorConfig(), content, signature);
+        } catch (AuthenticationFailedException e) {
+            // Remove Auto login cookie in the response, if cookie validation failed.
+            AutoLoginUtilities.removeAutoLoginCookieInResponse(response, autoLoginCookie);
+            throw e;
+        }
 
         String usernameInCookie = (String) contentJSON.get(AutoLoginConstant.USERNAME);
 

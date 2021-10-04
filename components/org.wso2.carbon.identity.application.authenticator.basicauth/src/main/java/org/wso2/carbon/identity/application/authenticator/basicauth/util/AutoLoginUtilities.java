@@ -39,9 +39,9 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * Utilities class for basic authenticator.
+ * Utilities class for auto login related funcationalities.
  */
-public class Utilities {
+public class AutoLoginUtilities {
 
     /**
      * Get ALOR cookie from provided list of cookies.
@@ -194,7 +194,7 @@ public class Utilities {
     public static void validateAutoLoginCookie(AuthenticationContext context, AuthenticatorConfig authenticatorConfig,
                                                String content, String signature) throws AuthenticationFailedException {
 
-        JSONObject contentJSON = Utilities.transformToJSON(content);
+        JSONObject contentJSON = AutoLoginUtilities.transformToJSON(content);
         // Cookie expiry validation.
         if (contentJSON.get(AutoLoginConstant.CREATED_TIME) == null) {
             throw new AuthenticationFailedException("The created time is not available in the ALOR cookie content.");

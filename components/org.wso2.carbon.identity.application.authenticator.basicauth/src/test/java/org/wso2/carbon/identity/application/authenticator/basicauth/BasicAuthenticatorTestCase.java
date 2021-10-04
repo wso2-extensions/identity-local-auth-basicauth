@@ -43,7 +43,7 @@ import org.wso2.carbon.identity.application.authentication.framework.util.Framew
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
-import org.wso2.carbon.identity.application.authenticator.basicauth.util.Utilities;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
@@ -344,7 +344,7 @@ public class BasicAuthenticatorTestCase {
                     .thenReturn("true");
 
             when(mockAuthnCtxt.getTenantDomain()).thenReturn(DUMMY_DOMAIN);
-            assertTrue(Utilities.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt));
+            assertTrue(AutoLoginUtilities.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt));
         }
     }
 
@@ -369,7 +369,7 @@ public class BasicAuthenticatorTestCase {
             when(Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", tenant)).
                     thenThrow(new IdentityEventException("Error"));
             try {
-                Utilities.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt);
+                AutoLoginUtilities.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt);
             } catch (Exception e) {
                 assertEquals(e.getMessage(),expected);
             }
@@ -393,7 +393,7 @@ public class BasicAuthenticatorTestCase {
                     .thenThrow(new IdentityEventException("Error"));
             when(mockAuthnCtxt.getTenantDomain()).thenReturn(tenant);
             try {
-                Utilities.getSelfRegistrationAutoLoginAlias(mockAuthnCtxt);
+                AutoLoginUtilities.getSelfRegistrationAutoLoginAlias(mockAuthnCtxt);
             } catch (Exception e) {
                 assertEquals(e.getMessage(),expected);
             }

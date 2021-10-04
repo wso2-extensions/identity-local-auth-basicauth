@@ -38,7 +38,7 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.internal.Bas
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
-import org.wso2.carbon.identity.application.authenticator.basicauth.util.Utilities;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.captcha.connector.recaptcha.SSOLoginReCaptchaConfig;
@@ -99,7 +99,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     public boolean canHandle(HttpServletRequest request) {
         String userName = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
-        Cookie autoLoginCookie = Utilities.getAutoLoginCookie(request.getCookies());
+        Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
 
         return (userName != null && password != null) || autoLoginCookie != null;
     }
@@ -109,13 +109,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                            HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException, LogoutFailedException {
 
-        Cookie autoLoginCookie = Utilities.getAutoLoginCookie(request.getCookies());
+        Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
 
         if (context.isLogoutRequest()) {
             return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
         } else if (autoLoginCookie != null && !Boolean.TRUE.equals(
                 context.getProperty(AutoLoginConstant.BASIC_AUTH_AUTO_LOGIN_FLOW_HANDLED)) &&
-                Utilities.isEnableAutoLoginEnabled(context, autoLoginCookie)) {
+                AutoLoginUtilities.isEnableAutoLoginEnabled(context, autoLoginCookie)) {
             try {
                 context.setProperty(AutoLoginConstant.BASIC_AUTH_AUTO_LOGIN_FLOW_HANDLED, true);
                 return executeAutoLoginFlow(request, response, context, autoLoginCookie);
@@ -139,7 +139,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     throw e;
                 }
             } finally {
-                Utilities.removeAutoLoginCookieInResponse(response, autoLoginCookie);
+                AutoLoginUtilities.removeAutoLoginCookieInResponse(response, autoLoginCookie);
             }
         }
         return super.process(request, response, context);
@@ -150,12 +150,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         String decodedValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
-        JSONObject cookieValueJSON = Utilities.transformToJSON(decodedValue);
+        JSONObject cookieValueJSON = AutoLoginUtilities.transformToJSON(decodedValue);
         String signature = (String) cookieValueJSON.get(AutoLoginConstant.SIGNATURE);
         String content = (String) cookieValueJSON.get(AutoLoginConstant.CONTENT);
-        JSONObject contentJSON = Utilities.transformToJSON(content);
+        JSONObject contentJSON = AutoLoginUtilities.transformToJSON(content);
 
-        Utilities.validateAutoLoginCookie(context, getAuthenticatorConfig(), content, signature);
+        AutoLoginUtilities.validateAutoLoginCookie(context, getAuthenticatorConfig(), content, signature);
 
         if (log.isDebugEnabled()) {
             log.debug("Started executing Auto Login from Cookie flow.");
