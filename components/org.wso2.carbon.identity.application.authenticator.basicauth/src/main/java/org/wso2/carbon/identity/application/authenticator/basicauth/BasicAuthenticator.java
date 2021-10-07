@@ -20,7 +20,6 @@ package org.wso2.carbon.identity.application.authenticator.basicauth;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.json.simple.JSONObject;
@@ -40,15 +39,11 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.internal.Bas
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
-import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
-import org.wso2.carbon.identity.captcha.connector.recaptcha.SSOLoginReCaptchaConfig;
-import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
-import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.user.api.UserRealm;
@@ -69,7 +64,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -85,7 +79,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String PASSWORD_PROPERTY = "PASSWORD_PROPERTY";
     private static final String PASSWORD_RESET_ENDPOINT = "accountrecoveryendpoint/confirmrecovery.do?";
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
-    private static final String RESEND_CONFIRMATION_RECAPTCHA_ENABLE = "SelfRegistration.ResendConfirmationReCaptcha";
     private static final String APPEND_USER_TENANT_TO_USERNAME = "appendUserTenantToUsername";
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     private List<String> omittingErrorParams = null;
@@ -453,7 +446,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
 
             int failedLoginAttempts = errorContext == null ? 0 : errorContext.getFailedLoginAttempts();
-            redirectURL += getCaptchaParams(context.getLoginTenantDomain(), failedLoginAttempts);
             response.sendRedirect(redirectURL);
         } catch (IOException e) {
             throw new AuthenticationFailedException(ErrorMessages.SYSTEM_ERROR_WHILE_AUTHENTICATING.getCode(),
@@ -648,137 +640,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         } else {
             return key + value;
         }
-    }
-
-    /**
-     * Append the recaptcha related params if recaptcha is enabled for the authentication always.
-     *
-     * @param tenantDomain        Tenant domain of the application.
-     * @param failedLoginAttempts Number of failed login attempts.
-     * @return string with the appended recaptcha params
-     */
-    private String getCaptchaParams(String tenantDomain, int failedLoginAttempts) {
-
-        SSOLoginReCaptchaConfig connector = new SSOLoginReCaptchaConfig();
-        String defaultCaptchaConfigName = connector.getName() +
-                CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE_ALWAYS;
-        String maxFailedAttemptCaptchaConfigName = connector.getName() +
-                CaptchaConstants.ReCaptchaConnectorPropertySuffixes.MAX_ATTEMPTS;
-        String captchaEnabledConfigName = connector.getName() +
-                CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE;
-        String captchaParams = "";
-        Property[] connectorConfigs;
-        Properties captchaConfigs = getCaptchaConfigs();
-
-        if (captchaConfigs != null && !captchaConfigs.isEmpty() &&
-                Boolean.parseBoolean(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
-
-            try {
-                connectorConfigs = BasicAuthenticatorDataHolder.getInstance().getIdentityGovernanceService()
-                        .getConfiguration(new String[]{defaultCaptchaConfigName, RESEND_CONFIRMATION_RECAPTCHA_ENABLE,
-                                captchaEnabledConfigName}, tenantDomain);
-                for (Property connectorConfig : connectorConfigs) {
-                    if (defaultCaptchaConfigName.equals(connectorConfig.getName())) {
-                        // SSO Login Captcha Config
-                        if (Boolean.parseBoolean(connectorConfig.getValue())) {
-                            captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
-                        } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Enforcing recaptcha for SSO Login is not enabled.");
-                            }
-                        }
-                    } else if ((RESEND_CONFIRMATION_RECAPTCHA_ENABLE).equals(connectorConfig.getName())) {
-                        // Resend Confirmation Captcha Config
-                        if (Boolean.parseBoolean(connectorConfig.getValue())) {
-                            captchaParams += BasicAuthenticatorConstants.RECAPTCHA_RESEND_CONFIRMATION_PARAM + "true";
-                        } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Enforcing recaptcha for resend confirmation is not enabled.");
-                            }
-                        }
-                    } else if (captchaEnabledConfigName.equals(connectorConfig.getName())) {
-                        if (!Boolean.parseBoolean(connectorConfig.getValue())) {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Enforcing recaptcha for exceeding max failed login is not enabled.");
-                            }
-                            continue;
-                        }
-                        Property[] maxFailedConfig =
-                                BasicAuthenticatorDataHolder.getInstance().getIdentityGovernanceService()
-                                        .getConfiguration(new String[]{maxFailedAttemptCaptchaConfigName},
-                                                tenantDomain);
-                        Property maxFailedProperty = maxFailedConfig[0];
-                        int maxFailedAttempts;
-                        if (NumberUtils.isNumber(maxFailedProperty.getValue())) {
-                            maxFailedAttempts = Integer.valueOf(maxFailedProperty.getValue());
-                        } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug(String.format("Invalid value for Max failed attempts for reCaptcha: %s. " +
-                                        "Default value will be used.", maxFailedProperty.getValue()));
-                            }
-                            // Setting up default value for max failed login attempts before reCaptcha.
-                            maxFailedAttempts = 3;
-                        }
-                        if (maxFailedAttempts >= failedLoginAttempts) {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Number of failed attempts is less than or equal to max failed " +
-                                        "login attempts before reCaptcha. Recaptcha will not be enforced.");
-                            }
-                            continue;
-                        }
-                        if (log.isDebugEnabled()) {
-                            log.debug("Number of failed attempts is higher than max failed login" +
-                                    "attempts before reCaptcha. Recaptcha will be enforced.");
-                        }
-                        captchaParams += BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
-                    }
-                }
-
-                // Add captcha configs
-                if (!captchaParams.isEmpty()) {
-                    captchaParams += BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + captchaConfigs.getProperty
-                            (CaptchaConstants.RE_CAPTCHA_SITE_KEY) +
-                            BasicAuthenticatorConstants.RECAPTCHA_API_PARAM + captchaConfigs.getProperty
-                            (CaptchaConstants.RE_CAPTCHA_API_URL);
-                }
-
-            } catch (IdentityGovernanceException e) {
-                log.error("Error occurred while verifying the captcha configs. Proceeding the authentication request " +
-                        "without enabling recaptcha.", e);
-            }
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("Recaptcha is not enabled.");
-            }
-        }
-
-        return captchaParams;
-    }
-
-    /**
-     * Get the recaptcha configs from the data holder if they are valid.
-     *
-     * @return recaptcha properties
-     */
-    private Properties getCaptchaConfigs() {
-
-        Properties properties = BasicAuthenticatorDataHolder.getInstance().getRecaptchaConfigs();
-
-        if (properties != null && !properties.isEmpty() &&
-                Boolean.valueOf(properties.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
-            if (StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY)) ||
-                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_API_URL)) ||
-                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY)) ||
-                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL))) {
-
-                if (log.isDebugEnabled()) {
-                    log.debug("Empty values found for the captcha properties in the file " + CaptchaConstants
-                            .CAPTCHA_CONFIG_FILE_NAME + ".");
-                }
-                properties.clear();
-            }
-        }
-        return properties;
     }
 
     private void updateMultiAttributeUsername(AuthenticatedUser user, AbstractUserStoreManager userStoreManager) {
