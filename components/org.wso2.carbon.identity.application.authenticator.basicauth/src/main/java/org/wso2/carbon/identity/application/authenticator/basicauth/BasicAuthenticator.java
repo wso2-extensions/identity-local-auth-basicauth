@@ -614,7 +614,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         Property[] connectorConfigs;
         Properties captchaConfigs = getCaptchaConfigs();
 
-        if (Boolean.parseBoolean(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_PARAMETERS_IN_URL_ENABLED))) {
+        if (captchaConfigs != null && !captchaConfigs.isEmpty() &&
+                Boolean.parseBoolean(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_PARAMETERS_IN_URL_ENABLED))) {
 
             if (captchaConfigs != null && !captchaConfigs.isEmpty() &&
                     Boolean.parseBoolean(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {

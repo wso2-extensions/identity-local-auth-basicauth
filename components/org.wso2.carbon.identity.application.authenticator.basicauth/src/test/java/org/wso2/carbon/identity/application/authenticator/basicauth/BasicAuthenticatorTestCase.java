@@ -910,16 +910,17 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                 BasicAuthenticatorConstants.RECAPTCHA_API_PARAM + "dummyApiUrl";
 
         return new String[][]{
-                {"true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl + captchaParams},
-                {"true", "", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
-                {"true", "dummySiteKey", "", "dummySecret", "dummyUrl", basicUrl},
-                {"false", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
+                {"true", "true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl + captchaParams},
+                {"true", "true", "", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
+                {"true", "true", "dummySiteKey", "", "dummySecret", "dummyUrl", basicUrl},
+                {"true", "false", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
         };
     }
 
     @Test(dataProvider = "captchaConfigData")
-    public void initiateAuthenticationRequestWithCaptchaEnabled(String captchaEnable, String captchaKey, String
-            captchaApi, String captchaSecret, String captchaUrl, String expectedRedirectUrl) throws Exception {
+    public void initiateAuthenticationRequestWithCaptchaEnabled(String parametersInUrlEnabled, String captchaEnable,
+            String captchaKey, String captchaApi, String captchaSecret, String captchaUrl, String expectedRedirectUrl)
+            throws Exception {
 
         mockStatic(IdentityUtil.class);
 
@@ -931,6 +932,7 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
 
         when(governanceService.getConfiguration(any(String[].class), anyString())).thenReturn(captchaProperties);
         Properties properties = new Properties();
+        properties.setProperty(CaptchaConstants.RE_CAPTCHA_PARAMETERS_IN_URL_ENABLED, parametersInUrlEnabled);
         properties.setProperty(CaptchaConstants.RE_CAPTCHA_ENABLED, captchaEnable);
         properties.setProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY, captchaKey);
         properties.setProperty(CaptchaConstants.RE_CAPTCHA_API_URL, captchaApi);
