@@ -986,64 +986,6 @@ public class BasicAuthenticatorTestCase {
         }
     }
 
-    @DataProvider(name = "captchaConfigData")
-    public Object[][] getCaptchaConfig() {
-
-        String basicUrl = DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + BasicAuthenticatorConstants
-                .AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
-                BasicAuthenticatorConstants.LOCAL +
-                BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
-                BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "user.tenant.domain.mismatch.message";
-
-        String captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true" +
-                BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + "dummySiteKey" +
-                BasicAuthenticatorConstants.RECAPTCHA_API_PARAM + "dummyApiUrl";
-
-        return new String[][]{
-                {"true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl + captchaParams},
-                {"true", "", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
-                {"true", "dummySiteKey", "", "dummySecret", "dummyUrl", basicUrl},
-                {"false", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
-        };
-    }
-
-    @Test(dataProvider = "captchaConfigData")
-    public void initiateAuthenticationRequestWithCaptchaEnabled(String captchaEnable, String captchaKey, String
-            captchaApi, String captchaSecret, String captchaUrl, String expectedRedirectUrl) throws Exception {
-
-        try (MockedStatic<FileBasedConfigurationBuilder>
-                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
-             MockedStatic<ConfigurationFacade>
-                     configurationFacade = Mockito.mockStatic(ConfigurationFacade.class)) {
-
-            Property[] captchaProperties = new Property[1];
-            Property captchaEnabled = new Property();
-            String defaultCaptchaConfigName = "sso.login.recaptcha" +
-                    CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE_ALWAYS;
-            captchaEnabled.setName(defaultCaptchaConfigName);
-            captchaEnabled.setValue("true");
-            captchaProperties[0] = captchaEnabled;
-
-            when(mockGovernanceService.getConfiguration(any(String[].class), anyString()))
-                    .thenReturn(captchaProperties);
-            Properties properties = new Properties();
-            properties.setProperty(CaptchaConstants.RE_CAPTCHA_ENABLED, captchaEnable);
-            properties.setProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY, captchaKey);
-            properties.setProperty(CaptchaConstants.RE_CAPTCHA_API_URL, captchaApi);
-            properties.setProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY, captchaSecret);
-            properties.setProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL, captchaUrl);
-
-            BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(properties);
-
-            when(mockAuthnCtxt.getLoginTenantDomain()).thenReturn(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
-
-            initiateAuthenticationRequest(fileBasedConfigurationBuilder, configurationFacade);
-            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
-            assertEquals(isUserTenantDomainMismatch, (Boolean) false);
-            assertEquals(redirect, expectedRedirectUrl);
-        }
-    }
-
     @DataProvider(name = "errorCodeProvider")
     public Object[][] getErrorcodes() throws UnsupportedEncodingException {
 
