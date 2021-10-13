@@ -914,6 +914,8 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                 {"true", "true", "", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
                 {"true", "true", "dummySiteKey", "", "dummySecret", "dummyUrl", basicUrl},
                 {"true", "false", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
+                {"false", "true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
+                {"false", "false", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl}
         };
     }
 
