@@ -17,6 +17,8 @@
  */
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
+import org.apache.axis2.context.ConfigurationContext;
+import org.apache.axis2.engine.AxisConfiguration;
 import org.apache.commons.lang.StringUtils;
 import org.json.simple.JSONObject;
 import org.mockito.MockedStatic;
@@ -28,6 +30,8 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.wso2.carbon.CarbonConstants;
+import org.wso2.carbon.base.ServerConfiguration;
+import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.core.util.SignatureUtil;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
 import org.wso2.carbon.identity.application.authentication.framework.config.ConfigurationFacade;
@@ -48,6 +52,7 @@ import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
+import org.wso2.carbon.identity.core.internal.IdentityCoreServiceComponent;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
@@ -70,6 +75,8 @@ import org.wso2.carbon.user.core.constants.UserCoreClaimConstants;
 import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.carbon.user.core.tenant.TenantManager;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
+import org.wso2.carbon.utils.CarbonUtils;
+import org.wso2.carbon.utils.ConfigurationContextService;
 import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
@@ -96,6 +103,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -135,6 +143,11 @@ public class BasicAuthenticatorTestCase {
     private RealmConfiguration mockRealmConfiguration;
     private ConfigurationFacade mockConfigurationFacade;
     private MultiAttributeLoginService mockMultiAttributeLoginService;
+    private ConfigurationContextService mockConfigurationContextService;
+    private ConfigurationContext mockConfigurationContext;
+    private AxisConfiguration mockAxisConfiguration;
+    private PrivilegedCarbonContext mockPrivilegedCarbonContext;
+    private ServerConfiguration mockServerConfiguration;
 
     private AuthenticatedUser authenticatedUser;
     private Boolean isRememberMe = false;
@@ -148,6 +161,9 @@ public class BasicAuthenticatorTestCase {
     private static final String DUMMY_DOMAIN = "dummyDomain";
     private static final String DUMMY_RETRY_URL = "DummyRetryUrl";
     private static final String DUMMY_RETRY_URL_WITH_QUERY = "DummyRetryUrl?dummyQueryParams";
+    private static final String DUMMY_PROTOCOL = "https";
+    private static final String DUMMY_HOSTNAME = "localhost";
+    private static final int DUMMY_PORT = 9443;
 
     private final BasicAuthenticator basicAuthenticator = new BasicAuthenticator();
 
@@ -173,6 +189,11 @@ public class BasicAuthenticatorTestCase {
         mockConfigurationFacade = mock(ConfigurationFacade.class);
         mockTenantManager = mock(TenantManager.class);
         mockMultiAttributeLoginService = mock(MultiAttributeLoginService.class);
+        mockConfigurationContextService = mock(ConfigurationContextService.class);
+        mockConfigurationContext = mock(ConfigurationContext.class);
+        mockAxisConfiguration = mock(AxisConfiguration.class);
+        mockPrivilegedCarbonContext = mock(PrivilegedCarbonContext.class);
+        mockServerConfiguration = mock(ServerConfiguration.class);
 
         Property[] captchaProperties = new Property[1];
         Property captchaEnabled = new Property();
@@ -1048,7 +1069,9 @@ public class BasicAuthenticatorTestCase {
     public Object[][] getErrorcodes() throws UnsupportedEncodingException {
 
         String super_tenant = "carbon.super";
-        String callback = DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + "&authenticators=BasicAuthenticator";
+        String callbackUrl =
+                String.format("%s://%s:%s/%s", DUMMY_PROTOCOL, DUMMY_HOSTNAME, DUMMY_PORT, DUMMY_LOGIN_PAGEURL);
+        String callback = callbackUrl + "?" + DUMMY_QUERY_PARAMS + "&authenticators=BasicAuthenticator";
         return new String[][]{
                 {
                         IdentityCoreConstants.USER_ACCOUNT_NOT_CONFIRMED_ERROR_CODE,
@@ -1206,11 +1229,32 @@ public class BasicAuthenticatorTestCase {
                                                                    String minLogin)
             throws AuthenticationFailedException, IOException, URISyntaxException {
 
-        try (MockedStatic<FileBasedConfigurationBuilder>
-                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder = Mockito.mockStatic(
+                FileBasedConfigurationBuilder.class);
              MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
-             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);
+             MockedStatic<IdentityCoreServiceComponent> identityCoreServiceComponent = Mockito.mockStatic(
+                     IdentityCoreServiceComponent.class);
+             MockedStatic<CarbonUtils> carbonUtils = Mockito.mockStatic(CarbonUtils.class);
+             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+             MockedStatic<PrivilegedCarbonContext> privilegedCarbonContext = Mockito.mockStatic(
+                     PrivilegedCarbonContext.class);
+             MockedStatic<ServerConfiguration> serverConfiguration = Mockito.mockStatic(ServerConfiguration.class)) {
 
+            carbonUtils.when(CarbonUtils::getManagementTransport).thenReturn(DUMMY_PROTOCOL);
+            serverConfiguration.when(ServerConfiguration::getInstance).thenReturn(mockServerConfiguration);
+            when(mockServerConfiguration.getFirstProperty(IdentityCoreConstants.HOST_NAME)).thenReturn(DUMMY_HOSTNAME);
+            identityTenantUtil.when(IdentityTenantUtil::isTenantQualifiedUrlsEnabled).thenReturn(false);
+            identityTenantUtil.when(IdentityTenantUtil::getTenantDomainFromContext).thenReturn("carbon.super");
+            privilegedCarbonContext.when(PrivilegedCarbonContext::getThreadLocalCarbonContext)
+                    .thenReturn(mockPrivilegedCarbonContext);
+            when(mockPrivilegedCarbonContext.getTenantDomain()).thenReturn("carbon.super");
+            identityCoreServiceComponent.when(IdentityCoreServiceComponent::getConfigurationContextService)
+                    .thenReturn(mockConfigurationContextService);
+            when(mockConfigurationContextService.getServerConfigContext()).thenReturn(mockConfigurationContext);
+            carbonUtils.when(() -> CarbonUtils.getTransportProxyPort(eq(mockAxisConfiguration), anyString()))
+                    .thenReturn(DUMMY_PORT);
+            when(mockConfigurationContext.getAxisConfiguration()).thenReturn(mockAxisConfiguration);
             when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
             when(mockResponse.encodeRedirectURL(DUMMY_RETRY_URL + "?" + DUMMY_QUERY_PARAMS))
                     .thenReturn(DUMMY_RETRY_URL_WITH_QUERY);

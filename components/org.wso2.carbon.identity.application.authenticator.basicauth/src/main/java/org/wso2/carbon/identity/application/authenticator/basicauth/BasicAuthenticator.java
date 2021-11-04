@@ -42,8 +42,11 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAu
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
+import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.captcha.connector.recaptcha.SSOLoginReCaptchaConfig;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
+import org.wso2.carbon.identity.core.ServiceURLBuilder;
+import org.wso2.carbon.identity.core.URLBuilderException;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
@@ -313,7 +316,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     String tenantDomain = getTenantDomainFromUserName(context, username);
 
                     // Setting callback so that the user is prompted to login after a password reset.
-                    String callback = loginPage + ("?" + queryParams)
+                    String callback;
+                    try {
+                        callback = ServiceURLBuilder.create().addPath(loginPage).build().getAbsolutePublicURL();
+                    } catch (URLBuilderException e) {
+                        throw new IdentityRuntimeException(
+                                "Error while building callback url for context: " + loginPage, e);
+                    }
+                    callback = callback + ("?" + queryParams)
                             + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                             BasicAuthenticatorConstants.LOCAL;
                     String reason = RecoveryScenarios.ADMIN_FORCED_PASSWORD_RESET_VIA_OTP.name();
