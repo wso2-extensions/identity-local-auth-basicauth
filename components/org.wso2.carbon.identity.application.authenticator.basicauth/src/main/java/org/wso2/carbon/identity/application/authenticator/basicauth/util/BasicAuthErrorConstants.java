@@ -29,6 +29,8 @@ public class BasicAuthErrorConstants {
 
         // Credential related Exceptions
         CREDENTIAL_MISMATCH("BAS-60001", "Credential mismatch."),
+        EMPTY_USERNAME("BAS-60002", "Username is empty."),
+        EMPTY_PASSWORD("BAS-60003", "Password is empty."),
 
         // IO related Error codes
         SYSTEM_ERROR_WHILE_AUTHENTICATING("BAS-65001", "System error while authenticating"),

@@ -479,6 +479,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         String loginIdentifierFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+        if (StringUtils.isBlank(loginIdentifierFromRequest)) {
+            throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
+                    ErrorMessages.EMPTY_USERNAME.getMessage());
+        }
         Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
             // FrameworkUtils.preprocessUsername will not append the tenant domain to username, if you are using
@@ -514,7 +518,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
         }
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
-
+        if (StringUtils.isBlank(password)) {
+            throw new InvalidCredentialsException(ErrorMessages.EMPTY_PASSWORD.getCode(),
+                    ErrorMessages.EMPTY_PASSWORD.getMessage());
+        }
         Map<String, Object> authProperties = context.getProperties();
         if (authProperties == null) {
             authProperties = new HashMap<>();

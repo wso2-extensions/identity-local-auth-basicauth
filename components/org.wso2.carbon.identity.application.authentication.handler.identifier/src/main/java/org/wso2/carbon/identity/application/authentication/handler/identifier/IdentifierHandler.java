@@ -354,6 +354,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         Map<String, String> runtimeParams = getRuntimeParams(context);
         String identifierFromRequest = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+        if (StringUtils.isBlank(identifierFromRequest)) {
+            throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
+                    ErrorMessages.EMPTY_USERNAME.getMessage());
+        }
         if (runtimeParams != null) {
             String skipPreProcessUsername = runtimeParams.get(SKIP_IDENTIFIER_PRE_PROCESS);
             if (Boolean.parseBoolean(skipPreProcessUsername)) {
