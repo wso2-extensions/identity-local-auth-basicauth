@@ -905,16 +905,18 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                 BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
                 BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "user.tenant.domain.mismatch.message";
 
-        String captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true" +
-                BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + "dummySiteKey" +
+        String isRecaptchaEnabled = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
+        String captchaParams = BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + "dummySiteKey" +
                 BasicAuthenticatorConstants.RECAPTCHA_API_PARAM + "dummyApiUrl";
 
         return new String[][]{
-                {"true", "true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl + captchaParams},
+                {"true", "true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl",
+                        basicUrl + isRecaptchaEnabled + captchaParams},
                 {"true", "true", "", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
                 {"true", "true", "dummySiteKey", "", "dummySecret", "dummyUrl", basicUrl},
                 {"true", "false", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
-                {"false", "true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
+                {"false", "true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl",
+                        basicUrl + isRecaptchaEnabled},
                 {"false", "false", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl}
         };
     }
