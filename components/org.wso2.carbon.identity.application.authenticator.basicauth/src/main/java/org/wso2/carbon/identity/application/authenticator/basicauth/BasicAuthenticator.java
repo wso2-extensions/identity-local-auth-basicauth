@@ -624,7 +624,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
                 for (Property connectorConfig : connectorConfigs) {
                     if (defaultCaptchaConfigName.equals(connectorConfig.getName())) {
-                        // SSO Login Captcha Config
+                        // SSO Login Captcha Config.
                         if (Boolean.parseBoolean(connectorConfig.getValue())) {
                             captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
                         } else {
