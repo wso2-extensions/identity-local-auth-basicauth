@@ -645,8 +645,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 }
 
                 // Add captcha configs
-                if (!captchaParams.isEmpty() && Boolean.parseBoolean(
-                        captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_PARAMETERS_IN_URL_ENABLED))) {
+                if (!captchaParams.isEmpty() &&
+                        (StringUtils.isEmpty(
+                                captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_PARAMETERS_IN_URL_ENABLED))
+                        || Boolean.parseBoolean(
+                            captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_PARAMETERS_IN_URL_ENABLED)))) {
                     captchaParams += BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + captchaConfigs.getProperty
                             (CaptchaConstants.RE_CAPTCHA_SITE_KEY) +
                             BasicAuthenticatorConstants.RECAPTCHA_API_PARAM + captchaConfigs.getProperty
