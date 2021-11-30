@@ -34,6 +34,7 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.U
 import org.wso2.carbon.identity.application.authentication.framework.exception.session.mgt.SessionManagementException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.UserSession;
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionRetrievalException;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionTerminationException;
 import org.wso2.carbon.identity.application.authentication.handler.session.internal.ActiveSessionsLimitHandlerServiceHolder;
@@ -61,6 +62,8 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
     private static final long serialVersionUID = -1304814600410853867L;
     private static final String REDIRECT_URL = "/authenticationendpoint/handle-multiple-sessions.do";
     public static final String DEFAULT_MAX_SESSION_COUNT = "1";
+    public static final String PROMPT_ID = "promptId";
+    public static final String SP_NAME = "sp";
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -138,7 +141,10 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         try {
-            response.sendRedirect(REDIRECT_URL + "?promptId=" + context.getContextIdentifier());
+            Map<String, String> paramMap = new HashMap<>();
+            paramMap.put(PROMPT_ID, context.getContextIdentifier());
+            paramMap.put(SP_NAME, context.getServiceProviderName());
+            response.sendRedirect(FrameworkUtils.buildURLWithQueryParams(REDIRECT_URL, paramMap));
         } catch (IOException e) {
             throw new AuthenticationFailedException("Error occurred while redirecting to: " + REDIRECT_URL
                     + "?promptId=" + context.getContextIdentifier(), e);
