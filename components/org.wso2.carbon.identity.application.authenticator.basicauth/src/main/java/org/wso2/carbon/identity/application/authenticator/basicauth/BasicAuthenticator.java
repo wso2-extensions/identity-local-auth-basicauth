@@ -328,7 +328,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             BasicAuthenticatorConstants.LOCAL;
                     String reason = RecoveryScenarios.ADMIN_FORCED_PASSWORD_RESET_VIA_OTP.name();
 
-                    redirectURL = (PASSWORD_RESET_ENDPOINT + queryParams) +
+                    redirectURL = PASSWORD_RESET_ENDPOINT +
                             BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username,
                             BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
                             URLEncoder.encode(tenantDomain, BasicAuthenticatorConstants.UTF_8) +
