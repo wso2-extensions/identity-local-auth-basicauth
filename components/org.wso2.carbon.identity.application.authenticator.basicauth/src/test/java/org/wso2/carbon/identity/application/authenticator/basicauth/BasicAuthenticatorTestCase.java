@@ -1057,14 +1057,16 @@ public class BasicAuthenticatorTestCase extends PowerMockIdentityBaseTest {
                         URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8), "4", "1"
                 },
                 {
-                        IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE, "accountrecoveryendpoint/confirmrecovery.do?" + dummyQueryParam +
+                        IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE, "accountrecoveryendpoint/confirmrecovery.do?" +
                         BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
                         BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM + URLEncoder.encode(super_tenant, BasicAuthenticatorConstants.UTF_8) +
-                        BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(dummyPassword, BasicAuthenticatorConstants.UTF_8), "1", "1"
+                        BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(dummyPassword, BasicAuthenticatorConstants.UTF_8)
+                        + BasicAuthenticatorConstants.CALLBACK_PARAM
+                        + URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8), "1", "1"
                 },
                 {
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE,
-                        "accountrecoveryendpoint/confirmrecovery.do?" + dummyQueryParam +
+                        "accountrecoveryendpoint/confirmrecovery.do?" +
                                 BasicAuthenticatorConstants.USER_NAME_PARAM +
                                 URLEncoder.encode(dummyUserName, BasicAuthenticatorConstants.UTF_8) +
                                 BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
