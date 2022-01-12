@@ -1016,9 +1016,7 @@ public class BasicAuthenticatorTestCase {
                 BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
                 BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "user.tenant.domain.mismatch.message";
 
-        String captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true" +
-                BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + "dummySiteKey" +
-                BasicAuthenticatorConstants.RECAPTCHA_API_PARAM + "dummyApiUrl";
+        String captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
 
         return new String[][]{
                 {"true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl + captchaParams},

@@ -751,14 +751,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     }
                 }
 
-                // Add captcha configs
-                if (!captchaParams.isEmpty()) {
-                    captchaParams += BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + captchaConfigs.getProperty
-                            (CaptchaConstants.RE_CAPTCHA_SITE_KEY) +
-                            BasicAuthenticatorConstants.RECAPTCHA_API_PARAM + captchaConfigs.getProperty
-                            (CaptchaConstants.RE_CAPTCHA_API_URL);
-                }
-
             } catch (IdentityGovernanceException e) {
                 log.error("Error occurred while verifying the captcha configs. Proceeding the authentication request " +
                         "without enabling recaptcha.", e);
