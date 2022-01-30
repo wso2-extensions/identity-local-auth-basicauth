@@ -96,7 +96,7 @@ public class AutoLoginUtilities {
             return Boolean.parseBoolean(
                     Utils.getConnectorConfig(
                             AutoLoginConstant.RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN,
-                            context.getTenantDomain()));
+                            context.getLoginTenantDomain()));
         } catch (IdentityEventException e) {
             throw new AuthenticationFailedException("Error occurred while resolving isEnableAutoLogin property.", e);
         }
@@ -115,7 +115,7 @@ public class AutoLoginUtilities {
         try {
             return Boolean.parseBoolean(
                     Utils.getConnectorConfig(AutoLoginConstant.SELF_REGISTRATION_AUTO_LOGIN,
-                            context.getTenantDomain()));
+                            context.getLoginTenantDomain()));
         } catch (IdentityEventException e) {
             throw new AuthenticationFailedException("Error occurred while resolving isEnableSelfRegistrationAutoLogin" +
                     " property.", e);
