@@ -285,6 +285,7 @@ public class BasicAuthenticatorTestCase {
 
             when(mockAuthnCtxt.isLogoutRequest()).thenReturn(false);
             when(mockAuthnCtxt.getTenantDomain()).thenReturn(DUMMY_DOMAIN);
+            when(mockAuthnCtxt.getLoginTenantDomain()).thenReturn(DUMMY_DOMAIN);
             when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn("admin");
             when((mockAuthnCtxt.getSequenceConfig())).thenReturn(new SequenceConfig());
 
@@ -364,7 +365,7 @@ public class BasicAuthenticatorTestCase {
             utilities.when(() -> Utils.getConnectorConfig("SelfRegistration.AutoLogin.Enable", DUMMY_DOMAIN))
                     .thenReturn("true");
 
-            when(mockAuthnCtxt.getTenantDomain()).thenReturn(DUMMY_DOMAIN);
+            when(mockAuthnCtxt.getLoginTenantDomain()).thenReturn(DUMMY_DOMAIN);
             assertTrue(AutoLoginUtilities.isEnableSelfRegistrationAutoLogin(mockAuthnCtxt));
         }
     }
