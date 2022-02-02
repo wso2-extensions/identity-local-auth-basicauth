@@ -177,7 +177,7 @@ public class AutoLoginUtilities {
         try {
             return Utils.getConnectorConfig(
                     AutoLoginConstant.SELF_REGISTRATION_AUTO_LOGIN_ALIAS_NAME,
-                    context.getTenantDomain());
+                    context.getLoginTenantDomain());
         } catch (IdentityEventException e) {
             throw new AuthenticationFailedException("Error occurred while resolving " +
                     AutoLoginConstant.SELF_REGISTRATION_AUTO_LOGIN_ALIAS_NAME + " property.", e);
