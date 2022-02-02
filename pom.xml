@@ -26,7 +26,7 @@
 
     <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
     <modelVersion>4.0.0</modelVersion>
-    <version>6.3.55-SNAPSHOT</version>
+    <version>6.3.56-SNAPSHOT</version>
     <artifactId>identity-application-auth-basicauth</artifactId>
     <packaging>pom</packaging>
     <name>WSO2 Carbon - BasicAuth Identity Application Authenticator Module</name>
@@ -397,18 +397,18 @@
         </identity.application.auth.basicauth.imp.pkg.version.range>
 
         <!-- Carbon Kernel version -->
-        <carbon.kernel.version>4.6.3-SNAPSHOT</carbon.kernel.version>
-        <carbon.kernel.feature.version>4.6.3-SNAPSHOT</carbon.kernel.feature.version>
+        <carbon.kernel.version>4.6.3-m6</carbon.kernel.version>
+        <carbon.kernel.feature.version>4.6.3-m6</carbon.kernel.feature.version>
         <carbon.kernel.imp.pkg.version.range>[4.5.0, 5.0.0)</carbon.kernel.imp.pkg.version.range>
         <carbon.user.api.imp.pkg.version.range>[1.0.1, 2.0.0)</carbon.user.api.imp.pkg.version.range>
         <carbon.base.imp.pkg.version.range>[1.0.0, 2.0.0)</carbon.base.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>5.18.235-SNAPSHOT</carbon.identity.framework.version>
+        <carbon.identity.framework.version>5.18.236</carbon.identity.framework.version>
         <carbon.identity.framework.imp.pkg.version.range>[5.14.67, 6.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 
-        <identity.governance.version>1.4.98-SNAPSHOT</identity.governance.version>
+        <identity.governance.version>1.4.98</identity.governance.version>
         <identity.governance.imp.pkg.version.range>[1.3.28, 2.0.0)</identity.governance.imp.pkg.version.range>
 
         <osgi.framework.imp.pkg.version.range>[1.7.0, 2.0.0)</osgi.framework.imp.pkg.version.range>
