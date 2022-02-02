@@ -26,6 +26,7 @@ import org.wso2.carbon.identity.application.authentication.framework.Authenticat
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
 import org.wso2.carbon.identity.application.authentication.framework.config.builder.FileBasedConfigurationBuilder;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
+import org.wso2.carbon.identity.application.authentication.framework.config.model.StepConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
@@ -47,6 +48,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -111,8 +113,8 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
 
             try {
 
-                String userId = getUserId(context.getSubject());
-                
+                String userId = getUserId(context);
+
                 List<UserSession> userSessions = null;
                 if (userId != null) {
                     userSessions = getUserSessions(userId);
@@ -164,7 +166,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             Integer maxSessionCount;
             List<UserSession> userSessions;
             try {
-                String userId = getUserId(context.getSubject());
+                String userId = getUserId(context);
                 String[] sessionIds = request.getParameterValues(ActiveSessionsLimitHandlerConstants.SESSIONS_TO_TERMINATE);
                 terminateSessions(userId, sessionIds);
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
@@ -241,20 +243,23 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         return userSessions;
     }
 
-    private String getUserId(AuthenticatedUser authenticatedUser) throws UserIdRetrievalException {
+    private String getUserId(AuthenticationContext authenticationContext) throws UserIdRetrievalException {
 
-        String userId = null;
+        String userId;
+        AuthenticatedUser authenticatedUser = null;
         try {
-            if (authenticatedUser != null) {
-                userId = FrameworkUtils.resolveUserIdFromUsername(
-                        IdentityTenantUtil.getTenantIdOfUser(authenticatedUser.getUserName()),
-                        authenticatedUser.getUserStoreDomain(), authenticatedUser.getUserName());
+            StepConfig stepConfig = getCurrentSubjectIdentifierStep(authenticationContext);
+
+            if (stepConfig != null) {
+                authenticatedUser = stepConfig.getAuthenticatedUser();
+            } else {
+                authenticatedUser= authenticationContext.getSubject();
             }
+            userId = getUserIDforUser(authenticatedUser);
         } catch (UserSessionException e) {
             throw new UserIdRetrievalException("Error occurred while retrieving the userId for user: "
                     + authenticatedUser.getUserName(), e);
         }
-
         return userId;
     }
 
@@ -311,6 +316,39 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
     public String getName() {
 
         return ActiveSessionsLimitHandlerConstants.HANDLER_NAME;
+    }
+
+    private StepConfig getCurrentSubjectIdentifierStep(AuthenticationContext authenticationContext) {
+
+        if (authenticationContext.getSequenceConfig() == null) {
+            // Sequence config is not yet initialized.
+            return null;
+        }
+        // Find subjectIdentifier step.
+        Map<Integer, StepConfig> stepConfigs = authenticationContext.getSequenceConfig().getStepMap();
+        Optional<StepConfig> subjectIdentifierStep = stepConfigs.values().stream()
+                .filter(stepConfig -> (stepConfig.isCompleted() && stepConfig.isSubjectIdentifierStep())).findFirst();
+        if (subjectIdentifierStep.isPresent()) {
+            return subjectIdentifierStep.get();
+        }
+        return null;
+    }
+
+    private String getUserIDforUser(AuthenticatedUser authenticatedUser) throws UserSessionException {
+
+        String userId = null;
+        if (authenticatedUser != null) {
+            if (authenticatedUser.isFederatedUser()) {
+                userId = UserSessionStore.getInstance().getUserId(authenticatedUser.getUserName(),
+                        IdentityTenantUtil.getTenantId(authenticatedUser.getTenantDomain()),
+                        authenticatedUser.getUserStoreDomain());
+            } else {
+                userId = FrameworkUtils.resolveUserIdFromUsername(
+                        IdentityTenantUtil.getTenantId(authenticatedUser.getTenantDomain()),
+                        authenticatedUser.getUserStoreDomain(), authenticatedUser.getUserName());
+            }
+        }
+        return userId;
     }
 
 }

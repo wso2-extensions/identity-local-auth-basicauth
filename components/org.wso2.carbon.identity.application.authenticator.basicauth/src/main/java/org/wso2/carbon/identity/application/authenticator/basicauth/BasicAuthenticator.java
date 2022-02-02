@@ -20,6 +20,7 @@ package org.wso2.carbon.identity.application.authenticator.basicauth;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.json.simple.JSONObject;
@@ -50,15 +51,17 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
-import org.wso2.carbon.identity.governance.common.IdentityConnectorConfig;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.identity.recovery.util.Utils;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.core.UserCoreConstants;
+import org.wso2.carbon.user.core.UserStoreClientException;
 import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -75,7 +78,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * Username Password based Authenticator
+ * Username Password based Authenticator.
  */
 public class BasicAuthenticator extends AbstractApplicationAuthenticator
         implements LocalApplicationAuthenticator {
@@ -84,11 +87,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String PASSWORD_PROPERTY = "PASSWORD_PROPERTY";
     private static final String PASSWORD_RESET_ENDPOINT = "accountrecoveryendpoint/confirmrecovery.do?";
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
-    private static final String RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN = "Recovery.AutoLogin.Enable";
     private static final String RESEND_CONFIRMATION_RECAPTCHA_ENABLE = "SelfRegistration.ResendConfirmationReCaptcha";
-    private static final String USERNAME = "username";
-    private static final String SIGNATURE = "signature";
-    private static final String COOKIE_NAME = "ALOR";
     private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     private List<String> omittingErrorParams = null;
 
@@ -116,7 +115,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         if (context.isLogoutRequest()) {
             return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
-        } else if (autoLoginCookie != null && isEnableAutoLoginAfterPasswordReset(context)) {
+        } else if (autoLoginCookie != null && isEnableAutoLoginEnabled(context, autoLoginCookie)) {
             try {
                 return executeAutoLoginFlow(request, response, context, autoLoginCookie);
             } catch (AuthenticationFailedException e) {
@@ -133,9 +132,20 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                          AuthenticationContext context, Cookie autoLoginCookie)
             throws AuthenticationFailedException {
 
-        JSONObject cookieValueJSON = transformCookieValueToJSON(autoLoginCookie);
-        String usernameInCookie = (String) cookieValueJSON.get(USERNAME);
-        String usernameInHttpRequest = request.getParameter(USERNAME);
+        String decodedValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
+        JSONObject cookieValueJSON = transformToJSON(decodedValue);
+        String usernameInCookie = (String) cookieValueJSON.get(AutoLoginConstant.USERNAME);
+        String signature = (String) cookieValueJSON.get(AutoLoginConstant.SIGNATURE);
+        String content = usernameInCookie;
+        String alias = null;
+        if (StringUtils.isEmpty(usernameInCookie)) {
+            content = (String) cookieValueJSON.get(AutoLoginConstant.CONTENT);
+            JSONObject contentJSON = transformToJSON(content);
+            usernameInCookie = (String) contentJSON.get(AutoLoginConstant.USERNAME);
+            alias = getSelfRegistrationAutoLoginAlias(context);
+        }
+
+        String usernameInHttpRequest = request.getParameter(AutoLoginConstant.USERNAME);
 
         if (log.isDebugEnabled()) {
             log.debug("Started executing Auto Login from Cookie flow.");
@@ -147,7 +157,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     + " and username in Cookie: " + usernameInCookie + " does not match.");
         }
 
-        validateCookieSignature(usernameInCookie, cookieValueJSON);
+        validateCookieSignature(content, signature, alias);
         usernameInCookie = FrameworkUtils.prependUserStoreDomainToName(usernameInCookie);
 
         String tenantDomain = MultitenantUtils.getTenantDomain(usernameInCookie);
@@ -215,7 +225,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 inputType = FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST;
             }
             if (FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST.equalsIgnoreCase(inputType)) {
-                queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE +"=" + inputType;
+                queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE + "=" + inputType;
                 context.addEndpointParam(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, usernameFromContext);
             }
         }
@@ -297,14 +307,25 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             BasicAuthenticatorConstants.LOCAL;
                     String reason = RecoveryScenarios.ADMIN_FORCED_PASSWORD_RESET_VIA_OTP.name();
 
-                    redirectURL = (PASSWORD_RESET_ENDPOINT + queryParams) +
-                            BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
-                            BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM + URLEncoder.encode(tenantDoamin, BasicAuthenticatorConstants.UTF_8) +
+                    redirectURL = PASSWORD_RESET_ENDPOINT +
+                            BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username,
+                            BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
+                            URLEncoder.encode(tenantDoamin, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(password,
                             BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
                             URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.REASON_PARAM +
                             URLEncoder.encode(reason, BasicAuthenticatorConstants.UTF_8);
+                } else if (errorCode.equals(
+                        IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE)) {
+                    retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                            BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "account.pending.approval";
+                    String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+
+                    redirectURL = loginPage + ("?" + queryParams) + BasicAuthenticatorConstants.FAILED_USERNAME
+                            + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
+                            BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants
+                            .AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
                 } else if ("true".equals(showAuthFailureReason)) {
 
                     if (Boolean.parseBoolean(maskUserNotExistsErrorCode) &&
@@ -321,7 +342,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
                     String reason = null;
                     if (errorCode.contains(":")) {
-                        String[] errorCodeReason = errorCode.split(":");
+                        String[] errorCodeReason = errorCode.split(":", 2);
                         errorCode = errorCodeReason[0];
                         if (errorCodeReason.length > 1) {
                             reason = errorCodeReason[1];
@@ -385,7 +406,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
                                 URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
                                         BasicAuthenticatorConstants.UTF_8));
-
+                        if (StringUtils.isNotBlank(reason)) {
+                            retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                                    BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + URLEncoder.encode(reason,
+                                    BasicAuthenticatorConstants.UTF_8);
+                        }
                         retryParam = retryParam + buildErrorParamString(paramMap);
                         redirectURL = loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":"
@@ -424,9 +449,19 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        FrameworkUtils.validateUsername(request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
-        String username = FrameworkUtils.preprocessUsername(
-                request.getParameter(BasicAuthenticatorConstants.USER_NAME), context);
+        String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
+        if (!IdentityUtil.isEmailUsernameValidationDisabled()) {
+            FrameworkUtils.validateUsername(username, context);
+            username = FrameworkUtils.preprocessUsername(username, context);
+        }
+        String requestTenantDomain = MultitenantUtils.getTenantDomain(username);
+        ResolvedUserResult resolvedUserResult = FrameworkUtils.processMultiAttributeLoginIdentification(
+                MultitenantUtils.getTenantAwareUsername(username), requestTenantDomain);
+        if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                equals(resolvedUserResult.getResolvedStatus())) {
+            username = UserCoreUtil.addTenantDomainToEntry(resolvedUserResult.getUser().getUsername(),
+                    requestTenantDomain);
+        }
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
 
         Map<String, Object> authProperties = context.getProperties();
@@ -462,9 +497,27 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (isAuthPolicyAccountExistCheck()) {
                 checkUserExistence();
             }
+        } catch (UserStoreClientException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("BasicAuthentication failed while trying to authenticate the user " + username, e);
+            }
+            IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(e.getErrorCode() +
+                    ":" + e.getMessage());
+            IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
+            throw new AuthenticationFailedException(
+                    ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
+                    User.getUserFromUserName(username), e);
         } catch (org.wso2.carbon.user.api.UserStoreException e) {
             if (log.isDebugEnabled()) {
                 log.debug("BasicAuthentication failed while trying to authenticate the user " + username, e);
+            }
+            // Sometimes client exceptions are wrapped in the super class.
+            // Therefore checking for possible client exception.
+            Throwable rootCause = ExceptionUtils.getRootCause(e);
+            if (rootCause instanceof UserStoreClientException) {
+                IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(
+                        ((UserStoreClientException) rootCause).getErrorCode() + ":" + rootCause.getMessage());
+                IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
             }
             throw new AuthenticationFailedException(
                     ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
@@ -571,7 +624,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
                 for (Property connectorConfig : connectorConfigs) {
                     if (defaultCaptchaConfigName.equals(connectorConfig.getName())) {
-                        // SSO Login Captcha Config
+                        // SSO Login Captcha Config.
                         if (Boolean.parseBoolean(connectorConfig.getValue())) {
                             captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
                         } else {
@@ -592,7 +645,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 }
 
                 // Add captcha configs
-                if (!captchaParams.isEmpty()) {
+                if (!captchaParams.isEmpty() &&
+                        (StringUtils.isEmpty(
+                                captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_PARAMETERS_IN_URL_ENABLED))
+                        || Boolean.parseBoolean(
+                            captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_PARAMETERS_IN_URL_ENABLED)))) {
                     captchaParams += BasicAuthenticatorConstants.RECAPTCHA_KEY_PARAM + captchaConfigs.getProperty
                             (CaptchaConstants.RE_CAPTCHA_SITE_KEY) +
                             BasicAuthenticatorConstants.RECAPTCHA_API_PARAM + captchaConfigs.getProperty
@@ -608,7 +665,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 log.debug("Recaptcha is not enabled.");
             }
         }
-
         return captchaParams;
     }
 
@@ -646,20 +702,27 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         response.addCookie(autoLoginCookie);
     }
 
-    private void validateCookieSignature(String username, JSONObject cookieValueJSON)
+    private void validateCookieSignature(String content, String signature, String alias)
             throws AuthenticationFailedException {
 
-        String signature = (String) cookieValueJSON.get(SIGNATURE);
 
-        if (StringUtils.isEmpty(username) || StringUtils.isEmpty(signature)) {
-            throw new AuthenticationFailedException("Either 'username' or 'signature' attribute is" +
-                    " missing in value of Auto Login Cookie in JSON: " + cookieValueJSON.toString());
+        if (StringUtils.isEmpty(content) || StringUtils.isEmpty(signature)) {
+            throw new AuthenticationFailedException("Either 'content' or 'signature' attribute is missing in value of" +
+                    " Auto Login Cookie.");
         }
 
         try {
-            if (!SignatureUtil.validateSignature(username, Base64.getDecoder().decode(signature))) {
+            boolean isSignatureValid;
+            if (StringUtils.isEmpty(alias)) {
+                isSignatureValid = SignatureUtil.validateSignature(content, Base64.getDecoder().decode(signature));
+            } else {
+                byte[] thumpPrint = SignatureUtil.getThumbPrintForAlias(alias);
+                isSignatureValid = SignatureUtil.validateSignature(thumpPrint, content,
+                        Base64.getDecoder().decode(signature));
+            }
+            if (!isSignatureValid) {
                 throw new AuthenticationFailedException("Signature verification failed in Auto Login Cookie " +
-                        "for user: " + username);
+                        "for user: " + content);
             }
         } catch (Exception e) {
             throw new AuthenticationFailedException("Error occurred while validating the signature for the Auto " +
@@ -667,15 +730,61 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
-    private JSONObject transformCookieValueToJSON(Cookie autoLoginCookie) throws AuthenticationFailedException {
+    private JSONObject transformToJSON(String value) throws AuthenticationFailedException {
 
         JSONParser jsonParser = new JSONParser();
-        String decodedCookieValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
         try {
-            return (JSONObject) jsonParser.parse(decodedCookieValue);
+            return (JSONObject) jsonParser.parse(value);
         } catch (ParseException e) {
             throw new AuthenticationFailedException("Error occurred while parsing the Auto Login Cookie JSON string " +
                     "to a JSON object", e);
+        }
+    }
+    private boolean isEnableAutoLoginEnabled(AuthenticationContext context, Cookie autoLoginCookie)
+            throws AuthenticationFailedException {
+
+        String flowType = resolveAutoLoginFlow(autoLoginCookie.getValue());
+        if (AutoLoginConstant.SIGNUP.equals(flowType)) {
+            return isEnableSelfRegistrationAutoLogin(context);
+        } else if (AutoLoginConstant.RECOVERY.equals(flowType)) {
+            return isEnableAutoLoginAfterPasswordReset(context);
+        }
+        return false;
+    }
+
+    private String resolveAutoLoginFlow(String cookieValue) throws AuthenticationFailedException {
+
+        String decodedValue = new String(Base64.getDecoder().decode(cookieValue));
+        JSONObject cookieValueJSON = transformToJSON(decodedValue);
+        String usernameInCookie = (String) cookieValueJSON.get(AutoLoginConstant.USERNAME);
+        if (StringUtils.isNotEmpty(usernameInCookie)) {
+            if (log.isDebugEnabled()) {
+                log.debug("Received ALOR cookie is an old format, so considering it as a recovery flow.");
+            }
+            return "RECOVERY";
+        }
+        return (String) transformToJSON((String)cookieValueJSON.get(AutoLoginConstant.CONTENT)).get(AutoLoginConstant.FLOW_TYPE);
+    }
+
+    public boolean isEnableSelfRegistrationAutoLogin(AuthenticationContext context) throws AuthenticationFailedException {
+
+        try {
+            return Boolean.parseBoolean(Utils.getConnectorConfig(AutoLoginConstant.SELF_REGISTRATION_AUTO_LOGIN,
+                    context.getTenantDomain()));
+        } catch (IdentityEventException e) {
+            throw new AuthenticationFailedException("Error occurred while resolving isEnableSelfRegistrationAutoLogin" +
+                    " property.", e);
+        }
+    }
+
+    public String getSelfRegistrationAutoLoginAlias(AuthenticationContext context) throws AuthenticationFailedException {
+
+        try {
+            return Utils.getConnectorConfig(AutoLoginConstant.SELF_REGISTRATION_AUTO_LOGIN_ALIAS_NAME,
+                    context.getTenantDomain());
+        } catch (IdentityEventException e) {
+            throw new AuthenticationFailedException("Error occurred while resolving " +
+                    AutoLoginConstant.SELF_REGISTRATION_AUTO_LOGIN_ALIAS_NAME + " property.", e);
         }
     }
 
@@ -684,7 +793,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         try {
             return Boolean.parseBoolean(
-                    Utils.getConnectorConfig(RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN,
+                    Utils.getConnectorConfig(AutoLoginConstant.RECOVERY_ADMIN_PASSWORD_RESET_AUTO_LOGIN,
                             context.getTenantDomain()));
         } catch (IdentityEventException e) {
             throw new AuthenticationFailedException("Error occurred while resolving isEnableAutoLogin property.", e);
@@ -760,7 +869,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         Optional<Cookie> targetCookie = Optional.empty();
         if (ArrayUtils.isNotEmpty(cookiesInRequest)) {
             targetCookie = Arrays.stream(cookiesInRequest)
-                    .filter(cookie -> StringUtils.equalsIgnoreCase(COOKIE_NAME, cookie.getName()))
+                    .filter(cookie -> StringUtils.equalsIgnoreCase(AutoLoginConstant.COOKIE_NAME, cookie.getName()))
                     .filter(cookie -> StringUtils.isNotEmpty(cookie.getValue()))
                     .findFirst();
         }

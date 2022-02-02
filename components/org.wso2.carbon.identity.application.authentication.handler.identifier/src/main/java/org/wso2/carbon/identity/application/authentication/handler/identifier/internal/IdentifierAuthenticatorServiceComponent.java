@@ -86,5 +86,4 @@ public class IdentifierAuthenticatorServiceComponent {
         log.debug("UnSetting the Realm Service");
         IdentifierAuthenticatorServiceComponent.realmService = null;
     }
-
 }
