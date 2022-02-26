@@ -91,6 +91,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String COOKIE_NAME = "ALOR";
     private static String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     private List<String> omittingErrorParams = null;
+    public static final String ADDITIONAL_QUERY_PARAMS = "additionalParams";
 
     /**
      * USER_EXIST_THREAD_LOCAL_PROPERTY is used to maintain the state of user existence
@@ -217,6 +218,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST.equalsIgnoreCase(inputType)) {
                 queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE +"=" + inputType;
                 context.addEndpointParam(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, usernameFromContext);
+            }
+            String additionalParams = runtimeParams.get(ADDITIONAL_QUERY_PARAMS);
+            if (StringUtils.isNotBlank(additionalParams)) {
+                queryParams += "&" + additionalParams;
             }
         }
 
