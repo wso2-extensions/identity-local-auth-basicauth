@@ -78,6 +78,9 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.PASSWORD;
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.USERNAME;
+
 /**
  * Username Password based Authenticator.
  */
@@ -113,6 +116,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                            HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException, LogoutFailedException {
 
+        if (isURLContainSensitiveData(request)) {
+            throw new AuthenticationFailedException("Request URL contains user credentials. Cannot send user " +
+                    "credentials as query parameters with the URL");
+        }
         Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
 
         if (context.isLogoutRequest()) {
@@ -929,5 +936,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             return IdentityTenantUtil.getTenantDomainFromContext();
         }
         return MultitenantUtils.getTenantDomain(username);
+    }
+
+    private boolean isURLContainSensitiveData(HttpServletRequest request) {
+
+        return (StringUtils.contains(request.getQueryString(), USERNAME) &&
+                StringUtils.contains(request.getQueryString(), PASSWORD));
     }
 }
