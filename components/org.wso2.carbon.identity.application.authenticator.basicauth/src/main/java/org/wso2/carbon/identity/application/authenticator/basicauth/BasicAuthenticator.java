@@ -938,7 +938,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private boolean isURLContainSensitiveData(HttpServletRequest request, HttpServletResponse response,
                                               AuthenticationContext context) throws AuthenticationFailedException {
 
-        if (StringUtils.contains(request.getQueryString(), BasicAuthenticatorConstants.USER_NAME) &&
+        if (StringUtils.contains(request.getQueryString(), BasicAuthenticatorConstants.USER_NAME) ||
                 StringUtils.contains(request.getQueryString(), BasicAuthenticatorConstants.PASSWORD)) {
 
             String loginPage = ConfigurationFacade.getInstance().getAuthenticationEndpointURL();
