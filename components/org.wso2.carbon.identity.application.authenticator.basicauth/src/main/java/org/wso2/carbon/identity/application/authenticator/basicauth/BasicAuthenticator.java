@@ -943,13 +943,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
             String loginPage = ConfigurationFacade.getInstance().getAuthenticationEndpointURL();
             String queryParams = context.getContextIdIncludedQueryParams();
-            String redirectURL;
-            String retryParam = "";
-            retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+            String redirectURL = loginPage + "?" + queryParams + BasicAuthenticatorConstants.AUTHENTICATORS +
+                    getName() + ":" + BasicAuthenticatorConstants.LOCAL +
+                    BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
                     BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "query.params.contains.user.credentials";
-            redirectURL = loginPage + ("?" + queryParams)
-                    + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
-                    BasicAuthenticatorConstants.LOCAL + retryParam;
             try {
                 response.sendRedirect(redirectURL);
             } catch (IOException e) {
