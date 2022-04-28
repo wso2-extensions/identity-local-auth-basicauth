@@ -78,6 +78,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+
 /**
  * Username Password based Authenticator.
  */
@@ -113,6 +114,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                            HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException, LogoutFailedException {
 
+        if (isURLContainSensitiveData(request, response, context)) {
+           return AuthenticatorFlowStatus.INCOMPLETE;
+        }
         Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
 
         if (context.isLogoutRequest()) {
@@ -930,4 +934,29 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
         return MultitenantUtils.getTenantDomain(username);
     }
+
+    private boolean isURLContainSensitiveData(HttpServletRequest request, HttpServletResponse response,
+                                              AuthenticationContext context) throws AuthenticationFailedException {
+
+        if (StringUtils.contains(request.getQueryString(), BasicAuthenticatorConstants.USER_NAME) ||
+                StringUtils.contains(request.getQueryString(), BasicAuthenticatorConstants.PASSWORD)) {
+
+            String loginPage = ConfigurationFacade.getInstance().getAuthenticationEndpointURL();
+            String queryParams = context.getContextIdIncludedQueryParams();
+            String redirectURL = loginPage + "?" + queryParams + BasicAuthenticatorConstants.AUTHENTICATORS +
+                    getName() + ":" + BasicAuthenticatorConstants.LOCAL +
+                    BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                    BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "query.params.contains.user.credentials";
+            try {
+                response.sendRedirect(redirectURL);
+            } catch (IOException e) {
+                throw new AuthenticationFailedException(ErrorMessages.SYSTEM_ERROR_WHILE_AUTHENTICATING.getCode(),
+                        e.getMessage(),
+                        User.getUserFromUserName(request.getParameter(BasicAuthenticatorConstants.USER_NAME)), e);
+            }
+            return true;
+        }
+        return false;
+    }
+
 }
