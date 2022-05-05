@@ -618,7 +618,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         // Update the username from the deprecated multi attribute login feature.
         updateMultiAttributeUsername(authenticatedUser, userStoreManager);
-
+        authenticatedUser.setAuthenticatedSubjectIdentifier(authenticatedUser.getUsernameAsSubjectIdentifier(true, true));
         context.setSubject(authenticatedUser);
 
         String rememberMe = request.getParameter("chkRemember");
