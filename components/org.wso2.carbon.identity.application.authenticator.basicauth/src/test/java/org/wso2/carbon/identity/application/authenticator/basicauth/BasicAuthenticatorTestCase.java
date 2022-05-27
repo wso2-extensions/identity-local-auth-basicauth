@@ -879,8 +879,6 @@ public class BasicAuthenticatorTestCase {
         }
     }
 
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
     @DataProvider(name = "pendingUserInformationDetailsProvider")
     public Object[][] pendingUserInformationDetailsProvider() {
 
@@ -941,8 +939,6 @@ public class BasicAuthenticatorTestCase {
                     MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD,
                     UserCoreConstants.DEFAULT_PROFILE)).thenThrow(new org.wso2.carbon.user.core.UserStoreException());
 
-//            when(IdentityUtil.getProperty(SHOW_PENDING_USER_INFORMATION_CONFIG)).thenReturn("false");
-
             identityUtil.when(() -> IdentityUtil.getProperty(SHOW_PENDING_USER_INFORMATION_CONFIG))
                     .thenReturn("false");
 
@@ -979,8 +975,6 @@ public class BasicAuthenticatorTestCase {
             }
         }
     }
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
 
     @DataProvider(name = "enableStatusProvider")
     public Object[][] getEnabledOption() {
