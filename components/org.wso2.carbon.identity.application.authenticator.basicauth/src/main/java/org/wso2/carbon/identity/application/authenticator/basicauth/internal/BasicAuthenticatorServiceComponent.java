@@ -29,6 +29,7 @@ import org.osgi.service.component.annotations.ReferencePolicy;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
+import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
@@ -132,6 +133,29 @@ public class BasicAuthenticatorServiceComponent {
     protected void unsetMultiAttributeLoginService(MultiAttributeLoginService multiAttributeLogin) {
 
         BasicAuthenticatorDataHolder.getInstance().setMultiAttributeLogin(null);
+    }
+
+    @Reference(
+            name = "resource.configuration.manager",
+            service = ConfigurationManager.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unregisterConfigurationManager"
+    )
+    protected void registerConfigurationManager(ConfigurationManager configurationManager) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Setting the configuration manager in basic authenticator bundle.");
+        }
+        BasicAuthenticatorDataHolder.getInstance().setConfigurationManager(configurationManager);
+    }
+
+    protected void unregisterConfigurationManager(ConfigurationManager configurationManager) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Unsetting the configuration manager in basic authenticator bundle.");
+        }
+        BasicAuthenticatorDataHolder.getInstance().setConfigurationManager(null);
     }
 
     /**

@@ -21,6 +21,7 @@ import org.mockito.Mockito;
 import org.osgi.service.component.ComponentContext;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
 import static org.mockito.Mockito.mock;
@@ -32,6 +33,7 @@ public class BasicAuthenticatorServiceComponentTestCase {
     private RealmService mockRealmService;
     private BasicAuthenticatorServiceComponent basicAuthenticatorServiceComponent;
     private ComponentContext mockComponentContext;
+    private ConfigurationManager mockConfigManager;
 
     @BeforeMethod
     public void init() {
@@ -67,5 +69,21 @@ public class BasicAuthenticatorServiceComponentTestCase {
         basicAuthenticatorServiceComponent.activate(componentContext);
 
         Mockito.verify(componentContext, Mockito.atLeastOnce()).getBundleContext();
+    }
+
+    @Test
+    public void registerConfigurationManager() {
+
+        mockConfigManager = mock(ConfigurationManager.class);
+        basicAuthenticatorServiceComponent.registerConfigurationManager(mockConfigManager);
+        assertNotNull(BasicAuthenticatorDataHolder.getInstance().getConfigurationManager());
+    }
+
+    @Test
+    public void unregisterConfigurationManager() {
+
+        mockConfigManager = mock(ConfigurationManager.class);
+        basicAuthenticatorServiceComponent.unregisterConfigurationManager(mockConfigManager);
+        assertNull(BasicAuthenticatorDataHolder.getInstance().getConfigurationManager());
     }
 }
