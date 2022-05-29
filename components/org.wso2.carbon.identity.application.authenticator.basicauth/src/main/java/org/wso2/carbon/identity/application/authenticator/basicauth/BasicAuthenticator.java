@@ -84,6 +84,7 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.Basic
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_TYPE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_CONFIG;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
@@ -1025,6 +1026,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
     private boolean showPendingUserInformationDefaultConfig() {
 
-        return Boolean.parseBoolean(IdentityUtil.getProperty(SHOW_PENDING_USER_INFORMATION_CONFIG));
+        String showPendingUserInformation = IdentityUtil.getProperty(SHOW_PENDING_USER_INFORMATION_CONFIG);
+        if (showPendingUserInformation == null) {
+            return SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
+        } else {
+            return Boolean.parseBoolean(showPendingUserInformation);
+        }
     }
 }
