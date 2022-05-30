@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.application.authenticator.basicauth.internal;
 
+import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 
@@ -31,10 +32,9 @@ public class BasicAuthenticatorDataHolder {
     private static BasicAuthenticatorDataHolder instance = new BasicAuthenticatorDataHolder();
 
     private IdentityGovernanceService identityGovernanceService;
-
     private MultiAttributeLoginService multiAttributeLogin;
-
     private Properties recaptchaConfigs;
+    private ConfigurationManager configurationManager = null;
 
     private BasicAuthenticatorDataHolder() {
 
@@ -68,5 +68,15 @@ public class BasicAuthenticatorDataHolder {
 
     public void setRecaptchaConfigs(Properties recaptchaConfigs) {
         this.recaptchaConfigs = recaptchaConfigs;
+    }
+
+    public void setConfigurationManager(ConfigurationManager configurationManager) {
+
+        this.configurationManager = configurationManager;
+    }
+
+    public ConfigurationManager getConfigurationManager() {
+
+        return configurationManager;
     }
 }

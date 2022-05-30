@@ -52,6 +52,9 @@ import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
+import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
+import org.wso2.carbon.identity.configuration.mgt.core.exception.ConfigurationManagementException;
+import org.wso2.carbon.identity.configuration.mgt.core.model.Attribute;
 import org.wso2.carbon.identity.core.internal.IdentityCoreServiceComponent;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
@@ -109,7 +112,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_NAME_CONFIG;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_TYPE_NAME_CONFIG;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.CONTENT;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.COOKIE_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.CREATED_TIME;
@@ -123,6 +131,10 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.util.
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.SIGNATURE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.SIGNUP;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.USERNAME;
+import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS;
+import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_FEATURE_NOT_ENABLED;
+import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
+import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS;
 
 /**
  * Unit test cases for the Basic Authenticator.
@@ -867,6 +879,102 @@ public class BasicAuthenticatorTestCase {
         }
     }
 
+    @DataProvider(name = "pendingUserInformationDetailsProvider")
+    public Object[][] pendingUserInformationDetailsProvider() {
+
+        return new Object[][] {
+                {true, ""},
+                {true, ERROR_CODE_FEATURE_NOT_ENABLED.getCode()},
+                {true, ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS.getCode()},
+                {true, ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS.getCode()},
+                {true, ERROR_CODE_RESOURCE_DOES_NOT_EXISTS.getCode()},
+                {false, ""}
+        };
+    }
+
+    @Test(dataProvider = "pendingUserInformationDetailsProvider")
+    public void processAuthenticationResponseTestCaseForUserStoreExceptionWithPendingUserInformation(
+            boolean showPendingUserInfo, String configManagementErrorCode) throws Exception {
+
+        try (MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
+             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+             MockedStatic<User> user = Mockito.mockStatic(User.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);
+             MockedStatic<PrivilegedCarbonContext> privilegedCarbonContext = Mockito.mockStatic(
+                     PrivilegedCarbonContext.class);
+             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
+                     Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
+
+            when(mockAuthnCtxt.getProperties()).thenReturn(new HashMap<>());
+            when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(null);
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_PASSWORD);
+
+            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+                    .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+
+            basicAuthenticatorService.when(BasicAuthenticatorServiceComponent::getRealmService)
+                    .thenReturn(mockRealmService);
+            mockRealm = mock(UserRealm.class);
+            when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID))
+                    .thenReturn((UserRealm) mockRealm);
+            when(mockRealmService.getTenantManager()).thenReturn(mockTenantManager);
+            when(mockTenantManager.getTenantId(anyString())).thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+            when(((UserRealm) mockRealm).getUserStoreManager()).thenReturn(mockUserStoreManager);
+
+            multitenantUtils.when(() -> MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME))
+                    .thenReturn(DUMMY_USER_NAME);
+            multitenantUtils.when(() -> MultitenantUtils.getTenantDomain(DUMMY_USER_NAME))
+                    .thenReturn(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
+
+            Map<String, Object> mockedThreadLocalMap = new HashMap<>();
+            mockedThreadLocalMap.put("user-domain-recaptcha", "someDomain");
+            IdentityUtil.threadLocalProperties.set(mockedThreadLocalMap);
+
+            frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
+                    .thenReturn(DUMMY_USER_NAME);
+            when(mockUserStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
+                    MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD,
+                    UserCoreConstants.DEFAULT_PROFILE)).thenThrow(new org.wso2.carbon.user.core.UserStoreException());
+
+            identityUtil.when(() -> IdentityUtil.getProperty(SHOW_PENDING_USER_INFORMATION_CONFIG))
+                    .thenReturn("false");
+
+            User userFromUsername = new User();
+            userFromUsername.setUserName(DUMMY_USER_NAME);
+            user.when(() -> User.getUserFromUserName(anyString())).thenReturn(userFromUsername);
+
+            privilegedCarbonContext.when(PrivilegedCarbonContext::getThreadLocalCarbonContext)
+                    .thenReturn(mockPrivilegedCarbonContext);
+            Attribute pendingUserAttribute = new Attribute(PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG,
+                    String.valueOf(showPendingUserInfo));
+            ConfigurationManager configurationManager = mock(ConfigurationManager.class);
+            if (StringUtils.isEmpty(configManagementErrorCode)) {
+                when(configurationManager.getAttribute(RESOURCE_TYPE_NAME_CONFIG, RESOURCE_NAME_CONFIG,
+                        PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG)).thenReturn(pendingUserAttribute);
+            } else {
+                when(configurationManager.getAttribute(RESOURCE_TYPE_NAME_CONFIG, RESOURCE_NAME_CONFIG,
+                        PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG)).thenThrow(
+                        new ConfigurationManagementException("", configManagementErrorCode));
+            }
+            BasicAuthenticatorDataHolder.getInstance().setConfigurationManager(configurationManager);
+
+            try {
+                basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
+            } catch (AuthenticationFailedException ex) {
+                assertNotNull(ex);
+                if (StringUtils.isNotEmpty(configManagementErrorCode)) {
+                    assertNull(ex.getUser());
+                } else if (showPendingUserInfo) {
+                    assertEquals(ex.getUser(), userFromUsername);
+                } else {
+                    assertNull(ex.getUser());
+                }
+            }
+        }
+    }
 
     @DataProvider(name = "enableStatusProvider")
     public Object[][] getEnabledOption() {

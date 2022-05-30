@@ -24,6 +24,7 @@ import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.json.simple.JSONObject;
+import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
 import org.wso2.carbon.identity.application.authentication.framework.LocalApplicationAuthenticator;
@@ -45,6 +46,7 @@ import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.captcha.connector.recaptcha.SSOLoginReCaptchaConfig;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
+import org.wso2.carbon.identity.configuration.mgt.core.exception.ConfigurationManagementException;
 import org.wso2.carbon.identity.core.ServiceURLBuilder;
 import org.wso2.carbon.identity.core.URLBuilderException;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
@@ -78,6 +80,15 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_NAME_CONFIG;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_TYPE_NAME_CONFIG;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_CONFIG;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
+import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS;
+import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS;
+import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
+import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_FEATURE_NOT_ENABLED;
 
 /**
  * Username Password based Authenticator.
@@ -591,9 +602,63 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         ((UserStoreClientException) rootCause).getErrorCode() + ":" + rootCause.getMessage());
                 IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
             }
-            throw new AuthenticationFailedException(
-                    ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
-                    User.getUserFromUserName(username), e);
+
+            boolean showPendingUserInfo = showPendingUserInformationDefaultConfig();
+            try {
+                PrivilegedCarbonContext.startTenantFlow();
+                PrivilegedCarbonContext.getThreadLocalCarbonContext().setTenantId(IdentityTenantUtil.getTenantId
+                        (requestTenantDomain));
+                PrivilegedCarbonContext.getThreadLocalCarbonContext().setTenantDomain(requestTenantDomain);
+                String tenantWiseConfig = BasicAuthenticatorDataHolder.getInstance()
+                        .getConfigurationManager().getAttribute(RESOURCE_TYPE_NAME_CONFIG, RESOURCE_NAME_CONFIG,
+                                PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG).getValue();
+                if (StringUtils.isNotBlank(tenantWiseConfig)) {
+                    showPendingUserInfo = Boolean.parseBoolean(tenantWiseConfig);
+                }
+            } catch (ConfigurationManagementException configException) {
+                if (ERROR_CODE_FEATURE_NOT_ENABLED.getCode().equals(configException.getErrorCode())) {
+                    if (log.isDebugEnabled()) {
+                        log.debug(String.format("%s Therefore using the default configuration value: %s for the " +
+                                "attribute: %s", ERROR_CODE_FEATURE_NOT_ENABLED.getMessage(), showPendingUserInfo,
+                                PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG));
+                    }
+                } else if (ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS.getCode().equals(configException.getErrorCode())) {
+                    if (log.isDebugEnabled()) {
+                        log.debug(String.format("%s attribute doesn't exist for the tenant: %s. Therefore using the " +
+                                "default configuration value: %s for the attribute: %s",
+                                PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG, requestTenantDomain,
+                                showPendingUserInfo, PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG));
+                    }
+                } else if (ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS.getCode().equals(configException.getErrorCode())) {
+                    if (log.isDebugEnabled()) {
+                        log.debug(String.format("%s resource type doesn't exist for the tenant: %s. Therefore using " +
+                                "the default configuration value: %s for the attribute: %s",
+                                RESOURCE_TYPE_NAME_CONFIG, requestTenantDomain, showPendingUserInfo,
+                                PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG));
+                    }
+                } else if (ERROR_CODE_RESOURCE_DOES_NOT_EXISTS.getCode().equals(configException.getErrorCode())) {
+                    if (log.isDebugEnabled()) {
+                        log.debug(String.format("%s resource doesn't exist for the tenant: %s. Therefore using the " +
+                                "default configuration value: %s for the attribute: %s", RESOURCE_NAME_CONFIG,
+                                requestTenantDomain, showPendingUserInfo,
+                                PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG));
+                    }
+                } else {
+                    throw new AuthenticationFailedException(String.format("Error in retrieving %s configuration for " +
+                            "the tenant %s", PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG, requestTenantDomain, e));
+                }
+            } finally {
+                PrivilegedCarbonContext.endTenantFlow();
+            }
+            if (showPendingUserInfo) {
+                throw new AuthenticationFailedException(
+                        ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
+                        User.getUserFromUserName(username), e);
+            } else {
+                throw new AuthenticationFailedException(
+                        ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
+                        e);
+            }
         } finally {
             clearUserExistThreadLocal();
         }
@@ -959,4 +1024,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         return false;
     }
 
+    private boolean showPendingUserInformationDefaultConfig() {
+
+        String showPendingUserInformation = IdentityUtil.getProperty(SHOW_PENDING_USER_INFORMATION_CONFIG);
+        if (showPendingUserInformation == null) {
+            return SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
+        } else {
+            return Boolean.parseBoolean(showPendingUserInformation);
+        }
+    }
 }
