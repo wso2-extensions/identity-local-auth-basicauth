@@ -45,6 +45,7 @@ import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
+import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.identity.organization.management.service.exception.OrganizationManagementException;
@@ -404,8 +405,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             if (StringUtils.isNotBlank(requestTenantDomain) &&
                     !MultitenantConstants.SUPER_TENANT_DOMAIN_NAME.equalsIgnoreCase(requestTenantDomain)) {
                 try {
-                    Tenant tenant = IdentifierAuthenticatorServiceComponent.getRealmService().getTenantManager()
-                            .getTenant(requestTenantDomain);
+                    int tenantId = IdentityTenantUtil.getTenantId(requestTenantDomain);
+                    Tenant tenant =
+                            (Tenant) IdentifierAuthenticatorServiceComponent.getRealmService().getTenantManager()
+                                            .getTenant(tenantId);
                     if (tenant != null && StringUtils.isNotBlank(tenant.getAssociatedOrganizationUUID())) {
                         org.wso2.carbon.user.core.common.User user =
                                 IdentifierAuthenticatorServiceComponent.getOrganizationUserResidentResolverService()
