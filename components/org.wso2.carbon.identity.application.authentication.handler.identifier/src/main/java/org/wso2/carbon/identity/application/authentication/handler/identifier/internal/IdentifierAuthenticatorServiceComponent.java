@@ -30,6 +30,7 @@ import org.osgi.service.component.annotations.ReferencePolicy;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandler;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
+import org.wso2.carbon.identity.organization.management.service.OrganizationUserResidentResolverService;
 import org.wso2.carbon.user.core.service.RealmService;
 
 @Component(
@@ -43,6 +44,7 @@ public class IdentifierAuthenticatorServiceComponent {
     private static RealmService realmService;
 
     private static MultiAttributeLoginService multiAttributeLogin;
+    private static OrganizationUserResidentResolverService organizationUserResidentResolverService;
 
     public static RealmService getRealmService() {
 
@@ -52,6 +54,11 @@ public class IdentifierAuthenticatorServiceComponent {
     public static MultiAttributeLoginService getMultiAttributeLogin() {
 
         return multiAttributeLogin;
+    }
+
+    public static OrganizationUserResidentResolverService getOrganizationUserResidentResolverService() {
+
+        return organizationUserResidentResolverService;
     }
 
     @Reference(
@@ -110,5 +117,31 @@ public class IdentifierAuthenticatorServiceComponent {
 
         IdentifierAuthenticatorServiceComponent.multiAttributeLogin = null;
 
+    }
+
+    @Reference(
+            name = "organization.user.resident.resolver.service",
+            service = OrganizationUserResidentResolverService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetOrganizationUserResidentResolverService"
+    )
+    protected void setOrganizationUserResidentResolverService(
+            OrganizationUserResidentResolverService organizationUserResidentResolverService) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Setting the organization user resident resolver service.");
+        }
+        IdentifierAuthenticatorServiceComponent.organizationUserResidentResolverService =
+                organizationUserResidentResolverService;
+    }
+
+    protected void unsetOrganizationUserResidentResolverService(
+            OrganizationUserResidentResolverService organizationUserResidentResolverService) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Unset organization user resident resolver service.");
+        }
+        IdentifierAuthenticatorServiceComponent.organizationUserResidentResolverService = null;
     }
 }
