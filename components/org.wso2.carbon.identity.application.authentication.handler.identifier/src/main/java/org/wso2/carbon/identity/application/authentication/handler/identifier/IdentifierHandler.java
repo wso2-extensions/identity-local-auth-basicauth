@@ -45,16 +45,22 @@ import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
+import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
+import org.wso2.carbon.identity.organization.management.service.exception.OrganizationManagementException;
 import org.wso2.carbon.user.api.UserRealm;
+import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
+import org.wso2.carbon.user.core.tenant.Tenant;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
+import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -391,6 +397,44 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             } else {
                 throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
                         ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
+            }
+        }
+
+        if (context.getCallerPath() != null && context.getCallerPath().startsWith("/t/")) {
+            String requestTenantDomain = context.getUserTenantDomain();
+            if (StringUtils.isNotBlank(requestTenantDomain) &&
+                    !MultitenantConstants.SUPER_TENANT_DOMAIN_NAME.equalsIgnoreCase(requestTenantDomain)) {
+                try {
+                    int tenantId = IdentityTenantUtil.getTenantId(requestTenantDomain);
+                    Tenant tenant =
+                            (Tenant) IdentifierAuthenticatorServiceComponent.getRealmService().getTenantManager()
+                                            .getTenant(tenantId);
+                    if (tenant != null && StringUtils.isNotBlank(tenant.getAssociatedOrganizationUUID())) {
+                        org.wso2.carbon.user.core.common.User user =
+                                IdentifierAuthenticatorServiceComponent.getOrganizationUserResidentResolverService()
+                                        .resolveUserFromResidentOrganization(tenantAwareUsername, null,
+                                                tenant.getAssociatedOrganizationUUID())
+                                        .orElseThrow(() -> new AuthenticationFailedException(
+                                                ErrorMessages.USER_NOT_IDENTIFIED_IN_HIERARCHY.getCode()));
+                        tenantAwareUsername = user.getUsername();
+                        username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, user.getTenantDomain());
+                        userId = user.getUserID();
+                    }
+                } catch (OrganizationManagementException e) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("IdentifierHandler failed while trying to resolving user's resident org", e);
+                    }
+                    throw new AuthenticationFailedException(
+                            ErrorMessages.ORGANIZATION_MGT_EXCEPTION_WHILE_TRYING_TO_RESOLVE_RESIDENT_ORG.getCode(),
+                            e.getMessage(), User.getUserFromUserName(username), e);
+                } catch (UserStoreException e) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("IdentifierHandler failed while trying to authenticate", e);
+                    }
+                    throw new AuthenticationFailedException(
+                            ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
+                            User.getUserFromUserName(username), e);
+                }
             }
         }
 
