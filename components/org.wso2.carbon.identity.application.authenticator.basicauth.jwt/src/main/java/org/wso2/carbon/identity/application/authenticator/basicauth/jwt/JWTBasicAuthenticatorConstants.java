@@ -26,7 +26,7 @@ public class JWTBasicAuthenticatorConstants {
 
     // Authenticator Name
     public static final String AUTHENTICATOR_NAME = "JWTBasicAuthenticator";
-    public static final String AUTHENTICATOR_FRIENDLY_NAME = "jwt-basic";
+    public static final String AUTHENTICATOR_FRIENDLY_NAME = "JWT Basic";
 
     public static final String PARAM_TOKEN = "token";
     public static final String AUTH_TOKEN = "AuthToken";
