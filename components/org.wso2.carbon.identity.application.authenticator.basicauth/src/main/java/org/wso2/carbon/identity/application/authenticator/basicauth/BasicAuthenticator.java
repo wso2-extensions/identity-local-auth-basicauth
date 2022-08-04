@@ -764,6 +764,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         if (captchaConfigs != null && !captchaConfigs.isEmpty() &&
                 Boolean.parseBoolean(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
 
+            boolean forcefullyEnabledRecaptchaForAllTenants = Boolean.parseBoolean(captchaConfigs.getProperty(
+                    CaptchaConstants.FORCEFULLY_ENABLED_RECAPTCHA_FOR_ALL_TENANTS));
             try {
                 connectorConfigs = BasicAuthenticatorDataHolder.getInstance().getIdentityGovernanceService()
                         .getConfiguration(new String[]{defaultCaptchaConfigName, RESEND_CONFIRMATION_RECAPTCHA_ENABLE,
@@ -771,7 +773,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 for (Property connectorConfig : connectorConfigs) {
                     if (defaultCaptchaConfigName.equals(connectorConfig.getName())) {
                         // SSO Login Captcha Config
-                        if (Boolean.parseBoolean(connectorConfig.getValue())) {
+                        if (Boolean.parseBoolean(connectorConfig.getValue()) ||
+                                forcefullyEnabledRecaptchaForAllTenants) {
                             captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
                         } else {
                             if (log.isDebugEnabled()) {
@@ -780,7 +783,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         }
                     } else if ((RESEND_CONFIRMATION_RECAPTCHA_ENABLE).equals(connectorConfig.getName())) {
                         // Resend Confirmation Captcha Config
-                        if (Boolean.parseBoolean(connectorConfig.getValue())) {
+                        if (Boolean.parseBoolean(connectorConfig.getValue()) ||
+                                forcefullyEnabledRecaptchaForAllTenants) {
                             captchaParams += BasicAuthenticatorConstants.RECAPTCHA_RESEND_CONFIRMATION_PARAM + "true";
                         } else {
                             if (log.isDebugEnabled()) {
