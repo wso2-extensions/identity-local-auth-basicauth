@@ -192,9 +192,9 @@
                 <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.wso2.carbon.identity.organization.management.core</groupId>
+                <groupId>org.wso2.carbon.identity.organization.management</groupId>
                 <artifactId>org.wso2.carbon.identity.organization.management.service</artifactId>
-                <version>${org.wso2.carbon.identity.organization.management.core.version}</version>
+                <version>${org.wso2.carbon.identity.organization.management.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jacoco</groupId>
@@ -388,10 +388,8 @@
         <org.wso2.securevault.import.version.range>[1.1.0, 2.0.0)</org.wso2.securevault.import.version.range>
 
         <!-- Organization management Version -->
-        <org.wso2.carbon.identity.organization.management.core.version>1.0.0
-        </org.wso2.carbon.identity.organization.management.core.version>
-        <org.wso2.carbon.identity.organization.management.core.version.range>[1.0.0, 2.0.0)
-        </org.wso2.carbon.identity.organization.management.core.version.range>
+        <org.wso2.carbon.identity.organization.management.version>1.0.48</org.wso2.carbon.identity.organization.management.version>
+        <org.wso2.carbon.identity.organization.management.version.range>[1.0.0, 2.0.0)</org.wso2.carbon.identity.organization.management.version.range>
     </properties>
 
 </project>
