@@ -72,7 +72,7 @@
             <artifactId>org.wso2.carbon.identity.application.common</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.wso2.carbon.identity.organization.management.core</groupId>
+            <groupId>org.wso2.carbon.identity.organization.management</groupId>
             <artifactId>org.wso2.carbon.identity.organization.management.service</artifactId>
         </dependency>
         <dependency>
@@ -150,8 +150,7 @@
                             org.wso2.carbon.identity.multi.attribute.login.mgt.*;
                             version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.user.core.*; version="${carbon.kernel.imp.pkg.version.range}",
-                            org.wso2.carbon.identity.organization.management.service;version="${org.wso2.carbon.identity.organization.management.core.version.range}",
-                            org.wso2.carbon.identity.organization.management.service.exception;version="${org.wso2.carbon.identity.organization.management.core.version.range}",
+                            org.wso2.carbon.identity.organization.management.service.*;version="${org.wso2.carbon.identity.organization.management.version.range}",
                         </Import-Package>
                         <Export-Package>
                             !org.wso2.carbon.identity.application.authentication.handler.identifier.internal,
