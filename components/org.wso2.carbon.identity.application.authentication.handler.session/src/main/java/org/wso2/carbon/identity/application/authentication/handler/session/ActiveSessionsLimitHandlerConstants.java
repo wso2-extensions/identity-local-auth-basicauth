@@ -24,7 +24,7 @@ package org.wso2.carbon.identity.application.authentication.handler.session;
 public abstract class ActiveSessionsLimitHandlerConstants {
 
     public static final String HANDLER_NAME = "SessionExecutor";
-    public static final String HANDLER_FRIENDLY_NAME = "Active Sessions Limit";
+    public static final String HANDLER_FRIENDLY_NAME = "active-sessions-limit-handler";
     public static final String TERMINATE_SESSIONS_ACTION = "terminateActiveSessionsAction";
     public static final String ACTIVE_SESSIONS_LIMIT_ACTION = "ActiveSessionsLimitAction";
     public static final String DENY_LOGIN_ACTION = "denyLimitActiveSessionsAction";
