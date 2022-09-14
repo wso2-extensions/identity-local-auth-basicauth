@@ -119,6 +119,9 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                     userSessions = getUserSessions(userId);
                 }
 
+                StepConfig stepConfig = getCurrentSubjectIdentifierStep(context);
+                AuthenticatedUser authenticatedUser = stepConfig.getAuthenticatedUser();
+                context.setSubject(authenticatedUser);
                 if (userSessions != null && userSessions.size() >= maxSessionCount) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     return super.process(request, response, context);
@@ -326,7 +329,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         // Find subjectIdentifier step.
         Map<Integer, StepConfig> stepConfigs = authenticationContext.getSequenceConfig().getStepMap();
         Optional<StepConfig> subjectIdentifierStep = stepConfigs.values().stream()
-                .filter(stepConfig -> (stepConfig.isCompleted() && stepConfig.isSubjectIdentifierStep())).findFirst();
+                .filter(stepConfig -> (stepConfig.isSubjectIdentifierStep())).findFirst();
         return subjectIdentifierStep.orElse(null);
     }
 }
