@@ -498,6 +498,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
+        context.setProperty("captchaParams",
+                getCaptchaParams(context.getLoginTenantDomain(), 0));
+
         String loginIdentifierFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
         if (StringUtils.isBlank(loginIdentifierFromRequest)) {
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
@@ -677,6 +680,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         username, IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN).toString());
             }
             IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
+
+            IdentityErrorMsgContext errorContext = IdentityUtil.getIdentityErrorMsg();
+            int failedLoginAttempts = errorContext == null ? 0 : errorContext.getFailedLoginAttempts();
+            context.setProperty("captchaParams",
+                    getCaptchaParams(context.getLoginTenantDomain(), failedLoginAttempts));
             throw new InvalidCredentialsException(ErrorMessages.INVALID_CREDENTIALS.getCode(),
                     ErrorMessages.INVALID_CREDENTIALS.getMessage(), User.getUserFromUserName(username));
         }
