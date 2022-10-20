@@ -683,7 +683,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
             IdentityErrorMsgContext errorContext = IdentityUtil.getIdentityErrorMsg();
             int failedLoginAttempts = errorContext == null ? 0 : errorContext.getFailedLoginAttempts();
-            context.setProperty("captchaParams",
+            context.setProperty(BasicAuthenticatorConstants.CAPTCHA_PARAMS,
                     getCaptchaParams(context.getLoginTenantDomain(), failedLoginAttempts));
             throw new InvalidCredentialsException(ErrorMessages.INVALID_CREDENTIALS.getCode(),
                     ErrorMessages.INVALID_CREDENTIALS.getMessage(), User.getUserFromUserName(username));
