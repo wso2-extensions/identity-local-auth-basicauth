@@ -498,7 +498,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        context.setProperty("captchaParams",
+        context.setProperty(BasicAuthenticatorConstants.CAPTCHA_PARAMS,
                 getCaptchaParams(context.getLoginTenantDomain(), 0));
 
         String loginIdentifierFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
@@ -584,6 +584,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (AuthenticationResult.AuthenticationStatus.SUCCESS == authenticationResult.getAuthenticationStatus()
                     && authenticationResult.getAuthenticatedUser().isPresent()) {
                 isAuthenticated = true;
+                context.removeProperty(BasicAuthenticatorConstants.CAPTCHA_PARAMS);
             }
             if (isAuthPolicyAccountExistCheck()) {
                 checkUserExistence();
