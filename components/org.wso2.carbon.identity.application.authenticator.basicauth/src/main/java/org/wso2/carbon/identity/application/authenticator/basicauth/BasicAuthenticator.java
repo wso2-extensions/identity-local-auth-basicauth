@@ -498,7 +498,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        context.setProperty(BasicAuthenticatorConstants.CAPTCHA_PARAMS,
+        String captchaParamString = getCaptchaParams(context.getLoginTenantDomain(), 0);
+        if (StringUtils.isNotBlank(captchaParamString)) {
+            context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING, captchaParamString);
+        }
+        context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING,
                 getCaptchaParams(context.getLoginTenantDomain(), 0));
 
         String loginIdentifierFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
@@ -584,7 +588,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (AuthenticationResult.AuthenticationStatus.SUCCESS == authenticationResult.getAuthenticationStatus()
                     && authenticationResult.getAuthenticatedUser().isPresent()) {
                 isAuthenticated = true;
-                context.removeProperty(BasicAuthenticatorConstants.CAPTCHA_PARAMS);
+                context.removeProperty(FrameworkConstants.CAPTCHA_PARAM_STRING);
             }
             if (isAuthPolicyAccountExistCheck()) {
                 checkUserExistence();
@@ -684,8 +688,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
             IdentityErrorMsgContext errorContext = IdentityUtil.getIdentityErrorMsg();
             int failedLoginAttempts = errorContext == null ? 0 : errorContext.getFailedLoginAttempts();
-            context.setProperty(BasicAuthenticatorConstants.CAPTCHA_PARAMS,
-                    getCaptchaParams(context.getLoginTenantDomain(), failedLoginAttempts));
+            captchaParamString = getCaptchaParams(context.getLoginTenantDomain(), failedLoginAttempts);
+            if (StringUtils.isNotBlank(captchaParamString)) {
+                context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING, captchaParamString);
+            }
             throw new InvalidCredentialsException(ErrorMessages.INVALID_CREDENTIALS.getCode(),
                     ErrorMessages.INVALID_CREDENTIALS.getMessage(), User.getUserFromUserName(username));
         }
