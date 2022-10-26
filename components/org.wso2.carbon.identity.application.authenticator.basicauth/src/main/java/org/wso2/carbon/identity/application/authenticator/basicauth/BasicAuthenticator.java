@@ -502,8 +502,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         if (StringUtils.isNotBlank(captchaParamString)) {
             context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING, captchaParamString);
         }
-        context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING,
-                getCaptchaParams(context.getLoginTenantDomain(), 0));
 
         String loginIdentifierFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
         if (StringUtils.isBlank(loginIdentifierFromRequest)) {
