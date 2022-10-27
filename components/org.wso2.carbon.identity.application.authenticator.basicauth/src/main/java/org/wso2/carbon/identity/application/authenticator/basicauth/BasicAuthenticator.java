@@ -498,6 +498,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
+        String captchaParamString = getCaptchaParams(context.getLoginTenantDomain(), 0);
+        if (StringUtils.isNotBlank(captchaParamString)) {
+            context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING, captchaParamString);
+        }
+
         String loginIdentifierFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
         if (StringUtils.isBlank(loginIdentifierFromRequest)) {
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
@@ -581,6 +586,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (AuthenticationResult.AuthenticationStatus.SUCCESS == authenticationResult.getAuthenticationStatus()
                     && authenticationResult.getAuthenticatedUser().isPresent()) {
                 isAuthenticated = true;
+                context.removeProperty(FrameworkConstants.CAPTCHA_PARAM_STRING);
             }
             if (isAuthPolicyAccountExistCheck()) {
                 checkUserExistence();
@@ -677,6 +683,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         username, IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN).toString());
             }
             IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
+
+            IdentityErrorMsgContext errorContext = IdentityUtil.getIdentityErrorMsg();
+            int failedLoginAttempts = errorContext == null ? 0 : errorContext.getFailedLoginAttempts();
+            captchaParamString = getCaptchaParams(context.getLoginTenantDomain(), failedLoginAttempts);
+            if (StringUtils.isNotBlank(captchaParamString)) {
+                context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING, captchaParamString);
+            }
             throw new InvalidCredentialsException(ErrorMessages.INVALID_CREDENTIALS.getCode(),
                     ErrorMessages.INVALID_CREDENTIALS.getMessage(), User.getUserFromUserName(username));
         }
