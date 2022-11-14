@@ -1128,29 +1128,38 @@ public class BasicAuthenticatorTestCase {
         String captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
 
         return new String[][]{
-                {"true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl + captchaParams},
-                {"true", "", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
-                {"true", "dummySiteKey", "", "dummySecret", "dummyUrl", basicUrl},
-                {"false", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", basicUrl},
+                {"true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", "true", "false", basicUrl + captchaParams},
+                {"true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", "false", "true", basicUrl},
+                {"true", "", "dummyApiUrl", "dummySecret", "dummyUrl", "true", "false", basicUrl},
+                {"true", "dummySiteKey", "", "dummySecret", "dummyUrl", "true", "false", basicUrl},
+                {"false", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl","true", "false", basicUrl},
         };
     }
 
     @Test(dataProvider = "captchaConfigData")
     public void initiateAuthenticationRequestWithCaptchaEnabled(String captchaEnable, String captchaKey, String
-            captchaApi, String captchaSecret, String captchaUrl, String expectedRedirectUrl) throws Exception {
+            captchaApi, String captchaSecret, String captchaUrl, String defaultCaptchaSSO, String captchaEnabledSSO,
+            String expectedRedirectUrl) throws Exception {
 
         try (MockedStatic<FileBasedConfigurationBuilder>
                      fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
              MockedStatic<ConfigurationFacade>
                      configurationFacade = Mockito.mockStatic(ConfigurationFacade.class)) {
 
-            Property[] captchaProperties = new Property[1];
-            Property captchaEnabled = new Property();
+            Property[] captchaProperties = new Property[2];
+            Property defaultCaptcha = new Property();
             String defaultCaptchaConfigName = "sso.login.recaptcha" +
                     CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE_ALWAYS;
-            captchaEnabled.setName(defaultCaptchaConfigName);
-            captchaEnabled.setValue("true");
-            captchaProperties[0] = captchaEnabled;
+            defaultCaptcha.setName(defaultCaptchaConfigName);
+            defaultCaptcha.setValue(defaultCaptchaSSO);
+            captchaProperties[0] = defaultCaptcha;
+
+            Property captchaEnabled = new Property();
+            String captchaEnabledConfigName = "sso.login.recaptcha" +
+                    CaptchaConstants.ReCaptchaConnectorPropertySuffixes.ENABLE;
+            captchaEnabled.setName(captchaEnabledConfigName);
+            captchaEnabled.setValue(captchaEnabledSSO);
+            captchaProperties[1] = captchaEnabled;
 
             when(mockGovernanceService.getConfiguration(any(String[].class), anyString()))
                     .thenReturn(captchaProperties);
