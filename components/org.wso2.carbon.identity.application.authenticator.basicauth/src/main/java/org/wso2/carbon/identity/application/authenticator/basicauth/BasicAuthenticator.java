@@ -103,7 +103,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String RESEND_CONFIRMATION_RECAPTCHA_ENABLE = "SelfRegistration.ResendConfirmationReCaptcha";
     private static final String APPEND_USER_TENANT_TO_USERNAME = "appendUserTenantToUsername";
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
-    private List<String> omittingErrorParams = null;
     public static final String ADDITIONAL_QUERY_PARAMS = "additionalParams";
 
     /**
@@ -203,6 +202,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String showAuthFailureReasonOnLoginPage = null;
         String maskUserNotExistsErrorCode = null;
         String maskAdminForcedPasswordResetErrorCode = null;
+        List<String> omittingErrorParams = null;
         if (parameterMap != null) {
             showAuthFailureReason = parameterMap.get(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON);
             if (log.isDebugEnabled()) {
@@ -406,7 +406,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                         BasicAuthenticatorConstants.UTF_8));
                         paramMap.put(BasicAuthenticatorConstants.REMAINING_ATTEMPTS, String.valueOf(remainingAttempts));
 
-                        retryParam = retryParam + buildErrorParamString(paramMap);
+                        retryParam = retryParam + buildErrorParamString(paramMap, omittingErrorParams);
                         redirectURL = loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam;
@@ -427,10 +427,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         if (Boolean.parseBoolean(showAuthFailureReasonOnLoginPage)) {
                             redirectURL = loginPage + ("?" + queryParams)
                                     + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
-                                    BasicAuthenticatorConstants.LOCAL + buildErrorParamString(paramMap);
+                                    BasicAuthenticatorConstants.LOCAL + buildErrorParamString(paramMap, omittingErrorParams);
                         } else {
                             redirectURL = response.encodeRedirectURL(retryPage + ("?" + queryParams))
-                                    + buildErrorParamString(paramMap);
+                                    + buildErrorParamString(paramMap, omittingErrorParams);
                         }
                     } else if (errorCode.equals(
                             IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE)) {
@@ -442,7 +442,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
                         retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
                         redirectURL = loginPage + ("?" + queryParams)
-                                + buildErrorParamString(paramMap)
+                                + buildErrorParamString(paramMap, omittingErrorParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam;
 
@@ -459,7 +459,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                     BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + URLEncoder.encode(reason,
                                     BasicAuthenticatorConstants.UTF_8);
                         }
-                        retryParam = retryParam + buildErrorParamString(paramMap);
+                        retryParam = retryParam + buildErrorParamString(paramMap, omittingErrorParams);
                         redirectURL = loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":"
                                 + BasicAuthenticatorConstants.LOCAL + retryParam;
@@ -730,16 +730,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         return BasicAuthenticatorConstants.AUTHENTICATOR_NAME;
     }
 
-    private String buildErrorParamString(Map<String, String> paramMap) {
+    private String buildErrorParamString(Map<String, String> paramMap, List<String> omittingErrorParams) {
 
         StringBuilder params = new StringBuilder();
         for (Map.Entry<String, String> entry : paramMap.entrySet()) {
-            params.append(filterAndAddParam(entry.getKey(), entry.getValue()));
+            params.append(filterAndAddParam(entry.getKey(), entry.getValue(), omittingErrorParams));
         }
         return params.toString();
     }
 
-    private String filterAndAddParam(String key, String value) {
+    private String filterAndAddParam(String key, String value, List<String> omittingErrorParams) {
 
         String keyActual = key.replaceAll("&", "").replaceAll("=", "");
         if (CollectionUtils.isNotEmpty(omittingErrorParams) && omittingErrorParams.contains(keyActual)) {
