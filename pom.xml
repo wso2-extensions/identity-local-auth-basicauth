@@ -335,7 +335,7 @@
         <!-- Identity Local Auth BasicAuth version -->
         <identity.application.auth.basicauth.exp.pkg.version>${project.version}
         </identity.application.auth.basicauth.exp.pkg.version>
-        <identity.application.auth.basicauth.imp.pkg.version.range>[6.2.0, 7.0.0)
+        <identity.application.auth.basicauth.imp.pkg.version.range>[7.0.0, 8.0.0)
         </identity.application.auth.basicauth.imp.pkg.version.range>
 
         <!-- Carbon Kernel version -->
@@ -346,12 +346,12 @@
         <carbon.base.imp.pkg.version.range>[1.0.0, 2.0.0)</carbon.base.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>5.25.21</carbon.identity.framework.version>
-        <carbon.identity.framework.imp.pkg.version.range>[5.19.14, 6.0.0)
+        <carbon.identity.framework.version>6.0.0</carbon.identity.framework.version>
+        <carbon.identity.framework.imp.pkg.version.range>[6.0.0, 7.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 
-        <identity.governance.version>1.5.89</identity.governance.version>
-        <identity.governance.imp.pkg.version.range>[1.5.89, 2.0.0)</identity.governance.imp.pkg.version.range>
+        <identity.governance.version>2.0.0</identity.governance.version>
+        <identity.governance.imp.pkg.version.range>[2.0.0, 3.0.0)</identity.governance.imp.pkg.version.range>
 
         <osgi.framework.imp.pkg.version.range>[1.7.0, 2.0.0)</osgi.framework.imp.pkg.version.range>
         <osgi.service.component.imp.pkg.version.range>[1.2.0, 2.0.0)</osgi.service.component.imp.pkg.version.range>
@@ -388,9 +388,9 @@
         <org.wso2.securevault.import.version.range>[1.1.0, 2.0.0)</org.wso2.securevault.import.version.range>
 
         <!-- Organization management Version -->
-        <org.wso2.carbon.identity.organization.management.core.version>1.0.0
+        <org.wso2.carbon.identity.organization.management.core.version>2.0.0
         </org.wso2.carbon.identity.organization.management.core.version>
-        <org.wso2.carbon.identity.organization.management.core.version.range>[1.0.0, 2.0.0)
+        <org.wso2.carbon.identity.organization.management.core.version.range>[2.0.0, 3.0.0)
         </org.wso2.carbon.identity.organization.management.core.version.range>
     </properties>
 
