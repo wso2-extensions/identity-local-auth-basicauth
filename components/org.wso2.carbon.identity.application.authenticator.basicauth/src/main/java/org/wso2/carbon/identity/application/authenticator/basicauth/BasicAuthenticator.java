@@ -34,6 +34,7 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.A
 import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticationFrameworkWrapper;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
@@ -1025,8 +1026,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private boolean isURLContainSensitiveData(HttpServletRequest request, HttpServletResponse response,
                                               AuthenticationContext context) throws AuthenticationFailedException {
 
-        if (StringUtils.contains(request.getQueryString(), BasicAuthenticatorConstants.USER_NAME) ||
-                StringUtils.contains(request.getQueryString(), BasicAuthenticatorConstants.PASSWORD)) {
+        String queryString;
+        if (request instanceof AuthenticationFrameworkWrapper) {
+            queryString = ((HttpServletRequest) ((AuthenticationFrameworkWrapper) request).getRequest())
+                    .getQueryString();
+        } else {
+            queryString = request.getQueryString();
+        }
+
+        if (StringUtils.contains(queryString, BasicAuthenticatorConstants.USER_NAME + "=") ||
+                StringUtils.contains(queryString, BasicAuthenticatorConstants.PASSWORD + "=")) {
 
             String loginPage = ConfigurationFacade.getInstance().getAuthenticationEndpointURL();
             String queryParams = context.getContextIdIncludedQueryParams();
