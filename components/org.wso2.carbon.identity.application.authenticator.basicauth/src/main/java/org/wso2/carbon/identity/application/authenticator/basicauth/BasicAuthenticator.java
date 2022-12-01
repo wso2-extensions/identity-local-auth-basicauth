@@ -103,6 +103,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
     private static final String RESEND_CONFIRMATION_RECAPTCHA_ENABLE = "SelfRegistration.ResendConfirmationReCaptcha";
     private static final String APPEND_USER_TENANT_TO_USERNAME = "appendUserTenantToUsername";
+    private static final String APPEND_APP_TENANT_TO_USERNAME = "appendAppTenantToUsername";
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     public static final String ADDITIONAL_QUERY_PARAMS = "additionalParams";
 
@@ -518,6 +519,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             String appendUserTenant = runtimeParams.get(APPEND_USER_TENANT_TO_USERNAME);
             if (Boolean.parseBoolean(appendUserTenant)) {
                 loginIdentifierFromRequest = loginIdentifierFromRequest + "@" + context.getUserTenantDomain();
+            }
+
+            /** FrameworkUtils.preprocessUsername will not append the tenant domain to username, if you are using
+             * email as username and EnableEmailUserName config is not enabled. So for a SaaS app, this config needs
+             * to be enabled to add the tenant domain of the application to email username if EnableEmailUserName
+             * is not enabled in the system.
+             **/
+            String appendAppTenant = runtimeParams.get(APPEND_APP_TENANT_TO_USERNAME);
+            if (Boolean.parseBoolean(appendAppTenant)) {
+                loginIdentifierFromRequest = loginIdentifierFromRequest + "@" + context.getTenantDomain();
             }
         }
 
