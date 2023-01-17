@@ -182,6 +182,11 @@
                 <version>${identity.governance.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.wso2.carbon.identity.governance</groupId>
+                <artifactId>org.wso2.carbon.identity.auth.attribute.handler</artifactId>
+                <version>${identity.governance.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.wso2.carbon.identity.framework</groupId>
                 <artifactId>org.wso2.carbon.identity.multi.attribute.login.mgt</artifactId>
                 <version>${carbon.identity.framework.version}</version>
@@ -350,7 +355,7 @@
         <carbon.identity.framework.imp.pkg.version.range>[5.19.14, 6.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 
-        <identity.governance.version>1.8.11</identity.governance.version>
+        <identity.governance.version>1.8.21</identity.governance.version>
         <identity.governance.imp.pkg.version.range>[1.5.89, 2.0.0)</identity.governance.imp.pkg.version.range>
 
         <osgi.framework.imp.pkg.version.range>[1.7.0, 2.0.0)</osgi.framework.imp.pkg.version.range>
