@@ -63,8 +63,8 @@ import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
-import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
-import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
+import org.wso2.carbon.identity.login.resolver.mgt.LoginResolverService;
+import org.wso2.carbon.identity.login.resolver.mgt.ResolvedUserResult;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.identity.recovery.util.Utils;
 import org.wso2.carbon.user.api.RealmConfiguration;
@@ -154,7 +154,7 @@ public class BasicAuthenticatorTestCase {
     private IdentityGovernanceService mockGovernanceService;
     private RealmConfiguration mockRealmConfiguration;
     private ConfigurationFacade mockConfigurationFacade;
-    private MultiAttributeLoginService mockMultiAttributeLoginService;
+    private LoginResolverService mockLoginResolverService;
     private ConfigurationContextService mockConfigurationContextService;
     private ConfigurationContext mockConfigurationContext;
     private AxisConfiguration mockAxisConfiguration;
@@ -200,7 +200,7 @@ public class BasicAuthenticatorTestCase {
         mockRealmConfiguration = mock(RealmConfiguration.class);
         mockConfigurationFacade = mock(ConfigurationFacade.class);
         mockTenantManager = mock(TenantManager.class);
-        mockMultiAttributeLoginService = mock(MultiAttributeLoginService.class);
+        mockLoginResolverService = mock(LoginResolverService.class);
         mockConfigurationContextService = mock(ConfigurationContextService.class);
         mockConfigurationContext = mock(ConfigurationContext.class);
         mockAxisConfiguration = mock(AxisConfiguration.class);
@@ -214,7 +214,7 @@ public class BasicAuthenticatorTestCase {
 
         when(mockGovernanceService.getConfiguration(any(String[].class), anyString())).thenReturn(captchaProperties);
         BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(mockGovernanceService);
-        BasicAuthenticatorDataHolder.getInstance().setMultiAttributeLogin(mockMultiAttributeLoginService);
+        BasicAuthenticatorDataHolder.getInstance().setLoginResolverService(mockLoginResolverService);
     }
 
     @DataProvider(name = "UsernameAndPasswordProvider")
@@ -614,7 +614,7 @@ public class BasicAuthenticatorTestCase {
             frameworkUtils.when(() -> FrameworkUtils.prependUserStoreDomainToName(userNameValue))
                     .thenReturn(DUMMY_DOMAIN + CarbonConstants.DOMAIN_SEPARATOR + userNameValue);
             frameworkUtils.when(() -> FrameworkUtils
-                    .processMultiAttributeLoginIdentification(anyString(), anyString())).thenReturn(resolvedUserResult);
+                    .processLoginResolverIdentification(anyString(), anyString())).thenReturn(resolvedUserResult);
 
             identityUtil.when(IdentityUtil::getPrimaryDomainName).thenReturn(DUMMY_DOMAIN);
             identityUtil.when(() -> IdentityUtil.addDomainToName(userNameValue + "@" + "dummyTenantDomain", domainName))

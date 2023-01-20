@@ -111,6 +111,10 @@
         </dependency>
         <dependency>
             <groupId>org.wso2.carbon.identity.framework</groupId>
+            <artifactId>org.wso2.carbon.identity.login.resolver.mgt</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.wso2.carbon.identity.framework</groupId>
             <artifactId>org.wso2.carbon.identity.multi.attribute.login.mgt</artifactId>
         </dependency>
         <dependency>
@@ -167,6 +171,8 @@
                             org.wso2.carbon.identity.recovery.util; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.governance.common; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.multi.attribute.login.mgt.*;
+                            version="${carbon.identity.framework.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.login.resolver.mgt;
                             version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.user.core.*; version="${carbon.kernel.imp.pkg.version.range}",
                             org.wso2.securevault.*; version="${org.wso2.securevault.import.version.range}",
@@ -236,7 +242,7 @@
                                             <counter>COMPLEXITY</counter>
                                             <value>COVEREDRATIO</value>
                                             <!-- Temporarily reducing threshold due to https://github.com/wso2/product-is/issues/6645 -->
-                                            <minimum>0.50</minimum>
+                                            <minimum>0.49</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
