@@ -29,6 +29,7 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandler;
+import org.wso2.carbon.identity.login.resolver.mgt.LoginResolverService;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.identity.organization.management.service.OrganizationUserResidentResolverService;
 import org.wso2.carbon.user.core.service.RealmService;
@@ -42,7 +43,7 @@ public class IdentifierAuthenticatorServiceComponent {
     private static final Log log = LogFactory.getLog(IdentifierAuthenticatorServiceComponent.class);
 
     private static RealmService realmService;
-
+    private static LoginResolverService loginResolverService;
     private static MultiAttributeLoginService multiAttributeLogin;
     private static OrganizationUserResidentResolverService organizationUserResidentResolverService;
 
@@ -51,6 +52,24 @@ public class IdentifierAuthenticatorServiceComponent {
         return realmService;
     }
 
+    /**
+     * Retrieves the login resolver service.
+     *
+     * @return The login resolver service.
+     */
+    public static LoginResolverService getLoginResolverService() {
+
+        return loginResolverService;
+    }
+
+    /**
+     * Retrieves the multi attribute login service.
+     *
+     * @return The multi attribute login service.
+     * @deprecated To generalize the resolver concept and make it extensible.
+     * Use the {@link #getLoginResolverService()} method instead.
+     */
+    @Deprecated
     public static MultiAttributeLoginService getMultiAttributeLogin() {
 
         return multiAttributeLogin;
@@ -102,6 +121,40 @@ public class IdentifierAuthenticatorServiceComponent {
         IdentifierAuthenticatorServiceComponent.realmService = null;
     }
 
+    /**
+     * Sets the login resolver service.
+     *
+     * @param loginResolverService The login resolver service to be set.
+     */
+    @Reference(
+            name = "LoginResolverService",
+            service = LoginResolverService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetLoginResolverService")
+    protected void setLoginResolverService(LoginResolverService loginResolverService) {
+
+        IdentifierAuthenticatorServiceComponent.loginResolverService = loginResolverService;
+    }
+
+    /**
+     * Unsets the login resolver service.
+     *
+     * @param loginResolverService The login resolver service to be unset.
+     */
+    protected void unsetLoginResolverService(LoginResolverService loginResolverService) {
+
+        IdentifierAuthenticatorServiceComponent.loginResolverService = null;
+    }
+
+    /**
+     * Sets the multi attribute login service.
+     *
+     * @param multiAttributeLogin The multi attribute login service to be set.
+     * @deprecated To generalize the resolver concept and make it extensible.
+     * Use the {@link #setLoginResolverService(LoginResolverService)} method instead.
+     */
+    @Deprecated
     @Reference(
             name = "MultiAttributeLoginService",
             service = MultiAttributeLoginService.class,
@@ -113,6 +166,14 @@ public class IdentifierAuthenticatorServiceComponent {
         IdentifierAuthenticatorServiceComponent.multiAttributeLogin = multiAttributeLogin;
     }
 
+    /**
+     * Unsets the multi attribute login service.
+     *
+     * @param multiAttributeLogin The multi attribute login service to be unset.
+     * @deprecated To generalize the resolver concept and make it extensible.
+     * Use the {@link #unsetLoginResolverService(LoginResolverService)} method instead.
+     */
+    @Deprecated
     protected void unsetMultiAttributeLoginService(MultiAttributeLoginService multiAttributeLogin) {
 
         IdentifierAuthenticatorServiceComponent.multiAttributeLogin = null;

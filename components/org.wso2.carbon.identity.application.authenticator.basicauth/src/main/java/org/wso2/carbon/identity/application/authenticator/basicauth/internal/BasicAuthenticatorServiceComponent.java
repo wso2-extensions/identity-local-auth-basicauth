@@ -32,6 +32,7 @@ import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
+import org.wso2.carbon.identity.login.resolver.mgt.LoginResolverService;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.securevault.SecretResolver;
@@ -119,6 +120,39 @@ public class BasicAuthenticatorServiceComponent {
         BasicAuthenticatorDataHolder.getInstance().setIdentityGovernanceService(null);
     }
 
+    /**
+     * Sets the login resolver service.
+     *
+     * @param loginResolverService The login resolver service to be set.
+     */
+    @Reference(
+            name = "LoginResolverService",
+            service = LoginResolverService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetLoginResolverService")
+    protected void setLoginResolverService(LoginResolverService loginResolverService) {
+
+        BasicAuthenticatorDataHolder.getInstance().setLoginResolverService(loginResolverService);
+    }
+
+    /**
+     * Unsets the login resolver service.
+     *
+     * @param loginResolverService The login resolver service to be unset.
+     */
+    protected void unsetLoginResolverService(LoginResolverService loginResolverService) {
+
+        BasicAuthenticatorDataHolder.getInstance().setLoginResolverService(null);
+    }
+
+    /**
+     * Sets the multi attribute login service.
+     *
+     * @param multiAttributeLogin The multi attribute login service to be set.
+     * @deprecated To generalize the resolver concept and make it extensible.
+     * Use the {@link #setLoginResolverService(LoginResolverService)} method instead.
+     */
     @Reference(
             name = "MultiAttributeLoginService",
             service = MultiAttributeLoginService.class,
@@ -130,6 +164,13 @@ public class BasicAuthenticatorServiceComponent {
         BasicAuthenticatorDataHolder.getInstance().setMultiAttributeLogin(multiAttributeLogin);
     }
 
+    /**
+     * Unsets the multi attribute login service.
+     *
+     * @param multiAttributeLogin The multi attribute login service to be unset.
+     * @deprecated To generalize the resolver concept and make it extensible.
+     * Use the {@link #unsetLoginResolverService(LoginResolverService)} method instead.
+     */
     protected void unsetMultiAttributeLoginService(MultiAttributeLoginService multiAttributeLogin) {
 
         BasicAuthenticatorDataHolder.getInstance().setMultiAttributeLogin(null);
