@@ -31,6 +31,8 @@ public abstract class IdentifierHandlerConstants {
     public static final String AUTHENTICATORS = "&authenticators=";
     public static final String LOCAL = "LOCAL";
     public static final String UTF_8 = "UTF-8";
+    public static final String IS_INVALID_USERNAME = "isInvalidUsername";
+    public static final String USERNAME_USER_INPUT = "usernameUserInput";
 
     private IdentifierHandlerConstants() {
     }
