@@ -116,7 +116,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
 
                 List<UserSession> userSessions = null;
                 if (userId != null) {
-                    userSessions = getUserSessions(userId);
+                    userSessions = getUserSessions(userId, context.getTenantDomain());
                 }
 
                 StepConfig stepConfig = getCurrentSubjectIdentifierStep(context);
@@ -174,7 +174,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                         = request.getParameterValues(ActiveSessionsLimitHandlerConstants.SESSIONS_TO_TERMINATE);
                 terminateSessions(userId, sessionIdsToTerminate);
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
-                userSessions = getUserSessions(userId);
+                userSessions = getUserSessions(userId, context.getTenantDomain());
                 if (userSessions != null && userSessions.size() >= maxSessionCount) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     throw new AuthenticationFailedException("Active session count: " + userSessions.size()
@@ -228,14 +228,13 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                 .collect(Collectors.toList());
     }
 
-    private List<UserSession> getUserSessions(String userId)
-            throws UserSessionRetrievalException {
+    private List<UserSession> getUserSessions(String userId, String tenantDomain) throws UserSessionRetrievalException {
 
         List<UserSession> userSessions;
 
         try {
             userSessions = ActiveSessionsLimitHandlerServiceHolder.getInstance()
-                    .getUserSessionManagementService().getSessionsByUserId(userId);
+                    .getUserSessionManagementService().getSessionsByUserId(userId, tenantDomain);
             if (log.isDebugEnabled()) {
                 log.debug("Retrieved " + userSessions.size() + " for userId: " + userId);
             }
