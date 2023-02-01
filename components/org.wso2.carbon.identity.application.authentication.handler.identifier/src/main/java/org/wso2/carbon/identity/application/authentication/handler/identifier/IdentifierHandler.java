@@ -71,6 +71,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.IDENTIFIER_CONSENT;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.RESTART_FLOW;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_INVALID_USERNAME;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USERNAME_USER_INPUT;
 
 /**
  * Identifier based handler.
@@ -364,6 +366,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
                     ErrorMessages.EMPTY_USERNAME.getMessage());
         }
+        context.setProperty(USERNAME_USER_INPUT, identifierFromRequest);
         if (runtimeParams != null) {
             String skipPreProcessUsername = runtimeParams.get(SKIP_IDENTIFIER_PRE_PROCESS);
             if (Boolean.parseBoolean(skipPreProcessUsername)) {
@@ -395,6 +398,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         context.getTenantDomain());
                 userId = resolvedUserResult.getUser().getUserID();
             } else {
+                context.setProperty(IS_INVALID_USERNAME, true);
                 throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
                         ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
             }

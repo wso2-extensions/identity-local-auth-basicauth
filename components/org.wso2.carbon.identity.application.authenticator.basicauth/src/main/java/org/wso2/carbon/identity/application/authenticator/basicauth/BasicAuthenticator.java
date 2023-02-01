@@ -81,11 +81,13 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.IS_INVALID_USERNAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_TYPE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USERNAME_USER_INPUT;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
@@ -510,6 +512,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
                     ErrorMessages.EMPTY_USERNAME.getMessage());
         }
+        context.setProperty(USERNAME_USER_INPUT, loginIdentifierFromRequest);
         Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
             // FrameworkUtils.preprocessUsername will not append the tenant domain to username, if you are using
@@ -550,6 +553,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, requestTenantDomain);
                 userId = resolvedUserResult.getUser().getUserID();
             } else {
+                context.setProperty(IS_INVALID_USERNAME, true);
                 throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
                         ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
             }
