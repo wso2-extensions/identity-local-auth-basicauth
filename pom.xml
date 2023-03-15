@@ -356,7 +356,7 @@
         </carbon.identity.framework.imp.pkg.version.range>
 
         <identity.governance.version>1.8.23</identity.governance.version>
-        <identity.governance.imp.pkg.version.range>[1.5.89, 2.0.0)</identity.governance.imp.pkg.version.range>
+        <identity.governance.imp.pkg.version.range>[1.5.89, 3.0.0)</identity.governance.imp.pkg.version.range>
 
         <osgi.framework.imp.pkg.version.range>[1.7.0, 2.0.0)</osgi.framework.imp.pkg.version.range>
         <osgi.service.component.imp.pkg.version.range>[1.2.0, 2.0.0)</osgi.service.component.imp.pkg.version.range>
