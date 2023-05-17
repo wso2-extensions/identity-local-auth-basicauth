@@ -389,6 +389,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         String tenantDomain = MultitenantUtils.getTenantDomain(username);
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
         String userId = null;
+        String userStoreDomain = null;
         if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
             ResolvedUserResult resolvedUserResult = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().
                     resolveUser(tenantAwareUsername, tenantDomain);
@@ -397,6 +398,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 tenantAwareUsername = resolvedUserResult.getUser().getUsername();
                 username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, tenantDomain);
                 userId = resolvedUserResult.getUser().getUserID();
+                userStoreDomain = resolvedUserResult.getUser().getUserStoreDomain();
             } else {
                 context.setProperty(IS_INVALID_USERNAME, true);
                 throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
@@ -423,6 +425,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         tenantAwareUsername = user.getUsername();
                         username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, user.getTenantDomain());
                         userId = user.getUserID();
+                        userStoreDomain = user.getUserStoreDomain();
                     }
                 } catch (OrganizationManagementException e) {
                     if (log.isDebugEnabled()) {
@@ -514,10 +517,14 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         persistUsername(context, username);
 
+        if (userStoreDomain == null) {
+            userStoreDomain = IdentityUtil.extractDomainFromName(username);
+        }
+
         AuthenticatedUser user = new AuthenticatedUser();
         user.setUserId(userId);
         user.setUserName(tenantAwareUsername);
-        user.setUserStoreDomain(UserCoreUtil.extractDomainFromName(username));
+        user.setUserStoreDomain(userStoreDomain);
         user.setTenantDomain(tenantDomain);
         context.setSubject(user);
     }
