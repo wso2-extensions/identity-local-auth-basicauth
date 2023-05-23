@@ -177,8 +177,10 @@ public class BasicAuthenticatorServiceComponent {
 
             boolean reCaptchaEnabled = Boolean.valueOf(properties.getProperty(CaptchaConstants
                     .RE_CAPTCHA_ENABLED));
+            boolean reCaptchaEnterpriseEnabled = Boolean.valueOf(properties.getProperty(CaptchaConstants
+                    .RE_CAPTCHA_ENTERPRISE_ENABLED));
 
-            if (reCaptchaEnabled) {
+            if (reCaptchaEnabled || reCaptchaEnterpriseEnabled) {
                 resolveSecrets(properties);
                 BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(properties);
             }

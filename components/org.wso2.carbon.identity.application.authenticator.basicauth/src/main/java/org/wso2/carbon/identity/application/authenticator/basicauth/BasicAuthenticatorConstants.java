@@ -45,6 +45,7 @@ public abstract class BasicAuthenticatorConstants {
     public static final String AUTH_FAILURE_PARAM = "&authFailure=";
     public static final String AUTH_FAILURE_MSG_PARAM = "&authFailureMsg=";
     public static final String RECAPTCHA_PARAM = "&reCaptcha=";
+    public static final String RECAPTCHA_ENTERPRISE_PARAM = "&reCaptchaEnterprise=";
     public static final String RECAPTCHA_RESEND_CONFIRMATION_PARAM = "&reCaptchaResend=";
     public static final String RECAPTCHA_KEY_PARAM = "&reCaptchaKey=";
     public static final String RECAPTCHA_API_PARAM = "&reCaptchaAPI=";

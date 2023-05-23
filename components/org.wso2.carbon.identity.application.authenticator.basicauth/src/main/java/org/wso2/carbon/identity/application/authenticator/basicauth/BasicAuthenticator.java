@@ -761,8 +761,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         Property[] connectorConfigs;
         Properties captchaConfigs = getCaptchaConfigs();
 
-        if (captchaConfigs != null && !captchaConfigs.isEmpty() &&
-                Boolean.parseBoolean(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
+        boolean reCaptchaEnabled = Boolean.parseBoolean(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED));
+        boolean reCaptchaEnterpriseEnabled = Boolean.parseBoolean(captchaConfigs.getProperty(
+                CaptchaConstants.RE_CAPTCHA_ENTERPRISE_ENABLED));
+
+        // In the captcha params, boolean values for reCaptcha and reCaptchaEnterprise are sent.
+        // Note : both cannot be true at the same time.
+        if (captchaConfigs != null && !captchaConfigs.isEmpty() && (reCaptchaEnabled || reCaptchaEnterpriseEnabled)) {
 
             boolean forcefullyEnabledRecaptchaForAllTenants = Boolean.parseBoolean(captchaConfigs.getProperty(
                     CaptchaConstants.FORCEFULLY_ENABLED_RECAPTCHA_FOR_ALL_TENANTS));
@@ -775,7 +780,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         // SSO Login Captcha Config
                         if (Boolean.parseBoolean(connectorConfig.getValue()) ||
                                 forcefullyEnabledRecaptchaForAllTenants) {
-                            captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
+                            captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + reCaptchaEnabled;
+                            captchaParams += BasicAuthenticatorConstants.RECAPTCHA_ENTERPRISE_PARAM +
+                                    reCaptchaEnterpriseEnabled;
                         } else {
                             if (log.isDebugEnabled()) {
                                 log.debug("Enforcing recaptcha for SSO Login is not enabled.");
@@ -825,7 +832,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             log.debug("Number of failed attempts is higher than max failed login" +
                                     "attempts before reCaptcha. Recaptcha will be enforced.");
                         }
-                        captchaParams += BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
+                        captchaParams += BasicAuthenticatorConstants.RECAPTCHA_PARAM + reCaptchaEnabled;
+                        captchaParams += BasicAuthenticatorConstants.RECAPTCHA_ENTERPRISE_PARAM +
+                                reCaptchaEnterpriseEnabled;
                     }
                 }
 
@@ -851,18 +860,33 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         Properties properties = BasicAuthenticatorDataHolder.getInstance().getRecaptchaConfigs();
 
-        if (properties != null && !properties.isEmpty() &&
-                Boolean.valueOf(properties.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
-            if (StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY)) ||
-                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_API_URL)) ||
-                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY)) ||
-                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL))) {
+        boolean reCaptchaEnabled = Boolean.parseBoolean(properties.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED));
+        boolean reCaptchaEnterpriseEnabled = Boolean.parseBoolean(properties.getProperty(CaptchaConstants
+                .RE_CAPTCHA_ENTERPRISE_ENABLED));
 
-                if (log.isDebugEnabled()) {
-                    log.debug("Empty values found for the captcha properties in the file " + CaptchaConstants
-                            .CAPTCHA_CONFIG_FILE_NAME + ".");
+        if (properties != null && !properties.isEmpty()) {
+            if (reCaptchaEnabled || reCaptchaEnterpriseEnabled) {
+                if (StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY)) ||
+                        StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_API_URL)) ||
+                        StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY)) ||
+                        StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL))) {
+
+                    if (log.isDebugEnabled()) {
+                        log.debug("Empty values found for the captcha properties in the file " + CaptchaConstants
+                                .CAPTCHA_CONFIG_FILE_NAME + ".");
+                    }
+                    properties.clear();
                 }
-                properties.clear();
+                if (reCaptchaEnterpriseEnabled) {
+                    if (StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_PROJECT_ID))) {
+
+                        if (log.isDebugEnabled()) {
+                            log.debug("Empty values found for the captcha properties in the file " + CaptchaConstants
+                                    .CAPTCHA_CONFIG_FILE_NAME + ".");
+                        }
+                        properties.clear();
+                    }
+                }
             }
         }
         return properties;
