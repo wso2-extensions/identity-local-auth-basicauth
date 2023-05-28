@@ -26,6 +26,7 @@
         <classes>
             <class name="org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorTestCase"/>
             <class name="org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponentTestCase"/>
+            <class name="org.wso2.carbon.identity.application.authenticator.basicauth.attribute.handler.BasicAuthAuthAttributeHandlerTest"/>
         </classes>
     </test>
 
@@ -34,6 +35,7 @@
         <classes>
             <class name="org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorTestCase"/>
             <class name="org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponentTestCase"/>
+            <class name="org.wso2.carbon.identity.application.authenticator.basicauth.attribute.handler.BasicAuthAuthAttributeHandlerTest"/>
         </classes>
     </test>
 </suite>

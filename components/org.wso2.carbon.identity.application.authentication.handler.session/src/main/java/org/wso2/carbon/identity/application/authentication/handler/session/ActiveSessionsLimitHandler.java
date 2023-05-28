@@ -116,9 +116,12 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
 
                 List<UserSession> userSessions = null;
                 if (userId != null) {
-                    userSessions = getUserSessions(userId);
+                    userSessions = getUserSessions(userId, context.getTenantDomain());
                 }
 
+                StepConfig stepConfig = getCurrentSubjectIdentifierStep(context);
+                AuthenticatedUser authenticatedUser = stepConfig.getAuthenticatedUser();
+                context.setSubject(authenticatedUser);
                 if (userSessions != null && userSessions.size() >= maxSessionCount) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     return super.process(request, response, context);
@@ -171,7 +174,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                         = request.getParameterValues(ActiveSessionsLimitHandlerConstants.SESSIONS_TO_TERMINATE);
                 terminateSessions(userId, sessionIdsToTerminate);
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
-                userSessions = getUserSessions(userId);
+                userSessions = getUserSessions(userId, context.getTenantDomain());
                 if (userSessions != null && userSessions.size() >= maxSessionCount) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     throw new AuthenticationFailedException("Active session count: " + userSessions.size()
@@ -225,14 +228,13 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                 .collect(Collectors.toList());
     }
 
-    private List<UserSession> getUserSessions(String userId)
-            throws UserSessionRetrievalException {
+    private List<UserSession> getUserSessions(String userId, String tenantDomain) throws UserSessionRetrievalException {
 
         List<UserSession> userSessions;
 
         try {
             userSessions = ActiveSessionsLimitHandlerServiceHolder.getInstance()
-                    .getUserSessionManagementService().getSessionsByUserId(userId);
+                    .getUserSessionManagementService().getSessionsByUserId(userId, tenantDomain);
             if (log.isDebugEnabled()) {
                 log.debug("Retrieved " + userSessions.size() + " for userId: " + userId);
             }
@@ -326,7 +328,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         // Find subjectIdentifier step.
         Map<Integer, StepConfig> stepConfigs = authenticationContext.getSequenceConfig().getStepMap();
         Optional<StepConfig> subjectIdentifierStep = stepConfigs.values().stream()
-                .filter(stepConfig -> (stepConfig.isCompleted() && stepConfig.isSubjectIdentifierStep())).findFirst();
+                .filter(stepConfig -> (stepConfig.isSubjectIdentifierStep())).findFirst();
         return subjectIdentifierStep.orElse(null);
     }
 }

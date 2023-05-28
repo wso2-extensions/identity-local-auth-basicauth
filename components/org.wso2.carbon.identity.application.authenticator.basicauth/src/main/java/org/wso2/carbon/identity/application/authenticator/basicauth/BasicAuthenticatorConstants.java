@@ -45,7 +45,7 @@ public abstract class BasicAuthenticatorConstants {
     public static final String AUTH_FAILURE_PARAM = "&authFailure=";
     public static final String AUTH_FAILURE_MSG_PARAM = "&authFailureMsg=";
     public static final String RECAPTCHA_PARAM = "&reCaptcha=";
-    public static final String RECAPTCHA_ENTERPRISE_PARAM = "&reCaptchaEnterprise=";
+    public static final String RECAPTCHA_TYPE_PARAM = "&reCaptchaType=";
     public static final String RECAPTCHA_RESEND_CONFIRMATION_PARAM = "&reCaptchaResend=";
     public static final String RECAPTCHA_KEY_PARAM = "&reCaptchaKey=";
     public static final String RECAPTCHA_API_PARAM = "&reCaptchaAPI=";
@@ -58,6 +58,8 @@ public abstract class BasicAuthenticatorConstants {
     public static final String RESOURCE_NAME_CONFIG = "user-information";
     public static final String PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG = "ShowPendingUserInformation.enable";
     public static final String SHOW_PENDING_USER_INFORMATION_CONFIG = "ShowPendingUserInformation";
+    public static final String IS_INVALID_USERNAME = "isInvalidUsername";
+    public static final String USERNAME_USER_INPUT = "usernameUserInput";
     public static final boolean SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE = true;
 
     private BasicAuthenticatorConstants() {

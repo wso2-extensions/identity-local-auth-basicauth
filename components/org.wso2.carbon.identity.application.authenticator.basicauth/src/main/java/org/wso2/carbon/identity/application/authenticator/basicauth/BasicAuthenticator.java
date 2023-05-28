@@ -34,6 +34,7 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.A
 import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticationFrameworkWrapper;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
@@ -80,11 +81,13 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.IS_INVALID_USERNAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_TYPE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USERNAME_USER_INPUT;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
@@ -102,8 +105,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
     private static final String RESEND_CONFIRMATION_RECAPTCHA_ENABLE = "SelfRegistration.ResendConfirmationReCaptcha";
     private static final String APPEND_USER_TENANT_TO_USERNAME = "appendUserTenantToUsername";
+    private static final String APPEND_APP_TENANT_TO_USERNAME = "appendAppTenantToUsername";
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
-    private List<String> omittingErrorParams = null;
     public static final String ADDITIONAL_QUERY_PARAMS = "additionalParams";
 
     /**
@@ -203,6 +206,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String showAuthFailureReasonOnLoginPage = null;
         String maskUserNotExistsErrorCode = null;
         String maskAdminForcedPasswordResetErrorCode = null;
+        List<String> omittingErrorParams = null;
         if (parameterMap != null) {
             showAuthFailureReason = parameterMap.get(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON);
             if (log.isDebugEnabled()) {
@@ -406,7 +410,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                         BasicAuthenticatorConstants.UTF_8));
                         paramMap.put(BasicAuthenticatorConstants.REMAINING_ATTEMPTS, String.valueOf(remainingAttempts));
 
-                        retryParam = retryParam + buildErrorParamString(paramMap);
+                        retryParam = retryParam + buildErrorParamString(paramMap, omittingErrorParams);
                         redirectURL = loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam;
@@ -427,10 +431,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         if (Boolean.parseBoolean(showAuthFailureReasonOnLoginPage)) {
                             redirectURL = loginPage + ("?" + queryParams)
                                     + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
-                                    BasicAuthenticatorConstants.LOCAL + buildErrorParamString(paramMap);
+                                    BasicAuthenticatorConstants.LOCAL + buildErrorParamString(paramMap, omittingErrorParams);
                         } else {
                             redirectURL = response.encodeRedirectURL(retryPage + ("?" + queryParams))
-                                    + buildErrorParamString(paramMap);
+                                    + buildErrorParamString(paramMap, omittingErrorParams);
                         }
                     } else if (errorCode.equals(
                             IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE)) {
@@ -442,7 +446,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
                         retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
                         redirectURL = loginPage + ("?" + queryParams)
-                                + buildErrorParamString(paramMap)
+                                + buildErrorParamString(paramMap, omittingErrorParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam;
 
@@ -459,7 +463,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                     BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + URLEncoder.encode(reason,
                                     BasicAuthenticatorConstants.UTF_8);
                         }
-                        retryParam = retryParam + buildErrorParamString(paramMap);
+                        retryParam = retryParam + buildErrorParamString(paramMap, omittingErrorParams);
                         redirectURL = loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":"
                                 + BasicAuthenticatorConstants.LOCAL + retryParam;
@@ -498,11 +502,17 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
+        String captchaParamString = getCaptchaParams(context.getLoginTenantDomain(), 0);
+        if (StringUtils.isNotBlank(captchaParamString)) {
+            context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING, captchaParamString);
+        }
+
         String loginIdentifierFromRequest = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
         if (StringUtils.isBlank(loginIdentifierFromRequest)) {
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
                     ErrorMessages.EMPTY_USERNAME.getMessage());
         }
+        context.setProperty(USERNAME_USER_INPUT, loginIdentifierFromRequest);
         Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
             // FrameworkUtils.preprocessUsername will not append the tenant domain to username, if you are using
@@ -512,6 +522,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             String appendUserTenant = runtimeParams.get(APPEND_USER_TENANT_TO_USERNAME);
             if (Boolean.parseBoolean(appendUserTenant)) {
                 loginIdentifierFromRequest = loginIdentifierFromRequest + "@" + context.getUserTenantDomain();
+            }
+
+            /** FrameworkUtils.preprocessUsername will not append the tenant domain to username, if you are using
+             * email as username and EnableEmailUserName config is not enabled. So for a SaaS app, this config needs
+             * to be enabled to add the tenant domain of the application to email username if EnableEmailUserName
+             * is not enabled in the system.
+             **/
+            String appendAppTenant = runtimeParams.get(APPEND_APP_TENANT_TO_USERNAME);
+            if (Boolean.parseBoolean(appendAppTenant)) {
+                loginIdentifierFromRequest = loginIdentifierFromRequest + "@" + context.getTenantDomain();
             }
         }
 
@@ -533,6 +553,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, requestTenantDomain);
                 userId = resolvedUserResult.getUser().getUserID();
             } else {
+                context.setProperty(IS_INVALID_USERNAME, true);
                 throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
                         ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
             }
@@ -581,6 +602,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (AuthenticationResult.AuthenticationStatus.SUCCESS == authenticationResult.getAuthenticationStatus()
                     && authenticationResult.getAuthenticatedUser().isPresent()) {
                 isAuthenticated = true;
+                context.removeProperty(FrameworkConstants.CAPTCHA_PARAM_STRING);
             }
             if (isAuthPolicyAccountExistCheck()) {
                 checkUserExistence();
@@ -677,6 +699,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         username, IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN).toString());
             }
             IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
+
+            IdentityErrorMsgContext errorContext = IdentityUtil.getIdentityErrorMsg();
+            int failedLoginAttempts = errorContext == null ? 0 : errorContext.getFailedLoginAttempts();
+            captchaParamString = getCaptchaParams(context.getLoginTenantDomain(), failedLoginAttempts);
+            if (StringUtils.isNotBlank(captchaParamString)) {
+                context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING, captchaParamString);
+            }
             throw new InvalidCredentialsException(ErrorMessages.INVALID_CREDENTIALS.getCode(),
                     ErrorMessages.INVALID_CREDENTIALS.getMessage(), User.getUserFromUserName(username));
         }
@@ -717,16 +746,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         return BasicAuthenticatorConstants.AUTHENTICATOR_NAME;
     }
 
-    private String buildErrorParamString(Map<String, String> paramMap) {
+    private String buildErrorParamString(Map<String, String> paramMap, List<String> omittingErrorParams) {
 
         StringBuilder params = new StringBuilder();
         for (Map.Entry<String, String> entry : paramMap.entrySet()) {
-            params.append(filterAndAddParam(entry.getKey(), entry.getValue()));
+            params.append(filterAndAddParam(entry.getKey(), entry.getValue(), omittingErrorParams));
         }
         return params.toString();
     }
 
-    private String filterAndAddParam(String key, String value) {
+    private String filterAndAddParam(String key, String value, List<String> omittingErrorParams) {
 
         String keyActual = key.replaceAll("&", "").replaceAll("=", "");
         if (CollectionUtils.isNotEmpty(omittingErrorParams) && omittingErrorParams.contains(keyActual)) {
@@ -761,14 +790,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         Property[] connectorConfigs;
         Properties captchaConfigs = getCaptchaConfigs();
 
-        boolean reCaptchaEnabled = Boolean.parseBoolean(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED));
-        boolean reCaptchaEnterpriseEnabled = Boolean.parseBoolean(captchaConfigs.getProperty(
-                CaptchaConstants.RE_CAPTCHA_ENTERPRISE_ENABLED));
+        // In the captcha params, reCaptchaEnabled and the reCaptchaType are sent.
+        if (captchaConfigs != null && !captchaConfigs.isEmpty() &&
+                Boolean.parseBoolean(captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
 
-        // In the captcha params, boolean values for reCaptcha and reCaptchaEnterprise are sent.
-        // Note : both cannot be true at the same time.
-        if (captchaConfigs != null && !captchaConfigs.isEmpty() && (reCaptchaEnabled || reCaptchaEnterpriseEnabled)) {
-
+            String reCaptchaType = captchaConfigs.getProperty(CaptchaConstants.RE_CAPTCHA_TYPE);
             boolean forcefullyEnabledRecaptchaForAllTenants = Boolean.parseBoolean(captchaConfigs.getProperty(
                     CaptchaConstants.FORCEFULLY_ENABLED_RECAPTCHA_FOR_ALL_TENANTS));
             try {
@@ -780,9 +806,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         // SSO Login Captcha Config
                         if (Boolean.parseBoolean(connectorConfig.getValue()) ||
                                 forcefullyEnabledRecaptchaForAllTenants) {
-                            captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + reCaptchaEnabled;
-                            captchaParams += BasicAuthenticatorConstants.RECAPTCHA_ENTERPRISE_PARAM +
-                                    reCaptchaEnterpriseEnabled;
+                            captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
+                            if (!StringUtils.isBlank(reCaptchaType)) {
+                                captchaParams += BasicAuthenticatorConstants.RECAPTCHA_TYPE_PARAM + reCaptchaType;
+                            }
                         } else {
                             if (log.isDebugEnabled()) {
                                 log.debug("Enforcing recaptcha for SSO Login is not enabled.");
@@ -832,9 +859,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             log.debug("Number of failed attempts is higher than max failed login" +
                                     "attempts before reCaptcha. Recaptcha will be enforced.");
                         }
-                        captchaParams += BasicAuthenticatorConstants.RECAPTCHA_PARAM + reCaptchaEnabled;
-                        captchaParams += BasicAuthenticatorConstants.RECAPTCHA_ENTERPRISE_PARAM +
-                                reCaptchaEnterpriseEnabled;
+                        captchaParams += BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
+                        if (!StringUtils.isBlank(reCaptchaType)) {
+                            captchaParams += BasicAuthenticatorConstants.RECAPTCHA_TYPE_PARAM + reCaptchaType;
+                        }
                     }
                 }
 
@@ -860,33 +888,22 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         Properties properties = BasicAuthenticatorDataHolder.getInstance().getRecaptchaConfigs();
 
-        boolean reCaptchaEnabled = Boolean.parseBoolean(properties.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED));
-        boolean reCaptchaEnterpriseEnabled = Boolean.parseBoolean(properties.getProperty(CaptchaConstants
-                .RE_CAPTCHA_ENTERPRISE_ENABLED));
+        if (properties != null && !properties.isEmpty() &&
+                Boolean.parseBoolean(properties.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
 
-        if (properties != null && !properties.isEmpty()) {
-            if (reCaptchaEnabled || reCaptchaEnterpriseEnabled) {
-                if (StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY)) ||
-                        StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_API_URL)) ||
-                        StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY)) ||
-                        StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL))) {
+            if (StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY)) ||
+                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_API_URL)) ||
+                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY)) ||
+                    StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL)) ||
+                    (properties.getProperty(CaptchaConstants.RE_CAPTCHA_TYPE).
+                            equals(CaptchaConstants.RE_CAPTCHA_TYPE_ENTERPRISE) &&
+                            StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_PROJECT_ID)))) {
 
-                    if (log.isDebugEnabled()) {
-                        log.debug("Empty values found for the captcha properties in the file " + CaptchaConstants
-                                .CAPTCHA_CONFIG_FILE_NAME + ".");
-                    }
-                    properties.clear();
+                if (log.isDebugEnabled()) {
+                    log.debug("Empty values found for the captcha properties in the file " + CaptchaConstants
+                            .CAPTCHA_CONFIG_FILE_NAME + ".");
                 }
-                if (reCaptchaEnterpriseEnabled) {
-                    if (StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_PROJECT_ID))) {
-
-                        if (log.isDebugEnabled()) {
-                            log.debug("Empty values found for the captcha properties in the file " + CaptchaConstants
-                                    .CAPTCHA_CONFIG_FILE_NAME + ".");
-                        }
-                        properties.clear();
-                    }
-                }
+                properties.clear();
             }
         }
         return properties;
@@ -1036,8 +1053,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private boolean isURLContainSensitiveData(HttpServletRequest request, HttpServletResponse response,
                                               AuthenticationContext context) throws AuthenticationFailedException {
 
-        if (StringUtils.contains(request.getQueryString(), BasicAuthenticatorConstants.USER_NAME) ||
-                StringUtils.contains(request.getQueryString(), BasicAuthenticatorConstants.PASSWORD)) {
+        String queryString;
+        if (request instanceof AuthenticationFrameworkWrapper) {
+            queryString = ((HttpServletRequest) ((AuthenticationFrameworkWrapper) request).getRequest())
+                    .getQueryString();
+        } else {
+            queryString = request.getQueryString();
+        }
+
+        if (StringUtils.contains(queryString, BasicAuthenticatorConstants.USER_NAME + "=") ||
+                StringUtils.contains(queryString, BasicAuthenticatorConstants.PASSWORD + "=")) {
 
             String loginPage = ConfigurationFacade.getInstance().getAuthenticationEndpointURL();
             String queryParams = context.getContextIdIncludedQueryParams();

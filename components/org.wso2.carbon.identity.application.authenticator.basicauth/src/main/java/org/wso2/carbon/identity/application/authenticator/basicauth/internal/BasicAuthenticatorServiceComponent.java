@@ -28,6 +28,8 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
+import org.wso2.carbon.identity.application.authenticator.basicauth.attribute.handler.BasicAuthAuthAttributeHandler;
+import org.wso2.carbon.identity.auth.attribute.handler.AuthAttributeHandler;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
@@ -81,11 +83,14 @@ public class BasicAuthenticatorServiceComponent {
         try {
             BasicAuthenticator basicAuth = new BasicAuthenticator();
             ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), basicAuth, null);
+
+            BasicAuthAuthAttributeHandler authAttributeHandler = new BasicAuthAuthAttributeHandler();
+            ctxt.getBundleContext().registerService(AuthAttributeHandler.class.getName(), authAttributeHandler, null);
             if (log.isDebugEnabled()) {
                 log.info("BasicAuthenticator bundle is activated");
             }
         } catch (Throwable e) {
-            log.error("SAMLSSO Authenticator bundle activation Failed", e);
+            log.error("BasicAuthenticator bundle activation Failed", e);
         }
     }
 
@@ -177,10 +182,8 @@ public class BasicAuthenticatorServiceComponent {
 
             boolean reCaptchaEnabled = Boolean.valueOf(properties.getProperty(CaptchaConstants
                     .RE_CAPTCHA_ENABLED));
-            boolean reCaptchaEnterpriseEnabled = Boolean.valueOf(properties.getProperty(CaptchaConstants
-                    .RE_CAPTCHA_ENTERPRISE_ENABLED));
 
-            if (reCaptchaEnabled || reCaptchaEnterpriseEnabled) {
+            if (reCaptchaEnabled) {
                 resolveSecrets(properties);
                 BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(properties);
             }

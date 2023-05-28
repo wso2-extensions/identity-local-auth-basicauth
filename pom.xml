@@ -26,7 +26,7 @@
 
     <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
     <modelVersion>4.0.0</modelVersion>
-    <version>6.5.0</version>
+    <version>6.7.15-SNAPSHOT</version>
     <artifactId>identity-application-auth-basicauth</artifactId>
     <packaging>pom</packaging>
     <name>WSO2 Carbon - BasicAuth Identity Application Authenticator Module</name>
@@ -40,7 +40,7 @@
         <developerConnection>scm:git:https://github.com/wso2-extensions/identity-local-auth-basicauth.git
         </developerConnection>
         <connection>scm:git:https://github.com/wso2-extensions/identity-local-auth-basicauth.git</connection>
-        <tag>v6.5.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <modules>
@@ -182,6 +182,11 @@
                 <version>${identity.governance.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.wso2.carbon.identity.governance</groupId>
+                <artifactId>org.wso2.carbon.identity.auth.attribute.handler</artifactId>
+                <version>${identity.governance.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.wso2.carbon.identity.framework</groupId>
                 <artifactId>org.wso2.carbon.identity.multi.attribute.login.mgt</artifactId>
                 <version>${carbon.identity.framework.version}</version>
@@ -192,9 +197,9 @@
                 <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.wso2.carbon.identity.organization.management</groupId>
+                <groupId>org.wso2.carbon.identity.organization.management.core</groupId>
                 <artifactId>org.wso2.carbon.identity.organization.management.service</artifactId>
-                <version>${org.wso2.carbon.identity.organization.management.version}</version>
+                <version>${org.wso2.carbon.identity.organization.management.core.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jacoco</groupId>
@@ -339,19 +344,19 @@
         </identity.application.auth.basicauth.imp.pkg.version.range>
 
         <!-- Carbon Kernel version -->
-        <carbon.kernel.version>4.7.0</carbon.kernel.version>
-        <carbon.kernel.feature.version>4.7.0</carbon.kernel.feature.version>
+        <carbon.kernel.version>4.9.0</carbon.kernel.version>
+        <carbon.kernel.feature.version>4.9.0</carbon.kernel.feature.version>
         <carbon.kernel.imp.pkg.version.range>[4.5.0, 5.0.0)</carbon.kernel.imp.pkg.version.range>
         <carbon.user.api.imp.pkg.version.range>[1.0.1, 2.0.0)</carbon.user.api.imp.pkg.version.range>
         <carbon.base.imp.pkg.version.range>[1.0.0, 2.0.0)</carbon.base.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>5.21.7</carbon.identity.framework.version>
-        <carbon.identity.framework.imp.pkg.version.range>[5.19.14, 6.0.0)
+        <carbon.identity.framework.version>5.25.90</carbon.identity.framework.version>
+        <carbon.identity.framework.imp.pkg.version.range>[5.19.14, 7.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 
-        <identity.governance.version>1.5.89</identity.governance.version>
-        <identity.governance.imp.pkg.version.range>[1.5.89, 2.0.0)</identity.governance.imp.pkg.version.range>
+        <identity.governance.version>1.8.23</identity.governance.version>
+        <identity.governance.imp.pkg.version.range>[1.5.89, 3.0.0)</identity.governance.imp.pkg.version.range>
 
         <osgi.framework.imp.pkg.version.range>[1.7.0, 2.0.0)</osgi.framework.imp.pkg.version.range>
         <osgi.service.component.imp.pkg.version.range>[1.2.0, 2.0.0)</osgi.service.component.imp.pkg.version.range>
@@ -388,8 +393,10 @@
         <org.wso2.securevault.import.version.range>[1.1.0, 2.0.0)</org.wso2.securevault.import.version.range>
 
         <!-- Organization management Version -->
-        <org.wso2.carbon.identity.organization.management.version>1.0.48</org.wso2.carbon.identity.organization.management.version>
-        <org.wso2.carbon.identity.organization.management.version.range>[1.0.0, 2.0.0)</org.wso2.carbon.identity.organization.management.version.range>
+        <org.wso2.carbon.identity.organization.management.core.version>1.0.0
+        </org.wso2.carbon.identity.organization.management.core.version>
+        <org.wso2.carbon.identity.organization.management.core.version.range>[1.0.0, 2.0.0)
+        </org.wso2.carbon.identity.organization.management.core.version.range>
     </properties>
 
 </project>
