@@ -52,6 +52,7 @@ import org.wso2.carbon.identity.organization.management.service.exception.Organi
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserCoreConstants;
+import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.tenant.Tenant;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
@@ -73,6 +74,8 @@ import static org.wso2.carbon.identity.application.authentication.framework.util
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.RESTART_FLOW;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_INVALID_USERNAME;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USERNAME_USER_INPUT;
+import static org.wso2.carbon.user.core.UserCoreConstants.DOMAIN_SEPARATOR;
+import static org.wso2.carbon.user.core.UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME;
 
 /**
  * Identifier based handler.
@@ -87,6 +90,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     private static final String CONTINUE = "continue";
     private static final String RESET = "reset";
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
+    private static final String VALIDATE_USERNAME_ADAPTIVE = "ValidateUsername";
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -362,6 +366,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         Map<String, String> runtimeParams = getRuntimeParams(context);
         String identifierFromRequest = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+        String validateUsernameAdaptiveParam = null;
         if (StringUtils.isBlank(identifierFromRequest)) {
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
                     ErrorMessages.EMPTY_USERNAME.getMessage());
@@ -369,6 +374,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         context.setProperty(USERNAME_USER_INPUT, identifierFromRequest);
         if (runtimeParams != null) {
             String skipPreProcessUsername = runtimeParams.get(SKIP_IDENTIFIER_PRE_PROCESS);
+            validateUsernameAdaptiveParam = runtimeParams.get(VALIDATE_USERNAME_ADAPTIVE);
             if (Boolean.parseBoolean(skipPreProcessUsername)) {
                 persistUsername(context, identifierFromRequest);
 
@@ -406,110 +412,85 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             }
         }
 
-        if (context.getCallerPath() != null && context.getCallerPath().startsWith("/t/")) {
-            String requestTenantDomain = context.getUserTenantDomain();
-            if (StringUtils.isNotBlank(requestTenantDomain) &&
-                    !MultitenantConstants.SUPER_TENANT_DOMAIN_NAME.equalsIgnoreCase(requestTenantDomain)) {
-                try {
-                    int tenantId = IdentityTenantUtil.getTenantId(requestTenantDomain);
-                    Tenant tenant =
-                            (Tenant) IdentifierAuthenticatorServiceComponent.getRealmService().getTenantManager()
-                                            .getTenant(tenantId);
-                    if (tenant != null && StringUtils.isNotBlank(tenant.getAssociatedOrganizationUUID())) {
-                        org.wso2.carbon.user.core.common.User user =
-                                IdentifierAuthenticatorServiceComponent.getOrganizationUserResidentResolverService()
-                                        .resolveUserFromResidentOrganization(tenantAwareUsername, null,
-                                                tenant.getAssociatedOrganizationUUID())
-                                        .orElseThrow(() -> new AuthenticationFailedException(
-                                                ErrorMessages.USER_NOT_IDENTIFIED_IN_HIERARCHY.getCode()));
-                        tenantAwareUsername = user.getUsername();
-                        username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, user.getTenantDomain());
-                        userId = user.getUserID();
-                        userStoreDomain = user.getUserStoreDomain();
-                    }
-                } catch (OrganizationManagementException e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("IdentifierHandler failed while trying to resolving user's resident org", e);
-                    }
-                    throw new AuthenticationFailedException(
-                            ErrorMessages.ORGANIZATION_MGT_EXCEPTION_WHILE_TRYING_TO_RESOLVE_RESIDENT_ORG.getCode(),
-                            e.getMessage(), User.getUserFromUserName(username), e);
-                } catch (UserStoreException e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("IdentifierHandler failed while trying to authenticate", e);
-                    }
-                    throw new AuthenticationFailedException(
-                            ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
-                            User.getUserFromUserName(username), e);
-                }
-            }
-        }
-
         Map<String, Object> authProperties = context.getProperties();
         if (authProperties == null) {
             authProperties = new HashMap<>();
             context.setProperties(authProperties);
         }
 
-        if (getAuthenticatorConfig().getParameterMap() != null) {
-            String validateUsername = getAuthenticatorConfig().getParameterMap().get("ValidateUsername");
-            if (Boolean.parseBoolean(validateUsername)) {
-                AbstractUserStoreManager userStoreManager;
-                // Check for the username exists.
-                try {
-                    int tenantId = IdentifierAuthenticatorServiceComponent
-                            .getRealmService().getTenantManager().getTenantId(tenantDomain);
-                    UserRealm userRealm = IdentifierAuthenticatorServiceComponent.getRealmService()
-                            .getTenantUserRealm(tenantId);
+        if (validateUsernameAdaptiveParam != null) {
+            // If the "ValidateUsername" adaptive parameter is set, it should be honoured regardless of the
+            // "ValidateUsername" authenticator config.
 
-                    if (userRealm != null) {
-                        userStoreManager = (AbstractUserStoreManager) userRealm.getUserStoreManager();
-
-                        // If the user id is already resolved from the multi attribute login, we can assume the user
-                        // exists. If not, we will try to resolve the user id, which will indicate if the user exists
-                        // or not.
-                        if (userId == null) {
-                            userId = userStoreManager.getUserIDFromUserName(tenantAwareUsername);
+            if (Boolean.parseBoolean(validateUsernameAdaptiveParam)) {
+                boolean userNameValidated = false;
+                if (context.getCallerPath() != null && context.getCallerPath().startsWith("/t/")) {
+                    String requestTenantDomain = context.getUserTenantDomain();
+                    if (StringUtils.isNotBlank(requestTenantDomain) &&
+                            !MultitenantConstants.SUPER_TENANT_DOMAIN_NAME.equalsIgnoreCase(requestTenantDomain)) {
+                        try {
+                            int tenantId = IdentityTenantUtil.getTenantId(requestTenantDomain);
+                            Tenant tenant = (Tenant) IdentifierAuthenticatorServiceComponent.getRealmService()
+                                    .getTenantManager().getTenant(tenantId);
+                            if (tenant != null && StringUtils.isNotBlank(tenant.getAssociatedOrganizationUUID())) {
+                                userNameValidated = true;
+                                org.wso2.carbon.user.core.common.User user = IdentifierAuthenticatorServiceComponent
+                                        .getOrganizationUserResidentResolverService()
+                                        .resolveUserFromResidentOrganization(tenantAwareUsername, null,
+                                                tenant.getAssociatedOrganizationUUID())
+                                        .orElseThrow(() -> new AuthenticationFailedException(
+                                                ErrorMessages.USER_NOT_IDENTIFIED_IN_HIERARCHY.getCode()));
+                                tenantAwareUsername = user.getUsername();
+                                username = UserCoreUtil.addTenantDomainToEntry(
+                                        tenantAwareUsername, user.getTenantDomain());
+                                userId = user.getUserID();
+                                userStoreDomain = user.getUserStoreDomain();
+                            }
+                        } catch (OrganizationManagementException e) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("IdentifierHandler failed while trying to resolving user's " +
+                                        "resident org.", e);
+                            }
+                            throw new AuthenticationFailedException(
+                                    ErrorMessages.ORGANIZATION_MGT_EXCEPTION_WHILE_TRYING_TO_RESOLVE_RESIDENT_ORG
+                                            .getCode(), e.getMessage(), User.getUserFromUserName(username), e);
+                        } catch (UserStoreException e) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("IdentifierHandler failed while trying to authenticate.", e);
+                            }
+                            throw new AuthenticationFailedException(
+                                    ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(),
+                                    e.getMessage(), User.getUserFromUserName(username), e);
                         }
-                    } else {
-                        throw new AuthenticationFailedException(
-                                ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getCode(), String.format(
-                                ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getMessage(), tenantId),
-                                User.getUserFromUserName(username));
                     }
-                } catch (IdentityRuntimeException e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("IdentifierHandler failed while trying to get the tenant ID of the user " +
-                                username, e);
-                    }
-                    throw new AuthenticationFailedException(ErrorMessages.INVALID_TENANT_ID_OF_THE_USER.getCode(),
-                            e.getMessage(), User.getUserFromUserName(username), e);
-                } catch (org.wso2.carbon.user.api.UserStoreException e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("IdentifierHandler failed while trying to authenticate", e);
-                    }
-                    throw new AuthenticationFailedException(
-                            ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
-                            User.getUserFromUserName(username), e);
                 }
 
-                if (userId == null) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("User does not exists");
+                // If the user is not validated against resident orgs, then try to validate in the normal path.
+                if (!userNameValidated) {
+                    String[] userDetails = validateUsername(tenantDomain, username, tenantAwareUsername,
+                            identifierFromRequest, userId);
+                    userId = userDetails[0];
+                    if (StringUtils.isNotEmpty(userDetails[1])) {
+                        userStoreDomain = userDetails[1];
                     }
-                    if (IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN) != null) {
-                        username = IdentityUtil.addDomainToName(
-                                username, IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN)
-                                        .toString());
-                    }
-                    IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
-                    throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
-                            ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
                 }
 
-                //TODO: user tenant domain has to be an attribute in the AuthenticationContext
+                // TODO: user tenant domain has to be an attribute in the AuthenticationContext.
                 authProperties.put("user-tenant-domain", tenantDomain);
             }
+        } else if (getAuthenticatorConfig().getParameterMap() != null &&
+                Boolean.parseBoolean(getAuthenticatorConfig().getParameterMap().get("ValidateUsername"))) {
+            // If the "ValidateUsername" adaptive parameter is not set, then check for the authenticator config.
+
+            String[] userDetails = validateUsername(tenantDomain, username, tenantAwareUsername,
+                    identifierFromRequest, userId);
+            userId = userDetails[0];
+            if (StringUtils.isNotEmpty(userDetails[1])) {
+                userStoreDomain = userDetails[1];
+            }
+
+            // TODO: user tenant domain has to be an attribute in the AuthenticationContext.
+            authProperties.put("user-tenant-domain", tenantDomain);
         }
 
         username = FrameworkUtils.prependUserStoreDomainToName(username);
@@ -592,5 +573,98 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         //Identifier first is the first authenticator.
         context.getPreviousAuthenticatedIdPs().clear();
         context.addAuthenticatorParams(contextParams);
+    }
+
+    /**
+     * Validate the username against the user store.
+     * If not found in the PRIMARY userstore and the username is not domain qualified,
+     * then search in secondary userstores.
+     *
+     * @param tenantDomain          Tenant domain.
+     * @param username              Username of the user.
+     * @param tenantAwareUsername   Tenant aware username.
+     * @param identifierFromRequest Identifier provided in the request.
+     * @param userId                User id if present.
+     * @return User id and user store domain (If found from secondary user stores).
+     * @throws AuthenticationFailedException If user not found or an error happens.
+     */
+    private String[] validateUsername(String tenantDomain, String username, String tenantAwareUsername,
+                                  String identifierFromRequest, String userId)
+            throws AuthenticationFailedException {
+
+        AbstractUserStoreManager userStoreManager;
+        String userStoreDomain = null;
+        // Check for the username exists.
+        try {
+            int tenantId = IdentifierAuthenticatorServiceComponent
+                    .getRealmService().getTenantManager().getTenantId(tenantDomain);
+            UserRealm userRealm = IdentifierAuthenticatorServiceComponent.getRealmService()
+                    .getTenantUserRealm(tenantId);
+
+            if (userRealm != null) {
+                userStoreManager = (AbstractUserStoreManager) userRealm.getUserStoreManager();
+
+                // If the user id is already resolved from the multi attribute login, we can assume the user
+                // exists. If not, we will try to resolve the user id, which will indicate if the user exists
+                // or not.
+                if (userId == null) {
+                    userId = userStoreManager.getUserIDFromUserName(tenantAwareUsername);
+                }
+
+                // If the userId is still not resolved and the username is not domain qualified, try to find
+                // the user from secondary user stores.
+                if (userId == null && StringUtils.equals(identifierFromRequest, tenantAwareUsername)) {
+                    UserStoreManager secondaryUserStoreManager =
+                            userStoreManager.getSecondaryUserStoreManager();
+                    while (secondaryUserStoreManager != null) {
+                        String domain = secondaryUserStoreManager.getRealmConfiguration()
+                                .getUserStoreProperties().get(PROPERTY_DOMAIN_NAME);
+                        if (userStoreManager.isExistingUser(domain + DOMAIN_SEPARATOR +
+                                tenantAwareUsername)) {
+                            userId = userStoreManager.getUserIDFromUserName(
+                                    domain + DOMAIN_SEPARATOR + tenantAwareUsername);
+                            userStoreDomain = domain;
+                            break;
+                        }
+                        secondaryUserStoreManager = secondaryUserStoreManager.getSecondaryUserStoreManager();
+                    }
+                }
+            } else {
+                throw new AuthenticationFailedException(
+                        ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getCode(), String.format(
+                        ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getMessage(), tenantId),
+                        User.getUserFromUserName(username));
+            }
+        } catch (IdentityRuntimeException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("IdentifierHandler failed while trying to get the tenant ID of the user " +
+                        username, e);
+            }
+            throw new AuthenticationFailedException(ErrorMessages.INVALID_TENANT_ID_OF_THE_USER.getCode(),
+                    e.getMessage(), User.getUserFromUserName(username), e);
+        } catch (org.wso2.carbon.user.api.UserStoreException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("IdentifierHandler failed while trying to authenticate.", e);
+            }
+            throw new AuthenticationFailedException(
+                    ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
+                    User.getUserFromUserName(username), e);
+        }
+
+        if (userId == null) {
+            if (log.isDebugEnabled()) {
+                log.debug("User does not exists.");
+            }
+            if (IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN) != null) {
+                username = IdentityUtil.addDomainToName(
+                        username, IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN)
+                                .toString());
+            }
+            IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
+            throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
+                    ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
+        }
+
+        return new String[]{userId, userStoreDomain};
     }
 }
