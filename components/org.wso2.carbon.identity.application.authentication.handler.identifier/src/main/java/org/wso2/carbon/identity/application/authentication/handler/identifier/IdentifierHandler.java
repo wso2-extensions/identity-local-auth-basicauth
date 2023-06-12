@@ -61,7 +61,6 @@ import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.io.IOException;
 import java.net.URLEncoder;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -90,7 +89,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     private static final String CONTINUE = "continue";
     private static final String RESET = "reset";
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
-    private static final String VALIDATE_USERNAME_ADAPTIVE = "ValidateUsername";
+    private static final String VALIDATE_USERNAME_ADAPTIVE_SCRIPT_PARAM = "ValidateUsername";
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -374,7 +373,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         context.setProperty(USERNAME_USER_INPUT, identifierFromRequest);
         if (runtimeParams != null) {
             String skipPreProcessUsername = runtimeParams.get(SKIP_IDENTIFIER_PRE_PROCESS);
-            validateUsernameAdaptiveParam = runtimeParams.get(VALIDATE_USERNAME_ADAPTIVE);
+            validateUsernameAdaptiveParam = runtimeParams.get(VALIDATE_USERNAME_ADAPTIVE_SCRIPT_PARAM);
             if (Boolean.parseBoolean(skipPreProcessUsername)) {
                 persistUsername(context, identifierFromRequest);
 
@@ -418,12 +417,15 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             context.setProperties(authProperties);
         }
 
-        if (validateUsernameAdaptiveParam != null) {
-            // If the "ValidateUsername" adaptive parameter is set, it should be honoured regardless of the
-            // "ValidateUsername" authenticator config.
-
+        /*
+          If the "ValidateUsername" adaptive parameter is null, the "ValidateUsername" authenticator config
+          should be considered. Therefore, we need to have the null check to have that distinction.
+          If the "ValidateUsername" adaptive parameter is set, it should be honoured regardless of the
+          authenticator config.
+         */
+        if (StringUtils.isNotBlank(validateUsernameAdaptiveParam)) {
             if (Boolean.parseBoolean(validateUsernameAdaptiveParam)) {
-                boolean userNameValidated = false;
+                boolean isUsernameValidationRequired = false;
                 if (context.getCallerPath() != null && context.getCallerPath().startsWith("/t/")) {
                     String requestTenantDomain = context.getUserTenantDomain();
                     if (StringUtils.isNotBlank(requestTenantDomain) &&
@@ -433,7 +435,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                             Tenant tenant = (Tenant) IdentifierAuthenticatorServiceComponent.getRealmService()
                                     .getTenantManager().getTenant(tenantId);
                             if (tenant != null && StringUtils.isNotBlank(tenant.getAssociatedOrganizationUUID())) {
-                                userNameValidated = true;
+                                isUsernameValidationRequired = true;
                                 org.wso2.carbon.user.core.common.User user = IdentifierAuthenticatorServiceComponent
                                         .getOrganizationUserResidentResolverService()
                                         .resolveUserFromResidentOrganization(tenantAwareUsername, null,
@@ -466,7 +468,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 }
 
                 // If the user is not validated against resident orgs, then try to validate in the normal path.
-                if (!userNameValidated) {
+                if (!isUsernameValidationRequired) {
                     String[] userDetails = validateUsername(tenantDomain, username, tenantAwareUsername,
                             identifierFromRequest, userId);
                     userId = userDetails[0];
