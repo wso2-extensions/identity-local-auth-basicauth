@@ -889,15 +889,15 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         Properties properties = BasicAuthenticatorDataHolder.getInstance().getRecaptchaConfigs();
 
         if (properties != null && !properties.isEmpty() &&
-                Boolean.parseBoolean(properties.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
+                Boolean.valueOf(properties.getProperty(CaptchaConstants.RE_CAPTCHA_ENABLED))) {
 
             if (StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SITE_KEY)) ||
                     StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_API_URL)) ||
                     StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY)) ||
                     StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL)) ||
-                    (properties.getProperty(CaptchaConstants.RE_CAPTCHA_TYPE).
-                            equals(CaptchaConstants.RE_CAPTCHA_TYPE_ENTERPRISE) &&
-                            StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_PROJECT_ID)))) {
+                    (CaptchaConstants.RE_CAPTCHA_TYPE_ENTERPRISE).equals(properties.getProperty(
+                            CaptchaConstants.RE_CAPTCHA_TYPE)) &&
+                            StringUtils.isBlank(properties.getProperty(CaptchaConstants.RE_CAPTCHA_PROJECT_ID))) {
 
                 if (log.isDebugEnabled()) {
                     log.debug("Empty values found for the captcha properties in the file " + CaptchaConstants
