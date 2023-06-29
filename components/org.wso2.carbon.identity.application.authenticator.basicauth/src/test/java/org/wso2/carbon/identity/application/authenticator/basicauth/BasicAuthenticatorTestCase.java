@@ -1119,6 +1119,8 @@ public class BasicAuthenticatorTestCase {
     @DataProvider(name = "captchaConfigData")
     public Object[][] getCaptchaConfig() {
 
+        String reCaptchaEnterprise = CaptchaConstants.RE_CAPTCHA_TYPE_ENTERPRISE;
+
         String basicUrl = DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + BasicAuthenticatorConstants
                 .AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":" +
                 BasicAuthenticatorConstants.LOCAL +
@@ -1126,20 +1128,47 @@ public class BasicAuthenticatorTestCase {
                 BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "user.tenant.domain.mismatch.message";
 
         String captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
+        String reCaptchaTypeParams = BasicAuthenticatorConstants.RECAPTCHA_TYPE_PARAM;
 
         return new String[][]{
-                {"true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", "true", "false", basicUrl + captchaParams},
-                {"true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", "false", "true", basicUrl},
-                {"true", "", "dummyApiUrl", "dummySecret", "dummyUrl", "true", "false", basicUrl},
-                {"true", "dummySiteKey", "", "dummySecret", "dummyUrl", "true", "false", basicUrl},
-                {"false", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl","true", "false", basicUrl},
+                // Input type :
+                // {reCaptchaType, defaultCaptchaSSO, captchaEnabledSSO, expectedRedirectUrl, captchaEnable, projectID,
+                // captchaKey, captchaApi, captchaSecret, captchaUrl }
+                {"", "true", "false", basicUrl + captchaParams,
+                        "true", null, "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl"},
+                {reCaptchaEnterprise, "true", "false", basicUrl + captchaParams + reCaptchaTypeParams +
+                        reCaptchaEnterprise, "true", "dummyProjectId", "dummySiteKey", "dummyApiUrl",
+                        "dummySecret", "dummyUrl"},
+                {"", "true", "false", basicUrl + captchaParams, "true", null,
+                        "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl"},
+                {"", "true", "false", basicUrl + captchaParams, "true",
+                        "dummyProjectId", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl"},
+                {"", "false", "true", basicUrl, "true", null, "dummySiteKey", "dummyApiUrl",
+                        "dummySecret", "dummyUrl"},
+                {reCaptchaEnterprise, "false", "true", basicUrl, "true", "dummyProjectId", "dummySiteKey",
+                        "dummyApiUrl", "dummySecret", "dummyUrl"},
+                {"","true", "false", basicUrl, "true", null, "", "dummyApiUrl", "dummySecret", "dummyUrl"},
+                {reCaptchaEnterprise, "true", "false", basicUrl, "true", "dummyProjectId", "", "dummyApiUrl",
+                        "dummySecret", "dummyUrl"},
+                {"", "true", "false", basicUrl, "true", null, "dummySiteKey", "", "dummySecret", "dummyUrl"},
+                {reCaptchaEnterprise, "true", "false", basicUrl, "true", "dummyProjectId", "dummySiteKey", "",
+                        "dummySecret", "dummyUrl"},
+                {reCaptchaEnterprise, "true", "false", basicUrl, "false", "", "dummySiteKey", "dummyApiUrl",
+                        "dummySecret", "dummyUrl"},
+                {"", "true", "false", basicUrl, "false", null, "dummySiteKey",
+                        "dummyApiUrl", "dummySecret", "dummyUrl"},
+                {reCaptchaEnterprise, "true", "false", basicUrl, "false", "dummyProjectId", "dummySiteKey",
+                        "dummyApiUrl", "dummySecret", "dummyUrl"},
         };
     }
 
     @Test(dataProvider = "captchaConfigData")
-    public void initiateAuthenticationRequestWithCaptchaEnabled(String captchaEnable, String captchaKey, String
-            captchaApi, String captchaSecret, String captchaUrl, String defaultCaptchaSSO, String captchaEnabledSSO,
-            String expectedRedirectUrl) throws Exception {
+    public void initiateAuthenticationRequestWithCaptchaEnabled(String reCaptchaType, String defaultCaptchaSSO,
+                                                                String captchaEnabledSSO, String expectedRedirectUrl,
+                                                                String captchaEnable, String projectID,
+                                                                String captchaKey, String captchaApi,
+                                                                String captchaSecret,
+                                                                String captchaUrl) throws Exception {
 
         try (MockedStatic<FileBasedConfigurationBuilder>
                      fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
@@ -1169,6 +1198,11 @@ public class BasicAuthenticatorTestCase {
             properties.setProperty(CaptchaConstants.RE_CAPTCHA_API_URL, captchaApi);
             properties.setProperty(CaptchaConstants.RE_CAPTCHA_SECRET_KEY, captchaSecret);
             properties.setProperty(CaptchaConstants.RE_CAPTCHA_VERIFY_URL, captchaUrl);
+            properties.setProperty(CaptchaConstants.RE_CAPTCHA_TYPE, reCaptchaType);
+
+            if (CaptchaConstants.RE_CAPTCHA_TYPE_ENTERPRISE.equals(reCaptchaType)) {
+                properties.setProperty(CaptchaConstants.RE_CAPTCHA_PROJECT_ID, projectID);
+            }
 
             BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(properties);
 
