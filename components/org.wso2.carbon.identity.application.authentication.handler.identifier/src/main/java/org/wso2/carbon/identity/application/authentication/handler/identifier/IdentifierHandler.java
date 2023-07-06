@@ -591,7 +591,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
      * @throws AuthenticationFailedException If user not found or an error happens.
      */
     private String[] validateUsername(String tenantDomain, String username, String tenantAwareUsername,
-                                  String identifierFromRequest, String userId)
+                                      String identifierFromRequest, String userId)
             throws AuthenticationFailedException {
 
         AbstractUserStoreManager userStoreManager;
@@ -603,39 +603,38 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             UserRealm userRealm = IdentifierAuthenticatorServiceComponent.getRealmService()
                     .getTenantUserRealm(tenantId);
 
-            if (userRealm != null) {
-                userStoreManager = (AbstractUserStoreManager) userRealm.getUserStoreManager();
-
-                // If the user id is already resolved from the multi attribute login, we can assume the user
-                // exists. If not, we will try to resolve the user id, which will indicate if the user exists
-                // or not.
-                if (userId == null) {
-                    userId = userStoreManager.getUserIDFromUserName(tenantAwareUsername);
-                }
-
-                // If the userId is still not resolved and the username is not domain qualified, try to find
-                // the user from secondary user stores.
-                if (userId == null && StringUtils.equals(identifierFromRequest, tenantAwareUsername)) {
-                    UserStoreManager secondaryUserStoreManager =
-                            userStoreManager.getSecondaryUserStoreManager();
-                    while (secondaryUserStoreManager != null) {
-                        String domain = secondaryUserStoreManager.getRealmConfiguration()
-                                .getUserStoreProperties().get(PROPERTY_DOMAIN_NAME);
-                        if (userStoreManager.isExistingUser(domain + DOMAIN_SEPARATOR +
-                                tenantAwareUsername)) {
-                            userId = userStoreManager.getUserIDFromUserName(
-                                    domain + DOMAIN_SEPARATOR + tenantAwareUsername);
-                            userStoreDomain = domain;
-                            break;
-                        }
-                        secondaryUserStoreManager = secondaryUserStoreManager.getSecondaryUserStoreManager();
-                    }
-                }
-            } else {
+            if (userRealm == null) {
                 throw new AuthenticationFailedException(
                         ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getCode(), String.format(
                         ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT.getMessage(), tenantId),
                         User.getUserFromUserName(username));
+            }
+
+            userStoreManager = (AbstractUserStoreManager) userRealm.getUserStoreManager();
+
+            // If the user id is already resolved from the multi attribute login, we can assume the user
+            // exists. If not, we will try to resolve the user id, which will indicate if the user exists
+            // or not.
+            if (userId == null) {
+                userId = userStoreManager.getUserIDFromUserName(tenantAwareUsername);
+            }
+
+            // If the userId is still not resolved and the username is not domain qualified, try to find
+            // the user from secondary user stores.
+            if (userId == null && StringUtils.equals(identifierFromRequest, tenantAwareUsername)) {
+                UserStoreManager secondaryUserStoreManager = userStoreManager.getSecondaryUserStoreManager();
+                while (secondaryUserStoreManager != null) {
+                    String domain = secondaryUserStoreManager.getRealmConfiguration()
+                            .getUserStoreProperties().get(PROPERTY_DOMAIN_NAME);
+                    if (userStoreManager.isExistingUser(domain + DOMAIN_SEPARATOR +
+                            tenantAwareUsername)) {
+                        userId = userStoreManager.getUserIDFromUserName(
+                                domain + DOMAIN_SEPARATOR + tenantAwareUsername);
+                        userStoreDomain = domain;
+                        break;
+                    }
+                    secondaryUserStoreManager = secondaryUserStoreManager.getSecondaryUserStoreManager();
+                }
             }
         } catch (IdentityRuntimeException e) {
             if (log.isDebugEnabled()) {
