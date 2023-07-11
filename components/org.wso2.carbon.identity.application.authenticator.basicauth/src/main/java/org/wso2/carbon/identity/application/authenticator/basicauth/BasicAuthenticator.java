@@ -129,9 +129,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                            HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException, LogoutFailedException {
 
-        if (isURLContainSensitiveData(request, response, context)) {
-           return AuthenticatorFlowStatus.INCOMPLETE;
-        }
+//        if (isURLContainSensitiveData(request, response, context)) {
+//           return AuthenticatorFlowStatus.INCOMPLETE;
+//        }
         Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
 
         if (context.isLogoutRequest()) {
@@ -262,6 +262,20 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE + "=" + inputType;
                 context.addEndpointParam(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, usernameFromContext);
             }
+            String additionalParams = runtimeParams.get(ADDITIONAL_QUERY_PARAMS);
+            if (StringUtils.isNotBlank(additionalParams)) {
+                queryParams += "&" + additionalParams;
+            }
+        }
+
+        String loginHint = request.getParameter(BasicAuthenticatorConstants.LOGIN_HINT);
+
+        if (StringUtils.isNotBlank(loginHint)) {
+            String inputType = FrameworkConstants.INPUT_TYPE_LOGIN_HINT;
+            if (StringUtils.isNotBlank(inputType)) {
+                queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE + "=" + inputType;
+            }
+            context.addEndpointParam(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, loginHint);
             String additionalParams = runtimeParams.get(ADDITIONAL_QUERY_PARAMS);
             if (StringUtils.isNotBlank(additionalParams)) {
                 queryParams += "&" + additionalParams;
