@@ -129,9 +129,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                            HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException, LogoutFailedException {
 
-//        if (isURLContainSensitiveData(request, response, context)) {
-//           return AuthenticatorFlowStatus.INCOMPLETE;
-//        }
+        if (isURLContainSensitiveData(request, response, context)) {
+           return AuthenticatorFlowStatus.INCOMPLETE;
+        }
         Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
 
         if (context.isLogoutRequest()) {
