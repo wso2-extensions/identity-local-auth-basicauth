@@ -49,6 +49,10 @@
             <artifactId>org.wso2.carbon.core</artifactId>
         </dependency>
         <dependency>
+            <artifactId>org.wso2.carbon.identity.central.log.mgt</artifactId>
+            <groupId>org.wso2.carbon.identity.framework</groupId>
+        </dependency>
+        <dependency>
             <groupId>org.ops4j.pax.logging</groupId>
             <artifactId>pax-logging-api</artifactId>
         </dependency>
@@ -157,6 +161,7 @@
                             org.wso2.carbon.identity.core.util;version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.core;version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.event;version="${carbon.identity.framework.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.central.log.mgt.utils;version="${carbon.identity.framework.imp.pkg.version.range}",
 
                             org.wso2.carbon.user.api; version="${carbon.user.api.imp.pkg.version.range}",
 
@@ -164,6 +169,7 @@
                             org.wso2.carbon.user.core.service; version="${carbon.kernel.imp.pkg.version.range}",
                             org.wso2.carbon.user.core.util; version="${carbon.kernel.imp.pkg.version.range}",
                             org.wso2.carbon.utils.multitenancy; version="${carbon.kernel.imp.pkg.version.range}",
+                            org.wso2.carbon.utils; version="${carbon.kernel.imp.pkg.version.range}",
                             org.wso2.carbon.identity.captcha.connector.recaptcha; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.captcha.util; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.governance; version="${identity.governance.imp.pkg.version.range}",

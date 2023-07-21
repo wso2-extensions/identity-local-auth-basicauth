@@ -61,6 +61,23 @@ public abstract class BasicAuthenticatorConstants {
     public static final String USERNAME_USER_INPUT = "usernameUserInput";
     public static final boolean SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE = true;
 
+    /**
+     * Constants related to log management.
+     */
+    public static class LogConstants {
+
+        public static final String BASIC_AUTH_SERVICE = "local-auth-basicauth";
+
+        /**
+         * Define action IDs for diagnostic logs.
+         */
+        public static class ActionIDs {
+
+            public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-authn-response";
+            public static final String VALIDATE_BASIC_AUTH_REQUEST = "validate-basic-auth-request";
+        }
+    }
+
     private BasicAuthenticatorConstants() {
     }
 }
