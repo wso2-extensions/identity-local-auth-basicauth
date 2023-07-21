@@ -26,7 +26,7 @@
 
     <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
     <modelVersion>4.0.0</modelVersion>
-    <version>6.7.18-SNAPSHOT</version>
+    <version>6.7.19-SNAPSHOT</version>
     <artifactId>identity-application-auth-basicauth</artifactId>
     <packaging>pom</packaging>
     <name>WSO2 Carbon - BasicAuth Identity Application Authenticator Module</name>
@@ -356,7 +356,7 @@
         <carbon.base.imp.pkg.version.range>[1.0.0, 2.0.0)</carbon.base.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>5.25.247</carbon.identity.framework.version>
+        <carbon.identity.framework.version>5.25.250</carbon.identity.framework.version>
         <carbon.identity.framework.imp.pkg.version.range>[5.19.14, 7.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 

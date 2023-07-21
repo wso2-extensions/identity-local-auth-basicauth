@@ -296,6 +296,18 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
         }
 
+        String loginHint = request.getParameter(BasicAuthenticatorConstants.LOGIN_HINT);
+
+        if (StringUtils.isNotBlank(loginHint)) {
+            String inputType = FrameworkConstants.INPUT_TYPE_LOGIN_HINT;
+            queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE + "=" + inputType;
+            context.addEndpointParam(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, loginHint);
+            String additionalParams = runtimeParams.get(ADDITIONAL_QUERY_PARAMS);
+            if (StringUtils.isNotBlank(additionalParams)) {
+                queryParams += "&" + additionalParams;
+            }
+        }
+
         try {
             String retryParam = "";
 
