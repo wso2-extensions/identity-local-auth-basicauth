@@ -396,17 +396,6 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         String userId = null;
         String userStoreDomain = null;
 
-        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
-            ResolvedUserResult resolvedUserResult = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().
-                    resolveUser(tenantAwareUsername, tenantDomain);
-            if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
-                    equals(resolvedUserResult.getResolvedStatus())) {
-                tenantAwareUsername = resolvedUserResult.getUser().getUsername();
-                username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, tenantDomain);
-                userId = resolvedUserResult.getUser().getUserID();
-                userStoreDomain = resolvedUserResult.getUser().getUserStoreDomain();
-            }
-        }
         Map<String, Object> authProperties = context.getProperties();
         if (authProperties == null) {
             authProperties = new HashMap<>();
@@ -479,6 +468,23 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         } else if (getAuthenticatorConfig().getParameterMap() != null &&
                 Boolean.parseBoolean(getAuthenticatorConfig().getParameterMap().get("ValidateUsername"))) {
             // If the "ValidateUsername" adaptive parameter is not set, then check for the authenticator config.
+
+            // Validate the user when multi attribute login is enabled.
+            if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
+                ResolvedUserResult resolvedUserResult = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().
+                        resolveUser(tenantAwareUsername, tenantDomain);
+                if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                        equals(resolvedUserResult.getResolvedStatus())) {
+                    tenantAwareUsername = resolvedUserResult.getUser().getUsername();
+                    username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, tenantDomain);
+                    userId = resolvedUserResult.getUser().getUserID();
+                    userStoreDomain = resolvedUserResult.getUser().getUserStoreDomain();
+                } else {
+                    context.setProperty(IS_INVALID_USERNAME, true);
+                    throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
+                            ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
+                }
+            }
             String[] userDetails = validateUsername(tenantDomain, username, tenantAwareUsername,
                     identifierFromRequest, userId);
             userId = userDetails[0];
