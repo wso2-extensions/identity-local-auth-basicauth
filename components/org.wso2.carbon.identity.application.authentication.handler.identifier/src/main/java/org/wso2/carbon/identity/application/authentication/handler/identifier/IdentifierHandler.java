@@ -395,6 +395,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
         String userId = null;
         String userStoreDomain = null;
+
+        /*
+         This is going to be removed after the multi attribute user resolving logic is moved to each authenticator.
+         Hence, don't rely on this logic for new authenticators.
+         */
         if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
             ResolvedUserResult resolvedUserResult = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().
                     resolveUser(tenantAwareUsername, tenantDomain);
@@ -404,10 +409,6 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, tenantDomain);
                 userId = resolvedUserResult.getUser().getUserID();
                 userStoreDomain = resolvedUserResult.getUser().getUserStoreDomain();
-            } else {
-                context.setProperty(IS_INVALID_USERNAME, true);
-                throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
-                        ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
             }
         }
 
