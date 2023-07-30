@@ -222,11 +222,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             diagnosticLogBuilder.resultMessage("Validate authentication request.")
                     .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                     .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
-                    .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
-                    .inputParam(LogConstants.InputKeys.APPLICATION_NAME,
-                            context.getSequenceConfig().getApplicationConfig().getApplicationName())
-                    .inputParam(LogConstants.InputKeys.APPLICATION_ID,
-                            context.getSequenceConfig().getApplicationConfig().getApplicationID());
+                    .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep());
+            getApplicationDetails(context, diagnosticLogBuilder);
             LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
         }
         Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
@@ -537,11 +534,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                         .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
                         .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
-                        .inputParam(LogConstants.InputKeys.APPLICATION_NAME,
-                                context.getSequenceConfig().getApplicationConfig().getApplicationName())
-                        .inputParam(LogConstants.InputKeys.APPLICATION_ID, context.getSequenceConfig()
-                                .getApplicationConfig().getServiceProvider().getApplicationResourceId())
                         .inputParam(LogConstants.InputKeys.REDIREDCT_URI, redirectURL);
+                getApplicationDetails(context, diagnosticLogBuilder);
                 LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
             }
         } catch (IOException e) {
@@ -564,11 +558,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             diagnosticLogBuilder.resultMessage("Processing basic authentication response.")
                     .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                     .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
-                    .inputParam("current auth step", context.getCurrentStep())
-                    .inputParam(LogConstants.InputKeys.APPLICATION_NAME,
-                            context.getSequenceConfig().getApplicationConfig().getApplicationName())
-                    .inputParam(LogConstants.InputKeys.APPLICATION_ID, context.getSequenceConfig()
-                            .getApplicationConfig().getServiceProvider().getApplicationResourceId());
+                    .inputParam("current auth step", context.getCurrentStep());
+            getApplicationDetails(context, diagnosticLogBuilder);
             LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
         }
         String captchaParamString = getCaptchaParams(context.getLoginTenantDomain(), 0);
@@ -801,11 +792,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                     .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
                     .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
-                    .inputParam(LogConstants.InputKeys.APPLICATION_NAME,
-                            context.getSequenceConfig().getApplicationConfig().getApplicationName())
-                    .inputParam(LogConstants.InputKeys.APPLICATION_ID, context.getSequenceConfig()
-                            .getApplicationConfig().getServiceProvider().getApplicationResourceId())
                     .inputParam("remember me", context.isRememberMe());
+            getApplicationDetails(context, diagnosticLogBuilder);
             LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
         }
     }
@@ -1162,5 +1150,20 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         } else {
             return Boolean.parseBoolean(showPendingUserInformation);
         }
+    }
+
+    /** Add application details to diagnosticLogBuilder.
+     *
+     * @param context AuthenticationContext.
+     * @param diagnosticLogBuilder DiagnosticLogBuilder.
+     */
+    private void getApplicationDetails(AuthenticationContext context,
+                                                      DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder) {
+
+        FrameworkUtils.getApplicationResourceId(context).ifPresent(applicationId ->
+                diagnosticLogBuilder.inputParam(LogConstants.InputKeys.APPLICATION_ID, applicationId));
+        FrameworkUtils.getApplicationName(context).ifPresent(applicationName ->
+                diagnosticLogBuilder.inputParam(LogConstants.InputKeys.APPLICATION_NAME,
+                        applicationName));
     }
 }

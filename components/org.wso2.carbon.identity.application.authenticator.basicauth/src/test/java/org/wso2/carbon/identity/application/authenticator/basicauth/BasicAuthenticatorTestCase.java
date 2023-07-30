@@ -25,6 +25,8 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
@@ -52,6 +54,7 @@ import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
+import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.configuration.mgt.core.exception.ConfigurationManagementException;
 import org.wso2.carbon.identity.configuration.mgt.core.model.Attribute;
@@ -83,6 +86,9 @@ import org.wso2.carbon.utils.ConfigurationContextService;
 import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
@@ -97,10 +103,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -160,6 +162,8 @@ public class BasicAuthenticatorTestCase {
     private AxisConfiguration mockAxisConfiguration;
     private PrivilegedCarbonContext mockPrivilegedCarbonContext;
     private ServerConfiguration mockServerConfiguration;
+    private MockedStatic<IdentityTenantUtil> mockIdentityTenantUtil;
+    private MockedStatic<LoggerUtils> mockLoggerUtils;
 
     private AuthenticatedUser authenticatedUser;
     private Boolean isRememberMe = false;
@@ -183,6 +187,34 @@ public class BasicAuthenticatorTestCase {
     public void setup() {
 
         System.setProperty("carbon.config.dir.path", "carbon.home");
+    }
+
+    @BeforeClass
+    public void test() {
+
+        // Initiate mock static objects.
+        if (mockIdentityTenantUtil != null) {
+            mockIdentityTenantUtil.reset();
+        } else {
+            mockIdentityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+        }
+        mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantId(anyString())).thenReturn(-1234);
+        if (mockLoggerUtils != null) {
+            mockLoggerUtils.reset();
+        } else {
+            mockLoggerUtils = Mockito.mockStatic(LoggerUtils.class);
+        }
+        mockLoggerUtils.when(LoggerUtils::isDiagnosticLogsEnabled).thenReturn(false);
+    }
+
+    @AfterClass
+    public void afterClass() {
+
+        // Clear up the mock static objects.
+        mockIdentityTenantUtil.close();
+        mockLoggerUtils.close();
+        mockIdentityTenantUtil = null;
+        mockLoggerUtils = null;
     }
 
     @BeforeMethod
@@ -284,7 +316,6 @@ public class BasicAuthenticatorTestCase {
                      = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
              MockedStatic<Utils> utils = Mockito.mockStatic(Utils.class);
              MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
-             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
              MockedStatic<UserCoreUtil> userCoreUtil = Mockito.mockStatic(UserCoreUtil.class);
              MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
                      Mockito.mockStatic(BasicAuthenticatorServiceComponent.class);
@@ -317,7 +348,7 @@ public class BasicAuthenticatorTestCase {
             utils.when(() -> Utils.getConnectorConfig(SELF_REGISTRATION_AUTO_LOGIN_ALIAS_NAME, DUMMY_DOMAIN))
                     .thenReturn("alias");
 
-            identityTenantUtil.when(
+            mockIdentityTenantUtil.when(
                     () -> IdentityTenantUtil.getTenantIdOfUser("admin" + "@" + DUMMY_DOMAIN))
                     .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
             userCoreUtil.when(UserCoreUtil::getDomainFromThreadLocal).thenReturn(DUMMY_DOMAIN);
@@ -483,7 +514,6 @@ public class BasicAuthenticatorTestCase {
 
         try (MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
              MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
-             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
              MockedStatic<User> user = Mockito.mockStatic(User.class);
              MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
                      Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
@@ -495,7 +525,7 @@ public class BasicAuthenticatorTestCase {
             when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
             when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_PASSWORD);
 
-            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+            mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
                     .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
 
             basicAuthenticatorService
@@ -552,8 +582,7 @@ public class BasicAuthenticatorTestCase {
             chkRemember, String userNameValue, String oldMultipleAttributeEnable, boolean newMultipleAttributeEnable)
             throws UserStoreException, AuthenticationFailedException {
 
-        try (MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
-             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+        try (MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
              MockedStatic<User> user = Mockito.mockStatic(User.class);
              MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);
              MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
@@ -580,8 +609,8 @@ public class BasicAuthenticatorTestCase {
             parameterMap.put("UserNameAttributeClaimUri", userNameUri);
             AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig(DUMMY_USER_NAME, true, parameterMap);
 
-            processAuthenticationResponseStartUp(identityTenantUtil, basicAuthenticatorServiceComponent,
-                    multitenantUtils, user, frameworkUtils, userObj);
+            processAuthenticationResponseStartUp(basicAuthenticatorServiceComponent, multitenantUtils, user,
+                    frameworkUtils, userObj);
 
             when(mockRequest.getParameter("chkRemember")).thenReturn(chkRemember);
 
@@ -657,7 +686,6 @@ public class BasicAuthenticatorTestCase {
     }
 
     private void processAuthenticationResponseStartUp(
-            MockedStatic<IdentityTenantUtil> identityTenantUtil,
             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorServiceComponent,
             MockedStatic<MultitenantUtils> multitenantUtils, MockedStatic<User> user,
             MockedStatic<FrameworkUtils> frameworkUtils, org.wso2.carbon.user.core.common.User userObj)
@@ -668,7 +696,7 @@ public class BasicAuthenticatorTestCase {
         when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
         when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_USER_NAME);
 
-        identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+        mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
                 .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
 
         basicAuthenticatorServiceComponent.when(BasicAuthenticatorServiceComponent::getRealmService)
@@ -705,7 +733,6 @@ public class BasicAuthenticatorTestCase {
 
         try (MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
              MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
-             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
              MockedStatic<User> user = Mockito.mockStatic(User.class);
              MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
                      Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
@@ -717,7 +744,7 @@ public class BasicAuthenticatorTestCase {
 
             when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(anyMap());
             when(mockAuthnCtxt.getAuthenticatorParams("BasicAuthenticator")).thenReturn(anyMap());
-            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+            mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
                     .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
             frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
                     .thenReturn(DUMMY_USER_NAME);
@@ -755,7 +782,6 @@ public class BasicAuthenticatorTestCase {
 
         try (MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
              MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
-             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
              MockedStatic<User> user = Mockito.mockStatic(User.class);
              MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
                      Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
@@ -768,7 +794,7 @@ public class BasicAuthenticatorTestCase {
             when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(anyMap());
             when(mockAuthnCtxt.getAuthenticatorParams("BasicAuthenticator")).thenReturn(anyMap());
 
-            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+            mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
                     .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
 
             frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
@@ -806,8 +832,7 @@ public class BasicAuthenticatorTestCase {
     @Test
     public void processAuthenticationResponseTestcaseWithUserStoreManagerException() throws Exception {
 
-        try (MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
-             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+        try (MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
              MockedStatic<User> user = Mockito.mockStatic(User.class);
              MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorServiceComponent =
                      Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
@@ -817,7 +842,7 @@ public class BasicAuthenticatorTestCase {
             when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
             when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_USER_NAME);
 
-            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME)).thenReturn(-1234);
+            mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME)).thenReturn(-1234);
 
             frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
                     .thenReturn(DUMMY_USER_NAME);
@@ -842,8 +867,7 @@ public class BasicAuthenticatorTestCase {
     @Test
     public void processAuthenticationResponseTestcaseWithUserStoreExceptionInGetTenantId() throws UserStoreException {
 
-        try (MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
-             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+        try (MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
              MockedStatic<User> user = Mockito.mockStatic(User.class);
              MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorServiceComponent =
                      Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
@@ -853,7 +877,7 @@ public class BasicAuthenticatorTestCase {
             when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
             when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_USER_NAME);
 
-            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+            mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
                     .thenThrow(new IdentityRuntimeException("Invalid tenant domain of user admin@abc.com"));
 
             frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
@@ -898,7 +922,6 @@ public class BasicAuthenticatorTestCase {
 
         try (MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
              MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
-             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
              MockedStatic<User> user = Mockito.mockStatic(User.class);
              MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);
              MockedStatic<PrivilegedCarbonContext> privilegedCarbonContext = Mockito.mockStatic(
@@ -912,7 +935,7 @@ public class BasicAuthenticatorTestCase {
             when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
             when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_PASSWORD);
 
-            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+            mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
                     .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
 
             basicAuthenticatorService.when(BasicAuthenticatorServiceComponent::getRealmService)
@@ -1354,7 +1377,6 @@ public class BasicAuthenticatorTestCase {
              MockedStatic<IdentityCoreServiceComponent> identityCoreServiceComponent = Mockito.mockStatic(
                      IdentityCoreServiceComponent.class);
              MockedStatic<CarbonUtils> carbonUtils = Mockito.mockStatic(CarbonUtils.class);
-             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
              MockedStatic<PrivilegedCarbonContext> privilegedCarbonContext = Mockito.mockStatic(
                      PrivilegedCarbonContext.class);
              MockedStatic<ServerConfiguration> serverConfiguration = Mockito.mockStatic(ServerConfiguration.class)) {
@@ -1362,8 +1384,8 @@ public class BasicAuthenticatorTestCase {
             carbonUtils.when(CarbonUtils::getManagementTransport).thenReturn(DUMMY_PROTOCOL);
             serverConfiguration.when(ServerConfiguration::getInstance).thenReturn(mockServerConfiguration);
             when(mockServerConfiguration.getFirstProperty(IdentityCoreConstants.HOST_NAME)).thenReturn(DUMMY_HOSTNAME);
-            identityTenantUtil.when(IdentityTenantUtil::isTenantQualifiedUrlsEnabled).thenReturn(false);
-            identityTenantUtil.when(IdentityTenantUtil::getTenantDomainFromContext).thenReturn("carbon.super");
+            mockIdentityTenantUtil.when(IdentityTenantUtil::isTenantQualifiedUrlsEnabled).thenReturn(false);
+            mockIdentityTenantUtil.when(IdentityTenantUtil::getTenantDomainFromContext).thenReturn("carbon.super");
             privilegedCarbonContext.when(PrivilegedCarbonContext::getThreadLocalCarbonContext)
                     .thenReturn(mockPrivilegedCarbonContext);
             when(mockPrivilegedCarbonContext.getTenantDomain()).thenReturn("carbon.super");
