@@ -72,6 +72,7 @@ import javax.servlet.http.HttpServletResponse;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.IDENTIFIER_CONSENT;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.RESTART_FLOW;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_INVALID_USERNAME;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_USER_RESOLVED;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USERNAME_USER_INPUT;
 import static org.wso2.carbon.user.core.UserCoreConstants.DOMAIN_SEPARATOR;
 import static org.wso2.carbon.user.core.UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME;
@@ -409,6 +410,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, tenantDomain);
                 userId = resolvedUserResult.getUser().getUserID();
                 userStoreDomain = resolvedUserResult.getUser().getUserStoreDomain();
+                // Set a property to the context to indicate that the user is resolved from this step.
+                setIsUserResolvedToContext(context);
             }
         }
 
@@ -511,6 +514,16 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         user.setUserStoreDomain(userStoreDomain);
         user.setTenantDomain(tenantDomain);
         context.setSubject(user);
+    }
+
+    private void setIsUserResolvedToContext(AuthenticationContext context) {
+
+        Map<String, Object> properties = context.getProperties();
+        if (properties == null) {
+            properties = new HashMap<>();
+        }
+        properties.put(IS_USER_RESOLVED, true);
+        context.setProperties(properties);
     }
 
     @Override
