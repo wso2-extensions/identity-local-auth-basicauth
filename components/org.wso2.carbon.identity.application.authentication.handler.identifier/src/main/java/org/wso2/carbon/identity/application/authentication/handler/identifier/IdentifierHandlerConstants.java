@@ -36,4 +36,21 @@ public abstract class IdentifierHandlerConstants {
 
     private IdentifierHandlerConstants() {
     }
+
+    /**
+     * Constants related to log management.
+     */
+    public static class LogConstants {
+
+        public static final String IDENTIFIER_AUTH_SERVICE = "local-auth-identifier-first";
+
+        /**
+         * Define action IDs for diagnostic logs.
+         */
+        public static class ActionIDs {
+
+            public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-authn-response";
+            public static final String VALIDATE_IDENTIFIER_AUTH_REQUEST = "validate-identifier-auth-request";
+        }
+    }
 }
