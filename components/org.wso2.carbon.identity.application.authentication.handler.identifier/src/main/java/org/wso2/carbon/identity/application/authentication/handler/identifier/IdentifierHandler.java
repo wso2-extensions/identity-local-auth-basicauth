@@ -78,6 +78,7 @@ import static org.wso2.carbon.identity.application.authentication.handler.identi
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.INITIATE_IDENTIFIER_AUTH_REQUEST;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.IDENTIFIER_AUTH_SERVICE;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_USER_RESOLVED;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USERNAME_USER_INPUT;
 import static org.wso2.carbon.user.core.UserCoreConstants.DOMAIN_SEPARATOR;
 import static org.wso2.carbon.user.core.UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME;
@@ -508,6 +509,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
         String userId = null;
         String userStoreDomain = null;
+
+        /*
+         This is going to be removed after the multi attribute user resolving logic is moved to each authenticator.
+         Hence, don't rely on this logic for new authenticators.
+         */
         if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
             ResolvedUserResult resolvedUserResult = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().
                     resolveUser(tenantAwareUsername, tenantDomain);
@@ -517,10 +523,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, tenantDomain);
                 userId = resolvedUserResult.getUser().getUserID();
                 userStoreDomain = resolvedUserResult.getUser().getUserStoreDomain();
-            } else {
-                context.setProperty(IS_INVALID_USERNAME, true);
-                throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
-                        ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
+                // Set a property to the context to indicate that the user is resolved from this step.
+                setIsUserResolvedToContext(context);
             }
         }
 
@@ -631,6 +635,16 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                     .inputParam(LogConstants.InputKeys.USER_ID, userId);
             LoggerUtils.triggerDiagnosticLogEvent(authProcessCompletedDiagnosticLogBuilder);
         }
+    }
+
+    private void setIsUserResolvedToContext(AuthenticationContext context) {
+
+        Map<String, Object> properties = context.getProperties();
+        if (properties == null) {
+            properties = new HashMap<>();
+        }
+        properties.put(IS_USER_RESOLVED, true);
+        context.setProperties(properties);
     }
 
     @Override
