@@ -43,6 +43,8 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAu
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
+import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
+import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
@@ -56,6 +58,7 @@ import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.tenant.Tenant;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
+import org.wso2.carbon.utils.DiagnosticLog;
 import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
@@ -72,6 +75,9 @@ import javax.servlet.http.HttpServletResponse;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.IDENTIFIER_CONSENT;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.RESTART_FLOW;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_INVALID_USERNAME;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.INITIATE_IDENTIFIER_AUTH_REQUEST;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.IDENTIFIER_AUTH_SERVICE;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_USER_RESOLVED;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USERNAME_USER_INPUT;
 import static org.wso2.carbon.user.core.UserCoreConstants.DOMAIN_SEPARATOR;
@@ -99,8 +105,16 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         String identifierConsent = request.getParameter(IDENTIFIER_CONSENT);
         String restart = request.getParameter(RESTART_FLOW);
         Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
-
-        return userName != null || identifierConsent != null || restart != null || autoLoginCookie != null;
+        boolean canHandle = userName != null || identifierConsent != null || restart != null || autoLoginCookie != null;
+        if (LoggerUtils.isDiagnosticLogsEnabled() && canHandle) {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    IDENTIFIER_AUTH_SERVICE, FrameworkConstants.LogConstants.ActionIDs.HANDLE_AUTH_STEP);
+            diagnosticLogBuilder.resultMessage("Identifier Handler is handling the request.")
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.INTERNAL_SYSTEM)
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS);
+            LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+        }
+        return canHandle;
     }
 
     @Override
@@ -197,6 +211,16 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
+        if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    IDENTIFIER_AUTH_SERVICE, INITIATE_IDENTIFIER_AUTH_REQUEST);
+            diagnosticLogBuilder.resultMessage("Initiating identifier first authentication request.")
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                    .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
+                    .inputParams(getApplicationDetails(context));
+            LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+        }
         Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
         String showAuthFailureReason = null;
         if (parameterMap != null) {
@@ -211,6 +235,14 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         String queryParams = context.getContextIdIncludedQueryParams();
 
         try {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = null;
+            if (LoggerUtils.isDiagnosticLogsEnabled()) {
+                diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                        IDENTIFIER_AUTH_SERVICE, INITIATE_IDENTIFIER_AUTH_REQUEST);
+                diagnosticLogBuilder.logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                        .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
+                        .inputParams(getApplicationDetails(context));
+            }
             String retryParam = "";
 
             if (context.isRetrying()) {
@@ -236,6 +268,9 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 if (log.isDebugEnabled()) {
                     log.debug("Identity error message context is not null");
                 }
+                if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                    diagnosticLogBuilder.resultStatus(DiagnosticLog.ResultStatus.FAILED);
+                }
                 String errorCode = errorContext.getErrorCode();
 
                 if (errorCode.equals(IdentityCoreConstants.USER_ACCOUNT_NOT_CONFIRMED_ERROR_CODE)) {
@@ -251,6 +286,12 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                             IdentifierHandlerConstants.ERROR_CODE + errorCode + IdentifierHandlerConstants
                             .AUTHENTICATORS + getName() + ":" + IdentifierHandlerConstants.LOCAL + retryParam;
                     response.sendRedirect(redirectURL);
+                    if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                        diagnosticLogBuilder.resultStatus(DiagnosticLog.ResultStatus.FAILED)
+                                .resultMessage("Account confirmation pending for user.")
+                                .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
+                                        LoggerUtils.getMaskedContent(username) : username);
+                    }
 
                 } else if ("true".equals(showAuthFailureReason)) {
 
@@ -277,9 +318,17 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                 .encode(request.getParameter(IdentifierHandlerConstants.USER_NAME),
                                         IdentifierHandlerConstants.UTF_8)
                                 + "&remainingAttempts=" + remainingAttempts;
-                        response.sendRedirect(loginPage + ("?" + queryParams)
+                        String redirectURL = loginPage + ("?" + queryParams)
                                 + IdentifierHandlerConstants.AUTHENTICATORS + getName() + ":" +
-                                IdentifierHandlerConstants.LOCAL + retryParam);
+                                IdentifierHandlerConstants.LOCAL + retryParam;
+                        response.sendRedirect(redirectURL);
+                        if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                            String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+                            diagnosticLogBuilder.resultMessage("Invalid credentials.")
+                                    .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
+                                            LoggerUtils.getMaskedContent(username) : username)
+                                    .inputParam("remaining attempts", remainingAttempts);
+                        }
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
                         String redirectURL = retryPage;
                         if (remainingAttempts == 0) {
@@ -307,50 +356,89 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                         URLEncoder.encode(request.getParameter(IdentifierHandlerConstants.USER_NAME),
                                                 IdentifierHandlerConstants.UTF_8);
                             }
+                            if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                                diagnosticLogBuilder.inputParam("locked reason", reason);
+                            }
                         }
                         response.sendRedirect(redirectURL);
+                        if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                            String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+                            diagnosticLogBuilder.resultMessage("User is locked.")
+                                    .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
+                                            LoggerUtils.getMaskedContent(username) : username);
+                        }
 
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST)) {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
                                 .encode(request.getParameter(IdentifierHandlerConstants.USER_NAME),
                                         IdentifierHandlerConstants.UTF_8);
-                        response.sendRedirect(loginPage + ("?" + queryParams)
+                        String redirectURL = loginPage + ("?" + queryParams)
                                 + IdentifierHandlerConstants.AUTHENTICATORS + getName() + ":" +
-                                IdentifierHandlerConstants.LOCAL + retryParam);
+                                IdentifierHandlerConstants.LOCAL + retryParam;
+                        response.sendRedirect(redirectURL);
+                        if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                            String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+                            diagnosticLogBuilder.resultMessage("User does not exist.")
+                                    .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
+                                            LoggerUtils.getMaskedContent(username) : username);
+                        }
                     } else if (errorCode.equals(IdentityCoreConstants.USER_ACCOUNT_DISABLED_ERROR_CODE)) {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
                                 .encode(request.getParameter(IdentifierHandlerConstants.USER_NAME),
                                         IdentifierHandlerConstants.UTF_8);
-                        response.sendRedirect(loginPage + ("?" + queryParams)
+                        String redirectURL = loginPage + ("?" + queryParams)
                                 + IdentifierHandlerConstants.AUTHENTICATORS + getName() + ":" +
-                                IdentifierHandlerConstants.LOCAL + retryParam);
+                                IdentifierHandlerConstants.LOCAL + retryParam;
+                        response.sendRedirect(redirectURL);
+                        if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                            String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+                            diagnosticLogBuilder.resultMessage("User account is disabled.")
+                                    .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
+                                            LoggerUtils.getMaskedContent(username) : username);
+                        }
                     } else {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
                                 .encode(request.getParameter(IdentifierHandlerConstants.USER_NAME),
                                         IdentifierHandlerConstants.UTF_8);
-                        response.sendRedirect(loginPage + ("?" + queryParams)
+                        String redirectURL = loginPage + ("?" + queryParams)
                                 + IdentifierHandlerConstants.AUTHENTICATORS + getName() + ":"
-                                + IdentifierHandlerConstants.LOCAL + retryParam);
+                                + IdentifierHandlerConstants.LOCAL + retryParam;
+                        response.sendRedirect(redirectURL);
+                        if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                            String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+                            diagnosticLogBuilder.resultMessage("Unknown error occurred.")
+                                    .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
+                                            LoggerUtils.getMaskedContent(username) : username);
+                        }
                     }
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("Unknown identity error code.");
                     }
-                    response.sendRedirect(loginPage + ("?" + queryParams)
+                    String redirectURL = loginPage + ("?" + queryParams)
                             + IdentifierHandlerConstants.AUTHENTICATORS + getName() + ":" +
-                            IdentifierHandlerConstants.LOCAL + retryParam);
-
+                            IdentifierHandlerConstants.LOCAL + retryParam;
+                    response.sendRedirect(redirectURL);
+                    if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                        diagnosticLogBuilder.resultMessage("Unknown identity error code.");
+                    }
                 }
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("Identity error message context is null");
                 }
-                response.sendRedirect(loginPage + ("?" + queryParams)
-                        + IdentifierHandlerConstants.AUTHENTICATORS + getName() + ":" +
-                        IdentifierHandlerConstants.LOCAL + retryParam);
+                String redirectURL = loginPage + ("?" + queryParams) + IdentifierHandlerConstants.AUTHENTICATORS +
+                        getName() + ":" + IdentifierHandlerConstants.LOCAL + retryParam;
+                response.sendRedirect(redirectURL);
+                if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                    diagnosticLogBuilder.resultMessage("Redirecting to login page.");
+                }
+            }
+            if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
+                LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
             }
         } catch (IOException e) {
             throw new AuthenticationFailedException(ErrorMessages.SYSTEM_ERROR_WHILE_AUTHENTICATING.getCode(),
@@ -364,6 +452,24 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                                  HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
+        DiagnosticLog.DiagnosticLogBuilder authProcessCompletedDiagnosticLogBuilder = null;
+        if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    IDENTIFIER_AUTH_SERVICE, PROCESS_AUTHENTICATION_RESPONSE);
+            diagnosticLogBuilder.resultMessage("Processing identifier first authentication response.")
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                    .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
+                    .inputParams(getApplicationDetails(context));
+            LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+
+            authProcessCompletedDiagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    IDENTIFIER_AUTH_SERVICE, PROCESS_AUTHENTICATION_RESPONSE);
+            authProcessCompletedDiagnosticLogBuilder.inputParams(getApplicationDetails(context))
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                    .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep());
+        }
         Map<String, String> runtimeParams = getRuntimeParams(context);
         String identifierFromRequest = request.getParameter(IdentifierHandlerConstants.USER_NAME);
         String validateUsernameAdaptiveParam = null;
@@ -382,6 +488,13 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 AuthenticatedUser user = new AuthenticatedUser();
                 user.setUserName(identifierFromRequest);
                 context.setSubject(user);
+                if (LoggerUtils.isDiagnosticLogsEnabled() && authProcessCompletedDiagnosticLogBuilder != null) {
+                    authProcessCompletedDiagnosticLogBuilder.resultMessage("Identifier first authentication " +
+                            "successful.")
+                            .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
+                                    LoggerUtils.getMaskedContent(identifierFromRequest) : identifierFromRequest);
+                    LoggerUtils.triggerDiagnosticLogEvent(authProcessCompletedDiagnosticLogBuilder);
+                }
                 return;
             }
         }
@@ -514,6 +627,14 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         user.setUserStoreDomain(userStoreDomain);
         user.setTenantDomain(tenantDomain);
         context.setSubject(user);
+        if (LoggerUtils.isDiagnosticLogsEnabled() && authProcessCompletedDiagnosticLogBuilder != null) {
+            authProcessCompletedDiagnosticLogBuilder.resultMessage("Identifier first authentication successful.")
+                    .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
+                            LoggerUtils.getMaskedContent(username) : username)
+                    .inputParam("user store domain", userStoreDomain)
+                    .inputParam(LogConstants.InputKeys.USER_ID, userId);
+            LoggerUtils.triggerDiagnosticLogEvent(authProcessCompletedDiagnosticLogBuilder);
+        }
     }
 
     private void setIsUserResolvedToContext(AuthenticationContext context) {
@@ -681,5 +802,22 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         }
 
         return new String[]{userId, userStoreDomain};
+    }
+
+    /**
+     * Add application details to a map.
+     *
+     * @param context AuthenticationContext.
+     * @return Map with application details.
+     */
+    private Map<String, String> getApplicationDetails(AuthenticationContext context) {
+
+        Map<String, String> applicationDetailsMap = new HashMap<>();
+        FrameworkUtils.getApplicationResourceId(context).ifPresent(applicationId ->
+                applicationDetailsMap.put(LogConstants.InputKeys.APPLICATION_ID, applicationId));
+        FrameworkUtils.getApplicationName(context).ifPresent(applicationName ->
+                applicationDetailsMap.put(LogConstants.InputKeys.APPLICATION_NAME,
+                        applicationName));
+        return applicationDetailsMap;
     }
 }
