@@ -75,8 +75,8 @@ import javax.servlet.http.HttpServletResponse;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.IDENTIFIER_CONSENT;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.RESTART_FLOW;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_INVALID_USERNAME;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.INITIATE_IDENTIFIER_AUTH_REQUEST;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
-import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.VALIDATE_IDENTIFIER_AUTH_REQUEST;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.IDENTIFIER_AUTH_SERVICE;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USERNAME_USER_INPUT;
 import static org.wso2.carbon.user.core.UserCoreConstants.DOMAIN_SEPARATOR;
@@ -212,8 +212,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         if (LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
-                    IDENTIFIER_AUTH_SERVICE, VALIDATE_IDENTIFIER_AUTH_REQUEST);
-            diagnosticLogBuilder.resultMessage("Validate identifier first authentication request.")
+                    IDENTIFIER_AUTH_SERVICE, INITIATE_IDENTIFIER_AUTH_REQUEST);
+            diagnosticLogBuilder.resultMessage("Initiating identifier first authentication request.")
                     .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                     .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
                     .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
@@ -237,7 +237,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = null;
             if (LoggerUtils.isDiagnosticLogsEnabled()) {
                 diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
-                        IDENTIFIER_AUTH_SERVICE, VALIDATE_IDENTIFIER_AUTH_REQUEST);
+                        IDENTIFIER_AUTH_SERVICE, INITIATE_IDENTIFIER_AUTH_REQUEST);
                 diagnosticLogBuilder.logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                         .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
                         .inputParams(getApplicationDetails(context));
@@ -433,8 +433,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         getName() + ":" + IdentifierHandlerConstants.LOCAL + retryParam;
                 response.sendRedirect(redirectURL);
                 if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
-                    diagnosticLogBuilder.resultMessage("Identifier first authentication request validation " +
-                            "successful.");
+                    diagnosticLogBuilder.resultMessage("Redirecting to login page.");
                 }
             }
             if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
@@ -791,7 +790,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         return new String[]{userId, userStoreDomain};
     }
 
-    /** Add application details to a map.
+    /**
+     * Add application details to a map.
      *
      * @param context AuthenticationContext.
      * @return Map with application details.

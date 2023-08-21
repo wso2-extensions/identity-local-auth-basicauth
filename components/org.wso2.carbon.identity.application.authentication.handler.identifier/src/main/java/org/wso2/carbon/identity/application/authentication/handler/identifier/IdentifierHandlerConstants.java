@@ -49,8 +49,8 @@ public abstract class IdentifierHandlerConstants {
          */
         public static class ActionIDs {
 
-            public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-authn-response";
-            public static final String VALIDATE_IDENTIFIER_AUTH_REQUEST = "validate-identifier-auth-request";
+            public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-identifier-authentication-response";
+            public static final String INITIATE_IDENTIFIER_AUTH_REQUEST = "initiate-identifier-authentication-request";
         }
     }
 }
