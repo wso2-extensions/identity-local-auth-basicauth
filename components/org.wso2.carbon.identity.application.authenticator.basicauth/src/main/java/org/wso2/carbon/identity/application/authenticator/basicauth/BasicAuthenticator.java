@@ -533,8 +533,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 diagnosticLogBuilder.resultMessage("Redirecting to the basic auth login page.")
                         .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                         .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
-                        .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
-                        .inputParam(LogConstants.InputKeys.REDIREDCT_URI, redirectURL);
+                        .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep());
                 getApplicationDetails(context, diagnosticLogBuilder);
                 LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
             }
