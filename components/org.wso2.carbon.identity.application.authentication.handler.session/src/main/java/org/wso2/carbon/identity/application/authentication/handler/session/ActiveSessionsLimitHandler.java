@@ -38,6 +38,8 @@ import org.wso2.carbon.identity.application.authentication.framework.util.Framew
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionRetrievalException;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionTerminationException;
 import org.wso2.carbon.identity.application.authentication.handler.session.internal.ActiveSessionsLimitHandlerServiceHolder;
+import org.wso2.carbon.identity.core.ServiceURLBuilder;
+import org.wso2.carbon.identity.core.URLBuilderException;
 import org.wso2.carbon.identity.core.model.UserAgent;
 
 import java.io.IOException;
@@ -147,7 +149,14 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             Map<String, String> paramMap = new HashMap<>();
             paramMap.put(PROMPT_ID, context.getContextIdentifier());
             paramMap.put(SP_NAME, context.getServiceProviderName());
-            response.sendRedirect(FrameworkUtils.buildURLWithQueryParams(REDIRECT_URL, paramMap));
+            String redirectURL = FrameworkUtils.buildURLWithQueryParams(REDIRECT_URL, paramMap);
+            try {
+                redirectURL = ServiceURLBuilder.create().addPath(redirectURL).build().getAbsolutePublicURL();
+            } catch (URLBuilderException var4) {
+                throw new AuthenticationFailedException("Error while building tenant qualified url for context: "
+                        + REDIRECT_URL);
+            }
+            response.sendRedirect(redirectURL);
         } catch (IOException e) {
             throw new AuthenticationFailedException("Error occurred while redirecting to: " + REDIRECT_URL
                     + "?promptId=" + context.getContextIdentifier(), e);
