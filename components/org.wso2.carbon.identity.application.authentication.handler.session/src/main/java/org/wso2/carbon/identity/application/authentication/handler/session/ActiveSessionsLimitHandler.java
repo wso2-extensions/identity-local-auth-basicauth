@@ -152,9 +152,9 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             String redirectURL = FrameworkUtils.buildURLWithQueryParams(REDIRECT_URL, paramMap);
             try {
                 redirectURL = ServiceURLBuilder.create().addPath(redirectURL).build().getAbsolutePublicURL();
-            } catch (URLBuilderException var4) {
+            } catch (URLBuilderException e) {
                 throw new AuthenticationFailedException("Error while building tenant qualified url for context: "
-                        + REDIRECT_URL);
+                        + REDIRECT_URL, e);
             }
             response.sendRedirect(redirectURL);
         } catch (IOException e) {
