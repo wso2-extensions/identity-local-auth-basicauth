@@ -122,6 +122,7 @@
                             org.wso2.carbon.identity.application.authentication.framework.util;version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.application.common.*;version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.base.*;version="${carbon.identity.framework.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.core;version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.core.model.*;version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.core.util;version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.application.authentication.framework.*;version="${carbon.identity.framework.imp.pkg.version.range}",
