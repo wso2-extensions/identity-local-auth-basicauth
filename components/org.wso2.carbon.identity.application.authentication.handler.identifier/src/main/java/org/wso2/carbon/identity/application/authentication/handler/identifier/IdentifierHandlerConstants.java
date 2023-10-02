@@ -33,7 +33,25 @@ public abstract class IdentifierHandlerConstants {
     public static final String UTF_8 = "UTF-8";
     public static final String IS_INVALID_USERNAME = "isInvalidUsername";
     public static final String USERNAME_USER_INPUT = "usernameUserInput";
+    public static final String IS_USER_RESOLVED = "isUserResolved";
 
     private IdentifierHandlerConstants() {
+    }
+
+    /**
+     * Constants related to log management.
+     */
+    public static class LogConstants {
+
+        public static final String IDENTIFIER_AUTH_SERVICE = "local-auth-identifier-first";
+
+        /**
+         * Define action IDs for diagnostic logs.
+         */
+        public static class ActionIDs {
+
+            public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-identifier-authentication-response";
+            public static final String INITIATE_IDENTIFIER_AUTH_REQUEST = "initiate-identifier-authentication-request";
+        }
     }
 }
