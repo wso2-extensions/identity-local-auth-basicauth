@@ -40,11 +40,14 @@ import org.wso2.carbon.identity.application.authentication.framework.config.Conf
 import org.wso2.carbon.identity.application.authentication.framework.config.builder.FileBasedConfigurationBuilder;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.ApplicationConfig;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
+import org.wso2.carbon.identity.application.authentication.framework.config.model.ExternalIdPConfig;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.SequenceConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
@@ -102,6 +105,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -147,6 +151,7 @@ public class BasicAuthenticatorTestCase {
     private HttpServletResponse mockResponse;
     private AuthenticationContext mockAuthnCtxt;
     private ApplicationConfig applicationConfig;
+    private ExternalIdPConfig externalIdPConfig;
     private RealmService mockRealmService;
     private UserRealm mockRealm;
     private AbstractUserStoreManager mockUserStoreManager;
@@ -223,6 +228,7 @@ public class BasicAuthenticatorTestCase {
         mockResponse = mock(HttpServletResponse.class);
         mockAuthnCtxt = mock(AuthenticationContext.class);
         applicationConfig = mock(ApplicationConfig.class);
+        externalIdPConfig = mock(ExternalIdPConfig.class);
         mockRealmService = mock(RealmService.class);
         mockRealm = mock(UserRealm.class);
         mockUserStoreManager = mock(AbstractUserStoreManager.class);
@@ -1662,5 +1668,48 @@ public class BasicAuthenticatorTestCase {
             redirect = (String) invocation.getArguments()[0];
             return null;
         }).when(mockResponse).sendRedirect(anyString());
+    }
+
+    @Test
+    public void testIsAPIBasedAuthenticationSupported() {
+
+        boolean isAPIBasedAuthenticationSupported = basicAuthenticator.isAPIBasedAuthenticationSupported();
+        Assert.assertTrue(isAPIBasedAuthenticationSupported);
+    }
+
+    @Test
+    public void testGetAuthInitiationData() {
+
+        when(mockAuthnCtxt.getExternalIdP()).thenReturn(externalIdPConfig);
+        when(externalIdPConfig.getIdPName()).thenReturn("LOCAL");
+        Optional<AuthenticatorData> authenticatorData = basicAuthenticator.getAuthInitiationData(mockAuthnCtxt);
+
+        Assert.assertTrue(authenticatorData.isPresent());
+        AuthenticatorData authenticatorDataObj = authenticatorData.get();
+
+        List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
+        AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
+                BasicAuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
+                0, false, true, BasicAuthenticatorConstants.USERNAME_PARAM);
+        authenticatorParamMetadataList.add(usernameMetadata);
+        AuthenticatorParamMetadata passwordMetadata = new AuthenticatorParamMetadata(
+                BasicAuthenticatorConstants.PASSWORD, FrameworkConstants.AuthenticatorParamType.STRING,
+                1, true, true, BasicAuthenticatorConstants.PASSWORD_PARAM);
+        authenticatorParamMetadataList.add(passwordMetadata);
+
+        Assert.assertEquals(authenticatorDataObj.getName(), "BasicAuthenticator");
+        Assert.assertEquals(authenticatorDataObj.getAuthParams().size(), authenticatorParamMetadataList.size(),
+                "Size of lists should be equal.");
+        for (int i = 0; i < authenticatorParamMetadataList.size(); i++) {
+            AuthenticatorParamMetadata expectedParam = authenticatorParamMetadataList.get(i);
+            AuthenticatorParamMetadata actualParam = authenticatorDataObj.getAuthParams().get(i);
+
+            Assert.assertEquals(actualParam.getName(), expectedParam.getName(), "Parameter name should match.");
+            Assert.assertEquals(actualParam.getType(), expectedParam.getType(), "Parameter type should match.");
+            Assert.assertEquals(actualParam.getParamOrder(), expectedParam.getParamOrder(),
+                    "Parameter order should match.");
+            Assert.assertEquals(actualParam.isConfidential(), expectedParam.isConfidential(),
+                    "Parameter mandatory status should match.");
+        }
     }
 }

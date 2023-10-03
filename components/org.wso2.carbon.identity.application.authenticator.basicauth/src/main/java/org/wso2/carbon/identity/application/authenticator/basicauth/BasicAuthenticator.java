@@ -35,6 +35,8 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.I
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticationFrameworkWrapper;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
@@ -79,6 +81,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Optional;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -144,7 +147,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException, LogoutFailedException {
 
         if (isURLContainSensitiveData(request, response, context)) {
-           return AuthenticatorFlowStatus.INCOMPLETE;
+            return AuthenticatorFlowStatus.INCOMPLETE;
         }
         Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
 
@@ -183,7 +186,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     }
 
     protected AuthenticatorFlowStatus executeAutoLoginFlow(HttpServletRequest request, HttpServletResponse response,
-                                                         AuthenticationContext context, Cookie autoLoginCookie)
+                                                           AuthenticationContext context, Cookie autoLoginCookie)
             throws AuthenticationFailedException {
 
         String decodedValue = new String(Base64.getDecoder().decode(autoLoginCookie.getValue()));
@@ -490,7 +493,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     } else {
                         Map<String, String> paramMap = new HashMap<>();
                         paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
-                        if (request.getParameter(BasicAuthenticatorConstants.USER_NAME) != null){
+                        if (request.getParameter(BasicAuthenticatorConstants.USER_NAME) != null) {
                             paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
                                     URLEncoder.encode(request.getParameter(BasicAuthenticatorConstants.USER_NAME),
                                             BasicAuthenticatorConstants.UTF_8));
@@ -705,27 +708,27 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 if (ERROR_CODE_FEATURE_NOT_ENABLED.getCode().equals(configException.getErrorCode())) {
                     if (log.isDebugEnabled()) {
                         log.debug(String.format("%s Therefore using the default configuration value: %s for the " +
-                                "attribute: %s", ERROR_CODE_FEATURE_NOT_ENABLED.getMessage(), showPendingUserInfo,
+                                        "attribute: %s", ERROR_CODE_FEATURE_NOT_ENABLED.getMessage(), showPendingUserInfo,
                                 PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG));
                     }
                 } else if (ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS.getCode().equals(configException.getErrorCode())) {
                     if (log.isDebugEnabled()) {
                         log.debug(String.format("%s attribute doesn't exist for the tenant: %s. Therefore using the " +
-                                "default configuration value: %s for the attribute: %s",
+                                        "default configuration value: %s for the attribute: %s",
                                 PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG, requestTenantDomain,
                                 showPendingUserInfo, PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG));
                     }
                 } else if (ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS.getCode().equals(configException.getErrorCode())) {
                     if (log.isDebugEnabled()) {
                         log.debug(String.format("%s resource type doesn't exist for the tenant: %s. Therefore using " +
-                                "the default configuration value: %s for the attribute: %s",
+                                        "the default configuration value: %s for the attribute: %s",
                                 RESOURCE_TYPE_NAME_CONFIG, requestTenantDomain, showPendingUserInfo,
                                 PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG));
                     }
                 } else if (ERROR_CODE_RESOURCE_DOES_NOT_EXISTS.getCode().equals(configException.getErrorCode())) {
                     if (log.isDebugEnabled()) {
                         log.debug(String.format("%s resource doesn't exist for the tenant: %s. Therefore using the " +
-                                "default configuration value: %s for the attribute: %s", RESOURCE_NAME_CONFIG,
+                                        "default configuration value: %s for the attribute: %s", RESOURCE_NAME_CONFIG,
                                 requestTenantDomain, showPendingUserInfo,
                                 PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG));
                     }
@@ -771,6 +774,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         //TODO: user tenant domain has to be an attribute in the AuthenticationContext
         authProperties.put("user-tenant-domain", requestTenantDomain);
+
 
         AuthenticatedUser authenticatedUser = new AuthenticatedUser(authenticationResult.getAuthenticatedUser().get());
 
@@ -1027,7 +1031,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
      * Check if the ldap based multi attribute login is enabled.
      *
      * @param userStoreManager Primary user store manager.
-     * @param domain user store domain.
+     * @param domain           user store domain.
      * @return if multi attributed enabled.
      */
     private boolean isMultipleAttributeEnable(AbstractUserStoreManager userStoreManager, String domain) {
@@ -1151,6 +1155,48 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
+    /**
+     * This method is responsible for obtaining authenticator-specific data needed to
+     * initialize the authentication process within the provided authentication context.
+     *
+     * @param context The authentication context containing information about the current authentication attempt.
+     * @return An {@code Optional} containing an {@code AuthenticatorData} object representing the initiation data.
+     *         If the initiation data is available, it is encapsulated within the {@code Optional}; otherwise,
+     *         an empty {@code Optional} is returned.
+     */
+    @Override
+    public Optional<AuthenticatorData> getAuthInitiationData(AuthenticationContext context) {
+
+        AuthenticatorData authenticatorData = new AuthenticatorData();
+        authenticatorData.setName(getName());
+        String idpName = context.getExternalIdP().getIdPName();
+        authenticatorData.setIdp(idpName);
+
+        List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
+        AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
+                BasicAuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
+                0, Boolean.FALSE, Boolean.TRUE, BasicAuthenticatorConstants.USERNAME_PARAM);
+        authenticatorParamMetadataList.add(usernameMetadata);
+        AuthenticatorParamMetadata passwordMetadata = new AuthenticatorParamMetadata(
+                BasicAuthenticatorConstants.PASSWORD, FrameworkConstants.AuthenticatorParamType.STRING,
+                1, Boolean.TRUE, Boolean.TRUE, BasicAuthenticatorConstants.PASSWORD_PARAM);
+        authenticatorParamMetadataList.add(passwordMetadata);
+
+        authenticatorData.setAuthParams(authenticatorParamMetadataList);
+        return Optional.of(authenticatorData);
+    }
+
+    /**
+     * This method is responsible for validating whether the authenticator is supported for API Based Authentication.
+     *
+     * @return true if the authenticator is supported for API Based Authentication.
+     */
+    @Override
+    public boolean isAPIBasedAuthenticationSupported() {
+
+        return true;
+    }
+
     /** Add application details to diagnosticLogBuilder.
      *
      * @param context AuthenticationContext.
@@ -1164,5 +1210,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         FrameworkUtils.getApplicationName(context).ifPresent(applicationName ->
                 diagnosticLogBuilder.inputParam(LogConstants.InputKeys.APPLICATION_NAME,
                         applicationName));
+
     }
 }
