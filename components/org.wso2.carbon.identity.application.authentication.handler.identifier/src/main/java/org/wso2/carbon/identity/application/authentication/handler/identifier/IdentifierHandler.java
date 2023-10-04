@@ -33,6 +33,8 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.I
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedIdPData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.internal.IdentifierAuthenticatorServiceComponent;
@@ -67,6 +69,9 @@ import java.net.URLEncoder;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Optional;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -74,7 +79,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.IDENTIFIER_CONSENT;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.RESTART_FLOW;
-import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_INVALID_USERNAME;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.INITIATE_IDENTIFIER_AUTH_REQUEST;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.IDENTIFIER_AUTH_SERVICE;
@@ -490,7 +494,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 context.setSubject(user);
                 if (LoggerUtils.isDiagnosticLogsEnabled() && authProcessCompletedDiagnosticLogBuilder != null) {
                     authProcessCompletedDiagnosticLogBuilder.resultMessage("Identifier first authentication " +
-                            "successful.")
+                                    "successful.")
                             .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
                                     LoggerUtils.getMaskedContent(identifierFromRequest) : identifierFromRequest);
                     LoggerUtils.triggerDiagnosticLogEvent(authProcessCompletedDiagnosticLogBuilder);
@@ -819,5 +823,43 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 applicationDetailsMap.put(LogConstants.InputKeys.APPLICATION_NAME,
                         applicationName));
         return applicationDetailsMap;
+    }
+
+    /**
+     * This method is responsible for validating whether the authenticator is supported for API Based Authentication.
+     *
+     * @return true if the authenticator is supported for API Based Authentication.
+     */
+    @Override
+    public boolean isAPIBasedAuthenticationSupported() {
+
+        return true;
+    }
+
+    /**
+     * This method is responsible for obtaining authenticator-specific data needed to
+     * initialize the authentication process within the provided authentication context.
+     *
+     * @param context The authentication context containing information about the current authentication attempt.
+     * @return An {@code Optional} containing an {@code AuthenticatorData} object representing the initiation data.
+     *         If the initiation data is available, it is encapsulated within the {@code Optional}; otherwise,
+     *         an empty {@code Optional} is returned.
+     */
+    @Override
+    public Optional<AuthenticatorData> getAuthInitiationData(AuthenticationContext context) {
+
+        AuthenticatorData authenticatorData = new AuthenticatorData();
+        authenticatorData.setName(getName());
+        String idpName = context.getExternalIdP().getIdPName();
+        authenticatorData.setIdp(idpName);
+
+        List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
+        AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
+                BasicAuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
+                0, Boolean.FALSE, Boolean.TRUE, BasicAuthenticatorConstants.USERNAME_PARAM);
+        authenticatorParamMetadataList.add(usernameMetadata);
+
+        authenticatorData.setAuthParams(authenticatorParamMetadataList);
+        return Optional.of(authenticatorData);
     }
 }
