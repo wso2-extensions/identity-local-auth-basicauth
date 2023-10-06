@@ -850,7 +850,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         AuthenticatorData authenticatorData = new AuthenticatorData();
         authenticatorData.setName(getName());
-        String idpName = context.getExternalIdP().getIdPName();
+        String idpName = null;
+        if (context != null && context.getExternalIdP() != null) {
+            idpName = context.getExternalIdP().getIdPName();
+        }
         authenticatorData.setIdp(idpName);
 
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
