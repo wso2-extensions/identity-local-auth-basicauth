@@ -643,7 +643,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             User.getUserFromUserName(username));
                 }
             } catch (UserStoreException e) {
-                log.error(ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getMessage());
                 throw new AuthenticationFailedException(
                         ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(),
                         ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getMessage());
