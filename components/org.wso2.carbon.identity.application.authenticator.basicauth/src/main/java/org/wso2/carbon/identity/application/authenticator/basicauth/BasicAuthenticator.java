@@ -612,11 +612,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         if (BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().isEnabled(requestTenantDomain)) {
             try {
                 List<String> userStorePreferenceOrder = getUserStorePreferenceOrder();
-                String userStoreQualifiedUsername = StringUtils.EMPTY;
-                if (userStorePreferenceOrder.size() == 1) {
-                    String allowedDomainName = userStorePreferenceOrder.get(0);
-                    userStoreQualifiedUsername = UserCoreUtil.addDomainToName(tenantAwareUsername, allowedDomainName);
-                }
 
                 if (userStorePreferenceOrder.isEmpty() || userStorePreferenceOrder.size() == 1) {
                     ResolvedUserResult resolvedUserResult = null;
@@ -625,6 +620,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                 resolveUser(tenantAwareUsername, requestTenantDomain);
                     }
                     if (userStorePreferenceOrder.size() == 1) {
+                        String allowedDomainName = userStorePreferenceOrder.get(0);
+                        String userStoreQualifiedUsername = UserCoreUtil.addDomainToName(tenantAwareUsername,
+                                allowedDomainName);
                         resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
                                 resolveUser(userStoreQualifiedUsername, requestTenantDomain);
                     }
