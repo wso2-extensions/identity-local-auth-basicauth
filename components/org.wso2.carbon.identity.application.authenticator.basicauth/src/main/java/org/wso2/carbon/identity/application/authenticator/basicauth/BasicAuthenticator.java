@@ -67,7 +67,9 @@ import org.wso2.carbon.user.core.UserStoreClientException;
 import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.common.AuthenticationResult;
+import org.wso2.carbon.user.core.config.UserStorePreferenceOrderSupplier;
 import org.wso2.carbon.user.core.constants.UserCoreClaimConstants;
+import org.wso2.carbon.user.core.model.UserMgtContext;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 import org.wso2.carbon.utils.DiagnosticLog;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
@@ -77,6 +79,7 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -607,17 +610,45 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
         String userId = null;
         if (BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().isEnabled(requestTenantDomain)) {
-            ResolvedUserResult resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
-                    resolveUser(tenantAwareUsername, requestTenantDomain);
-            if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
-                    equals(resolvedUserResult.getResolvedStatus())) {
-                tenantAwareUsername = resolvedUserResult.getUser().getUsername();
-                username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, requestTenantDomain);
-                userId = resolvedUserResult.getUser().getUserID();
-            } else {
-                context.setProperty(IS_INVALID_USERNAME, true);
-                throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
-                        ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
+            try {
+                List<String> userStorePreferenceOrder = getUserStorePreferenceOrder();
+                String userStoreQualifiedUsername = StringUtils.EMPTY;
+                if (userStorePreferenceOrder.size() == 1) {
+                    String allowedDomainName = userStorePreferenceOrder.get(0);
+                    userStoreQualifiedUsername = UserCoreUtil.addDomainToName(tenantAwareUsername, allowedDomainName);
+                }
+
+                if (userStorePreferenceOrder.isEmpty() || userStorePreferenceOrder.size() == 1) {
+                    ResolvedUserResult resolvedUserResult = null;
+                    if (userStorePreferenceOrder.isEmpty()) {
+                        resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
+                                resolveUser(tenantAwareUsername, requestTenantDomain);
+                    }
+                    if (userStorePreferenceOrder.size() == 1) {
+                        resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
+                                resolveUser(userStoreQualifiedUsername, requestTenantDomain);
+                    }
+                    if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                            equals(resolvedUserResult.getResolvedStatus())) {
+                        tenantAwareUsername = resolvedUserResult.getUser().getUsername();
+                        username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, requestTenantDomain);
+                        userId = resolvedUserResult.getUser().getUserID();
+                    } else {
+                        context.setProperty(IS_INVALID_USERNAME, true);
+                        throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
+                                ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
+                    }
+                } else {
+                    throw new InvalidCredentialsException(
+                            ErrorMessages.MULTIPLE_USER_STORE_BINDING_FOR_SP_NOT_ALLOWED.getCode(),
+                            ErrorMessages.MULTIPLE_USER_STORE_BINDING_FOR_SP_NOT_ALLOWED.getMessage(),
+                            User.getUserFromUserName(username));
+                }
+            } catch (UserStoreException e) {
+                log.error(ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getMessage());
+                throw new AuthenticationFailedException(
+                        ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(),
+                        ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getMessage());
             }
         }
         String password = request.getParameter(BasicAuthenticatorConstants.PASSWORD);
@@ -1214,5 +1245,29 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 diagnosticLogBuilder.inputParam(LogConstants.InputKeys.APPLICATION_NAME,
                         applicationName));
 
+    }
+
+    /**
+     * Retrieve user store preference order.
+     *
+     * @return User store preference order as a list.
+     * @throws UserStoreException If an error occurred while retrieving the user store preference order.
+     */
+    private List<String> getUserStorePreferenceOrder() throws UserStoreException {
+
+        UserMgtContext userMgtContext = UserCoreUtil.getUserMgtContextFromThreadLocal();
+        if (userMgtContext != null) {
+            // Retrieve the relevant supplier to generate the user store preference order.
+            UserStorePreferenceOrderSupplier<List<String>> userStorePreferenceSupplier = userMgtContext.
+                    getUserStorePreferenceOrderSupplier();
+            if (userStorePreferenceSupplier != null) {
+                // Generate the user store preference order.
+                List<String> userStorePreferenceOrder = userStorePreferenceSupplier.get();
+                if (userStorePreferenceOrder != null) {
+                    return userStorePreferenceOrder;
+                }
+            }
+        }
+        return Collections.emptyList();
     }
 }
