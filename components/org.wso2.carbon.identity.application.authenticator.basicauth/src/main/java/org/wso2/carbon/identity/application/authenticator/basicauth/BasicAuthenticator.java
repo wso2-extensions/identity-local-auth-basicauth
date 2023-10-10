@@ -612,35 +612,23 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         if (BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().isEnabled(requestTenantDomain)) {
             try {
                 List<String> userStorePreferenceOrder = getUserStorePreferenceOrder();
-
-                if (userStorePreferenceOrder.isEmpty() || userStorePreferenceOrder.size() == 1) {
-                    ResolvedUserResult resolvedUserResult = null;
-                    if (userStorePreferenceOrder.isEmpty()) {
-                        resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
-                                resolveUser(tenantAwareUsername, requestTenantDomain);
-                    }
-                    if (userStorePreferenceOrder.size() == 1) {
-                        String allowedDomainName = userStorePreferenceOrder.get(0);
-                        String userStoreQualifiedUsername = UserCoreUtil.addDomainToName(tenantAwareUsername,
-                                allowedDomainName);
-                        resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
-                                resolveUser(userStoreQualifiedUsername, requestTenantDomain);
-                    }
-                    if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
-                            equals(resolvedUserResult.getResolvedStatus())) {
-                        tenantAwareUsername = resolvedUserResult.getUser().getUsername();
-                        username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, requestTenantDomain);
-                        userId = resolvedUserResult.getUser().getUserID();
-                    } else {
-                        context.setProperty(IS_INVALID_USERNAME, true);
-                        throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
-                                ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
-                    }
+                if (userStorePreferenceOrder.size() == 1) {
+                    String allowedDomainName = userStorePreferenceOrder.get(0);
+                    tenantAwareUsername = UserCoreUtil.addDomainToName(tenantAwareUsername,
+                            allowedDomainName);
+                }
+                ResolvedUserResult resolvedUserResult =
+                        BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin()
+                                .resolveUser(tenantAwareUsername, requestTenantDomain);
+                if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                        equals(resolvedUserResult.getResolvedStatus())) {
+                    tenantAwareUsername = resolvedUserResult.getUser().getUsername();
+                    username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, requestTenantDomain);
+                    userId = resolvedUserResult.getUser().getUserID();
                 } else {
-                    throw new InvalidCredentialsException(
-                            ErrorMessages.MULTIPLE_USER_STORE_BINDING_FOR_SP_NOT_ALLOWED.getCode(),
-                            ErrorMessages.MULTIPLE_USER_STORE_BINDING_FOR_SP_NOT_ALLOWED.getMessage(),
-                            User.getUserFromUserName(username));
+                    context.setProperty(IS_INVALID_USERNAME, true);
+                    throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
+                            ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
                 }
             } catch (UserStoreException e) {
                 throw new AuthenticationFailedException(

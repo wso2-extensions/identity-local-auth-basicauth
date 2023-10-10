@@ -45,8 +45,6 @@ public class BasicAuthErrorConstants {
         // Organization management exception while resolving user's resident org.
         ORGANIZATION_MGT_EXCEPTION_WHILE_TRYING_TO_RESOLVE_RESIDENT_ORG("BAS-65022",
                 "Organization mgt exception while authenticating"),
-        MULTIPLE_USER_STORE_BINDING_FOR_SP_NOT_ALLOWED("BAS-65023",
-                "Multiple user store binding for SP is not allowed with multi attribute login."),
         // UserStore Error codes
         USER_DOES_NOT_EXISTS("17001", "User does not exists"),
         INVALID_CREDENTIALS("17002",
