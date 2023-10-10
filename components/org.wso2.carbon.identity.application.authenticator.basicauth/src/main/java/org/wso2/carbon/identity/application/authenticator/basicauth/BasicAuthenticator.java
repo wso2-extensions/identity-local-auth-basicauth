@@ -67,9 +67,7 @@ import org.wso2.carbon.user.core.UserStoreClientException;
 import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.common.AuthenticationResult;
-import org.wso2.carbon.user.core.config.UserStorePreferenceOrderSupplier;
 import org.wso2.carbon.user.core.constants.UserCoreClaimConstants;
-import org.wso2.carbon.user.core.model.UserMgtContext;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 import org.wso2.carbon.utils.DiagnosticLog;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
@@ -79,13 +77,13 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Optional;
 
+import javax.naming.Context;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -612,23 +610,27 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         if (BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().isEnabled(requestTenantDomain)) {
             try {
                 List<String> userStorePreferenceOrder = getUserStorePreferenceOrder();
-                if (userStorePreferenceOrder.size() == 1) {
-                    String allowedDomainName = userStorePreferenceOrder.get(0);
-                    tenantAwareUsername = UserCoreUtil.addDomainToName(tenantAwareUsername,
-                            allowedDomainName);
-                }
-                ResolvedUserResult resolvedUserResult =
-                        BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin()
-                                .resolveUser(tenantAwareUsername, requestTenantDomain);
-                if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
-                        equals(resolvedUserResult.getResolvedStatus())) {
+                if (userStorePreferenceOrder.isEmpty()) {
+                    ResolvedUserResult resolvedUserResult =
+                            BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin()
+                                    .resolveUser(tenantAwareUsername, requestTenantDomain);
+                    if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                            equals(resolvedUserResult.getResolvedStatus())) {
+                        tenantAwareUsername = resolvedUserResult.getUser().getUsername();
+                        username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, requestTenantDomain);
+                        userId = resolvedUserResult.getUser().getUserID();
+                    } else {
+                        context.setProperty(IS_INVALID_USERNAME, true);
+                        throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
+                                ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
+                    }
+                } else {
+                    ResolvedUserResult resolvedUserResult = getResolvedUser(userStorePreferenceOrder,
+                            tenantAwareUsername, requestTenantDomain, context);
+
                     tenantAwareUsername = resolvedUserResult.getUser().getUsername();
                     username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, requestTenantDomain);
                     userId = resolvedUserResult.getUser().getUserID();
-                } else {
-                    context.setProperty(IS_INVALID_USERNAME, true);
-                    throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
-                            ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
                 }
             } catch (UserStoreException e) {
                 throw new AuthenticationFailedException(
@@ -814,6 +816,48 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     .inputParam("remember me", context.isRememberMe());
             getApplicationDetails(context, diagnosticLogBuilder);
             LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+        }
+    }
+
+    /**
+     * Resolve user from the given user store preference order.
+     *
+     * @param userStorePreferenceOrder User store preference order.
+     * @param tenantAwareUsername      Tenant aware username.
+     * @param requestTenantDomain      Request tenant domain.
+     * @param context                  Authentication context.
+     * @return Resolved user result.
+     * @throws AuthenticationFailedException Authentication failed exception.
+     */
+    private ResolvedUserResult getResolvedUser(List<String> userStorePreferenceOrder, String tenantAwareUsername,
+                                               String requestTenantDomain, AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        boolean isUserAvailable = false;
+        ResolvedUserResult resolvedUserResult = null;
+        for (String userStoreDomain : userStorePreferenceOrder) {
+            String userStoreQualifiedUsername = UserCoreUtil.addDomainToName(tenantAwareUsername,
+                    userStoreDomain, true);
+            resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin()
+                    .resolveUser(userStoreQualifiedUsername, requestTenantDomain);
+            if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                    equals(resolvedUserResult.getResolvedStatus())) {
+                if (isUserAvailable) {
+                    context.setProperty(IS_INVALID_USERNAME, true);
+                    throw new AuthenticationFailedException(
+                            ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
+                            ErrorMessages.USER_DOES_NOT_EXISTS.getMessage());
+                }
+                isUserAvailable = true;
+            }
+        }
+        if (isUserAvailable) {
+            return resolvedUserResult;
+        } else {
+            context.setProperty(IS_INVALID_USERNAME, true);
+            throw new AuthenticationFailedException(
+                    ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
+                    ErrorMessages.USER_DOES_NOT_EXISTS.getMessage());
         }
     }
 
