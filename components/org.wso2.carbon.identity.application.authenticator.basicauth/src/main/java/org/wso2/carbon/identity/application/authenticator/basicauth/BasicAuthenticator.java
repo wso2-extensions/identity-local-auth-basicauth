@@ -1231,28 +1231,4 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         applicationName));
 
     }
-
-    /**
-     * Retrieve user store preference order.
-     *
-     * @return User store preference order as a list.
-     * @throws UserStoreException If an error occurred while retrieving the user store preference order.
-     */
-    private List<String> getUserStorePreferenceOrder() throws UserStoreException {
-
-        UserMgtContext userMgtContext = UserCoreUtil.getUserMgtContextFromThreadLocal();
-        if (userMgtContext != null) {
-            // Retrieve the relevant supplier to generate the user store preference order.
-            UserStorePreferenceOrderSupplier<List<String>> userStorePreferenceSupplier = userMgtContext.
-                    getUserStorePreferenceOrderSupplier();
-            if (userStorePreferenceSupplier != null) {
-                // Generate the user store preference order.
-                List<String> userStorePreferenceOrder = userStorePreferenceSupplier.get();
-                if (userStorePreferenceOrder != null) {
-                    return userStorePreferenceOrder;
-                }
-            }
-        }
-        return Collections.emptyList();
-    }
 }

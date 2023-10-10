@@ -40,6 +40,7 @@ import org.wso2.carbon.identity.application.authentication.framework.util.Framew
 import org.wso2.carbon.identity.application.authentication.handler.identifier.internal.IdentifierAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants;
+import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
@@ -84,6 +85,7 @@ import static org.wso2.carbon.identity.application.authentication.handler.identi
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.IDENTIFIER_AUTH_SERVICE;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_USER_RESOLVED;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USERNAME_USER_INPUT;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.IS_INVALID_USERNAME;
 import static org.wso2.carbon.user.core.UserCoreConstants.DOMAIN_SEPARATOR;
 import static org.wso2.carbon.user.core.UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME;
 
@@ -519,16 +521,28 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
          Hence, don't rely on this logic for new authenticators.
          */
         if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
-            ResolvedUserResult resolvedUserResult = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().
-                    resolveUser(tenantAwareUsername, tenantDomain);
-            if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
-                    equals(resolvedUserResult.getResolvedStatus())) {
-                tenantAwareUsername = resolvedUserResult.getUser().getUsername();
-                username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, tenantDomain);
-                userId = resolvedUserResult.getUser().getUserID();
-                userStoreDomain = resolvedUserResult.getUser().getUserStoreDomain();
-                // Set a property to the context to indicate that the user is resolved from this step.
-                setIsUserResolvedToContext(context);
+            try {
+                List<String> userStorePreferenceOrder = getUserStorePreferenceOrder();
+                if (userStorePreferenceOrder.size() == 1) {
+                    String allowedDomainName = userStorePreferenceOrder.get(0);
+                    tenantAwareUsername = UserCoreUtil.addDomainToName(tenantAwareUsername,
+                            allowedDomainName);
+                }
+                ResolvedUserResult resolvedUserResult = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().
+                        resolveUser(tenantAwareUsername, tenantDomain);
+                if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
+                        equals(resolvedUserResult.getResolvedStatus())) {
+                    tenantAwareUsername = resolvedUserResult.getUser().getUsername();
+                    username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, tenantDomain);
+                    userId = resolvedUserResult.getUser().getUserID();
+                    userStoreDomain = resolvedUserResult.getUser().getUserStoreDomain();
+                    // Set a property to the context to indicate that the user is resolved from this step.
+                    setIsUserResolvedToContext(context);
+                }
+            } catch (org.wso2.carbon.user.core.UserStoreException e) {
+                throw new AuthenticationFailedException(
+                        ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(),
+                        ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getMessage());
             }
         }
 
