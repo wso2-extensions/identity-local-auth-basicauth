@@ -31,6 +31,7 @@ import org.wso2.carbon.identity.application.authentication.framework.context.Aut
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.model.AdditionalData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedIdPData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
@@ -84,6 +85,7 @@ import static org.wso2.carbon.identity.application.authentication.handler.identi
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.IDENTIFIER_AUTH_SERVICE;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_USER_RESOLVED;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USERNAME_USER_INPUT;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USER_PROMPT;
 import static org.wso2.carbon.user.core.UserCoreConstants.DOMAIN_SEPARATOR;
 import static org.wso2.carbon.user.core.UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME;
 
@@ -101,6 +103,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     private static final String RESET = "reset";
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     private static final String VALIDATE_USERNAME_ADAPTIVE_SCRIPT_PARAM = "ValidateUsername";
+    public static final String USER_PROMPT = "USER_PROMPT";
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -848,21 +851,39 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     @Override
     public Optional<AuthenticatorData> getAuthInitiationData(AuthenticationContext context) {
 
-        AuthenticatorData authenticatorData = new AuthenticatorData();
-        authenticatorData.setName(getName());
         String idpName = null;
         if (context != null && context.getExternalIdP() != null) {
             idpName = context.getExternalIdP().getIdPName();
         }
+
+        AuthenticatorData authenticatorData = new AuthenticatorData();
+        authenticatorData.setName(getName());
         authenticatorData.setIdp(idpName);
+        authenticatorData.setDisplayName(getFriendlyName());
+        setAdditionalData(authenticatorData);
+        setAuthParams(authenticatorData);
+
+        return Optional.of(authenticatorData);
+    }
+
+    private static void setAuthParams(AuthenticatorData authenticatorData) {
 
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
         AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
                 BasicAuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
                 0, Boolean.FALSE, Boolean.TRUE, BasicAuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
-
         authenticatorData.setAuthParams(authenticatorParamMetadataList);
-        return Optional.of(authenticatorData);
+    }
+
+    private static void setAdditionalData(AuthenticatorData authenticatorData) {
+
+        AdditionalData additionalData = new AdditionalData();
+        additionalData.setPromptType(USER_PROMPT);
+        List<String> requiredParams = new ArrayList<>();
+        requiredParams.add(BasicAuthenticatorConstants.USER_NAME);
+        requiredParams.add(BasicAuthenticatorConstants.PASSWORD);
+        additionalData.setRequiredParams(requiredParams);
+        authenticatorData.setAdditionalData(additionalData);
     }
 }

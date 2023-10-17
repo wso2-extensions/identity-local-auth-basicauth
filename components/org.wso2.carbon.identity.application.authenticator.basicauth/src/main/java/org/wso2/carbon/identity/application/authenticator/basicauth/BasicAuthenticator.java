@@ -33,6 +33,7 @@ import org.wso2.carbon.identity.application.authentication.framework.context.Aut
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.model.AdditionalData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticationFrameworkWrapper;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
@@ -94,6 +95,7 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.Basic
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USERNAME_USER_INPUT;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USER_PROMPT;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
@@ -1167,13 +1169,23 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     @Override
     public Optional<AuthenticatorData> getAuthInitiationData(AuthenticationContext context) {
 
-        AuthenticatorData authenticatorData = new AuthenticatorData();
-        authenticatorData.setName(getName());
         String idpName = null;
         if (context != null && context.getExternalIdP() != null) {
             idpName = context.getExternalIdP().getIdPName();
         }
+
+        AuthenticatorData authenticatorData = new AuthenticatorData();
+        authenticatorData.setName(getName());
         authenticatorData.setIdp(idpName);
+        authenticatorData.setDisplayName(getFriendlyName());
+        setAuthParams(authenticatorData);
+        AdditionalData additionalData = getAdditionalData();
+        authenticatorData.setAdditionalData(additionalData);
+
+        return Optional.of(authenticatorData);
+    }
+
+    private static void setAuthParams(AuthenticatorData authenticatorData) {
 
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
         AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
@@ -1184,9 +1196,18 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 BasicAuthenticatorConstants.PASSWORD, FrameworkConstants.AuthenticatorParamType.STRING,
                 1, Boolean.TRUE, Boolean.TRUE, BasicAuthenticatorConstants.PASSWORD_PARAM);
         authenticatorParamMetadataList.add(passwordMetadata);
-
         authenticatorData.setAuthParams(authenticatorParamMetadataList);
-        return Optional.of(authenticatorData);
+    }
+
+    private static AdditionalData getAdditionalData() {
+
+        List<String> requiredParams = new ArrayList<>();
+        AdditionalData additionalData = new AdditionalData();
+        requiredParams.add(BasicAuthenticatorConstants.USER_NAME);
+        requiredParams.add(BasicAuthenticatorConstants.PASSWORD);
+        additionalData.setRequiredParams(requiredParams);
+        additionalData.setPromptType(USER_PROMPT);
+        return additionalData;
     }
 
     /**
