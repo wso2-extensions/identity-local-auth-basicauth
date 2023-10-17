@@ -30,6 +30,7 @@ import org.wso2.carbon.identity.application.authentication.framework.model.Authe
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandler;
 
+import org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
@@ -90,7 +91,8 @@ public class IdentifierHandlerTestCase {
                 0, false, true, BasicAuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
 
-        Assert.assertEquals(authenticatorDataObj.getName(), "IdentifierExecutor");
+        Assert.assertEquals(authenticatorDataObj.getDisplayName(), IdentifierHandlerConstants.HANDLER_FRIENDLY_NAME);
+        Assert.assertEquals(authenticatorDataObj.getAdditionalDataObj().getRequiredParams().size(), 2);
         Assert.assertEquals(authenticatorDataObj.getAuthParams().size(), authenticatorParamMetadataList.size(),
                 "Size of lists should be equal.");
         for (int i = 0; i < authenticatorParamMetadataList.size(); i++) {

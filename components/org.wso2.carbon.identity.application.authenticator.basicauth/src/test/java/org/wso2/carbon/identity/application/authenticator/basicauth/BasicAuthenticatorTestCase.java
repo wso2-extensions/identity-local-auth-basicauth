@@ -1697,7 +1697,11 @@ public class BasicAuthenticatorTestCase {
                 1, true, true, BasicAuthenticatorConstants.PASSWORD_PARAM);
         authenticatorParamMetadataList.add(passwordMetadata);
 
-        Assert.assertEquals(authenticatorDataObj.getName(), "BasicAuthenticator");
+        Assert.assertEquals(authenticatorDataObj.getDisplayName(),
+                BasicAuthenticatorConstants.AUTHENTICATOR_FRIENDLY_NAME);
+        Assert.assertEquals(authenticatorDataObj.getAdditionalDataObj().getPromptType(),
+                BasicAuthenticatorConstants.USER_PROMPT);
+        Assert.assertEquals(authenticatorDataObj.getAdditionalDataObj().getRequiredParams().size(), 2);
         Assert.assertEquals(authenticatorDataObj.getAuthParams().size(), authenticatorParamMetadataList.size(),
                 "Size of lists should be equal.");
         for (int i = 0; i < authenticatorParamMetadataList.size(); i++) {

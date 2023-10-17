@@ -63,6 +63,7 @@ public abstract class BasicAuthenticatorConstants {
     public static final boolean SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE = true;
     public static final String USERNAME_PARAM = "username.param";
     public static final String PASSWORD_PARAM = "password.param";
+    public static final String USER_PROMPT = "USER_PROMPT";
 
     /**
      * Constants related to log management.
