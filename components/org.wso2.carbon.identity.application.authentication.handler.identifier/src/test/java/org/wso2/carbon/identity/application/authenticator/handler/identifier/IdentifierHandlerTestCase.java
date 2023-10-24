@@ -88,11 +88,11 @@ public class IdentifierHandlerTestCase {
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
         AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
                 BasicAuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
-                0, false, true, BasicAuthenticatorConstants.USERNAME_PARAM);
+                0, false, BasicAuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
 
         Assert.assertEquals(authenticatorDataObj.getDisplayName(), IdentifierHandlerConstants.HANDLER_FRIENDLY_NAME);
-        Assert.assertEquals(authenticatorDataObj.getAdditionalDataObj().getRequiredParams().size(), 2);
+        Assert.assertEquals(authenticatorDataObj.getRequiredParams().size(), 1);
         Assert.assertEquals(authenticatorDataObj.getAuthParams().size(), authenticatorParamMetadataList.size(),
                 "Size of lists should be equal.");
         for (int i = 0; i < authenticatorParamMetadataList.size(); i++) {

@@ -860,7 +860,12 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         authenticatorData.setName(getName());
         authenticatorData.setIdp(idpName);
         authenticatorData.setDisplayName(getFriendlyName());
-        setAdditionalData(authenticatorData);
+        authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.USER_PROMPT);
+
+        List<String> requiredParams = new ArrayList<>();
+        requiredParams.add(BasicAuthenticatorConstants.USER_NAME);
+        authenticatorData.setRequiredParams(requiredParams);
+
         setAuthParams(authenticatorData);
 
         return Optional.of(authenticatorData);
@@ -871,19 +876,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
         AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
                 BasicAuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
-                0, Boolean.FALSE, Boolean.TRUE, BasicAuthenticatorConstants.USERNAME_PARAM);
+                0, Boolean.FALSE, BasicAuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
         authenticatorData.setAuthParams(authenticatorParamMetadataList);
-    }
-
-    private static void setAdditionalData(AuthenticatorData authenticatorData) {
-
-        AdditionalData additionalData = new AdditionalData();
-        additionalData.setPromptType(USER_PROMPT);
-        List<String> requiredParams = new ArrayList<>();
-        requiredParams.add(BasicAuthenticatorConstants.USER_NAME);
-        requiredParams.add(BasicAuthenticatorConstants.PASSWORD);
-        additionalData.setRequiredParams(requiredParams);
-        authenticatorData.setAdditionalData(additionalData);
     }
 }
