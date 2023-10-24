@@ -1178,9 +1178,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         authenticatorData.setName(getName());
         authenticatorData.setIdp(idpName);
         authenticatorData.setDisplayName(getFriendlyName());
+        authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.USER_PROMPT);
         setAuthParams(authenticatorData);
-        AdditionalData additionalData = getAdditionalData();
-        authenticatorData.setAdditionalData(additionalData);
+
+        List<String> requiredParams = new ArrayList<>();
+        requiredParams.add(BasicAuthenticatorConstants.USER_NAME);
+        requiredParams.add(BasicAuthenticatorConstants.PASSWORD);
+        authenticatorData.setRequiredParams(requiredParams);
 
         return Optional.of(authenticatorData);
     }
@@ -1190,24 +1194,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
         AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
                 BasicAuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
-                0, Boolean.FALSE, Boolean.TRUE, BasicAuthenticatorConstants.USERNAME_PARAM);
+                0, Boolean.FALSE, BasicAuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
         AuthenticatorParamMetadata passwordMetadata = new AuthenticatorParamMetadata(
                 BasicAuthenticatorConstants.PASSWORD, FrameworkConstants.AuthenticatorParamType.STRING,
-                1, Boolean.TRUE, Boolean.TRUE, BasicAuthenticatorConstants.PASSWORD_PARAM);
+                1, Boolean.TRUE, BasicAuthenticatorConstants.PASSWORD_PARAM);
         authenticatorParamMetadataList.add(passwordMetadata);
         authenticatorData.setAuthParams(authenticatorParamMetadataList);
-    }
-
-    private static AdditionalData getAdditionalData() {
-
-        List<String> requiredParams = new ArrayList<>();
-        AdditionalData additionalData = new AdditionalData();
-        requiredParams.add(BasicAuthenticatorConstants.USER_NAME);
-        requiredParams.add(BasicAuthenticatorConstants.PASSWORD);
-        additionalData.setRequiredParams(requiredParams);
-        additionalData.setPromptType(USER_PROMPT);
-        return additionalData;
     }
 
     /**
