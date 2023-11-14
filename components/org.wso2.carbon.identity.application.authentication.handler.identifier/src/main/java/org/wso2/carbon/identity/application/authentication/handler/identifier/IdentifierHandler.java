@@ -31,10 +31,10 @@ import org.wso2.carbon.identity.application.authentication.framework.context.Aut
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
-import org.wso2.carbon.identity.application.authentication.framework.model.AdditionalData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedIdPData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorMessage;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
@@ -78,6 +78,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.REMAINING_ATTEMPTS;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.IDENTIFIER_CONSENT;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.RESTART_FLOW;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.INITIATE_IDENTIFIER_AUTH_REQUEST;
@@ -85,7 +86,12 @@ import static org.wso2.carbon.identity.application.authentication.handler.identi
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.IDENTIFIER_AUTH_SERVICE;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_USER_RESOLVED;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USERNAME_USER_INPUT;
-import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USER_PROMPT;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_CONFIRMATION_PENDING;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_DISABLED;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_LOCKED;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_LOCKED_REASON;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_MESSAGE;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.INVALID_CREDENTIALS_ARE_PROVIDED;
 import static org.wso2.carbon.user.core.UserCoreConstants.DOMAIN_SEPARATOR;
 import static org.wso2.carbon.user.core.UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME;
 
@@ -300,6 +306,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                         LoggerUtils.getMaskedContent(username) : username);
                     }
 
+                    setAuthenticatorMessage(getErrorMessage(errorCode, ACCOUNT_CONFIRMATION_PENDING), context);
                 } else if ("true".equals(showAuthFailureReason)) {
 
                     String reason = null;
@@ -336,6 +343,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                             LoggerUtils.getMaskedContent(username) : username)
                                     .inputParam("remaining attempts", remainingAttempts);
                         }
+                        Map<String, String> messageContext = getMessageContext(REMAINING_ATTEMPTS,
+                                String.valueOf(remainingAttempts));
+                        setAuthenticatorMessage(new AuthenticatorMessage
+                                (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
+                                        INVALID_CREDENTIALS_ARE_PROVIDED, messageContext), context);
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
                         String redirectURL = retryPage;
                         if (remainingAttempts == 0) {
@@ -375,6 +387,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                             LoggerUtils.getMaskedContent(username) : username);
                         }
 
+                        Map<String, String> messageContext = getMessageContext(ACCOUNT_LOCKED_REASON,
+                                String.valueOf(reason));
+                        setAuthenticatorMessage(new AuthenticatorMessage
+                                        (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
+                                                ACCOUNT_IS_LOCKED, messageContext), context);
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST)) {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
@@ -390,6 +407,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                     .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
                                             LoggerUtils.getMaskedContent(username) : username);
                         }
+                        setAuthenticatorMessage(getErrorMessage(errorCode,
+                                INVALID_CREDENTIALS_ARE_PROVIDED), context);
                     } else if (errorCode.equals(IdentityCoreConstants.USER_ACCOUNT_DISABLED_ERROR_CODE)) {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
@@ -405,6 +424,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                     .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
                                             LoggerUtils.getMaskedContent(username) : username);
                         }
+                        setAuthenticatorMessage(getErrorMessage(errorCode, ACCOUNT_IS_DISABLED), context);
                     } else {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
@@ -642,6 +662,25 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                     .inputParam(LogConstants.InputKeys.USER_ID, userId);
             LoggerUtils.triggerDiagnosticLogEvent(authProcessCompletedDiagnosticLogBuilder);
         }
+    }
+
+    private static void setAuthenticatorMessage(AuthenticatorMessage errorMessage, AuthenticationContext context) {
+
+        context.setProperty(AUTHENTICATOR_MESSAGE, errorMessage);
+    }
+
+    private static AuthenticatorMessage getErrorMessage(String errorCode, String accountConfirmationPending) {
+
+        return new AuthenticatorMessage
+                (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
+                        accountConfirmationPending, null);
+    }
+
+    private static Map<String, String> getMessageContext(String key, String value) {
+
+        Map <String,String> messageContext = new HashMap<>();
+        messageContext.put(key, value);
+        return messageContext;
     }
 
     private void setIsUserResolvedToContext(AuthenticationContext context) {
