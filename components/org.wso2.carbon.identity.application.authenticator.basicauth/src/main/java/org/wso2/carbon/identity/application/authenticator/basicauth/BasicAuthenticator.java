@@ -33,10 +33,10 @@ import org.wso2.carbon.identity.application.authentication.framework.context.Aut
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
-import org.wso2.carbon.identity.application.authentication.framework.model.AdditionalData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticationFrameworkWrapper;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorMessage;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
@@ -88,14 +88,24 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.REMAINING_ATTEMPTS;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_CONFIRMATION_PENDING;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_LOCKED;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_LOCKED_REASON;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_PENDING_APPROVAL;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.FORCED_PASSWORD_RESET_VIA_EMAIL;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.FORCED_PASSWORD_RESET_VIA_OTP;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_MESSAGE;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.INVALID_CREDENTIALS_ARE_PROVIDED;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.IS_INVALID_USERNAME;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.LOCKED_REASON;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.OTP_MISMATCH_IN_ADMIN_FORCED_PASSWORD_RESET;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_TYPE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USERNAME_USER_INPUT;
-import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USER_PROMPT;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
@@ -122,6 +132,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
      * which has used in org.wso2.carbon.identity.governance.listener.IdentityMgtEventListener.
      */
     private static final String USER_EXIST_THREAD_LOCAL_PROPERTY = "userExistThreadLocalProperty";
+
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -218,9 +229,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     @Override
     protected void initiateAuthenticationRequest(HttpServletRequest request,
                                                  HttpServletResponse response, AuthenticationContext context)
-            throws AuthenticationFailedException {
-
-        if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            throws AuthenticationFailedException {if (LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
                     BasicAuthenticatorConstants.LogConstants.BASIC_AUTH_SERVICE,
                     BasicAuthenticatorConstants.LogConstants.ActionIDs.VALIDATE_BASIC_AUTH_REQUEST);
@@ -354,7 +363,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants
                             .AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
-
+                    setAuthenticatorErrorMessage(getErrorMessage(errorCode, ACCOUNT_CONFIRMATION_PENDING), context);
                 } else if (errorCode.equals(
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE)) {
                     retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
@@ -376,6 +385,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                             BasicAuthenticatorConstants.LOCAL + retryParam;
 
+                    setAuthenticatorErrorMessage(getErrorMessage(errorCode,
+                            FORCED_PASSWORD_RESET_VIA_EMAIL), context);
                 } else if (errorCode.equals(
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE)) {
                     String username = request.getParameter(BasicAuthenticatorConstants.USER_NAME);
@@ -403,6 +414,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.REASON_PARAM +
                             URLEncoder.encode(reason, BasicAuthenticatorConstants.UTF_8);
+                    setAuthenticatorErrorMessage(getErrorMessage(errorCode, FORCED_PASSWORD_RESET_VIA_OTP),
+                            context);
                 } else if (errorCode.equals(
                         IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE)) {
                     retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
@@ -413,6 +426,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants
                             .AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
+                    setAuthenticatorErrorMessage(getErrorMessage(errorCode, ACCOUNT_PENDING_APPROVAL), context);
                 } else if ("true".equals(showAuthFailureReason)) {
 
                     if (Boolean.parseBoolean(maskUserNotExistsErrorCode) &&
@@ -425,6 +439,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                     UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST + " with error code: " +
                                     errorCode);
                         }
+                        setAuthenticatorErrorMessage(getErrorMessage(errorCode, INVALID_CREDENTIALS_ARE_PROVIDED),
+                                context);
                     }
 
                     String reason = null;
@@ -456,7 +472,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         redirectURL = loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam;
-
+                        Map<String, String> messageContext = getMessageContext(REMAINING_ATTEMPTS,
+                                String.valueOf(remainingAttempts));
+                        setAuthenticatorErrorMessage(new AuthenticatorMessage
+                                (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
+                                        INVALID_CREDENTIALS_ARE_PROVIDED, messageContext), context);
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_IS_LOCKED)) {
                         Map<String, String> paramMap = new HashMap<>();
                         paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
@@ -478,6 +498,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             redirectURL = response.encodeRedirectURL(retryPage + ("?" + queryParams))
                                     + buildErrorParamString(paramMap, omittingErrorParams);
                         }
+                        Map<String, String> messageContext = getMessageContext(ACCOUNT_LOCKED_REASON,
+                                String.valueOf(reason));
+                        setAuthenticatorErrorMessage(new AuthenticatorMessage
+                                (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
+                                        ACCOUNT_IS_LOCKED, messageContext),
+                                context);
                     } else if (errorCode.equals(
                             IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE)) {
                         Map<String, String> paramMap = new HashMap<>();
@@ -491,7 +517,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                 + buildErrorParamString(paramMap, omittingErrorParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam;
-
+                        setAuthenticatorErrorMessage(getErrorMessage(errorCode, OTP_MISMATCH_IN_ADMIN_FORCED_PASSWORD_RESET),
+                                context);
                     } else {
                         Map<String, String> paramMap = new HashMap<>();
                         paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
@@ -517,7 +544,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     redirectURL = loginPage + ("?" + queryParams)
                             + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                             BasicAuthenticatorConstants.LOCAL + retryParam;
-
                 }
             } else {
                 if (log.isDebugEnabled()) {
@@ -549,6 +575,24 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
+    private static Map<String, String> getMessageContext(String key, String value) {
+
+        Map <String,String> messageContext = new HashMap<>();
+        messageContext.put(key, value);
+        return messageContext;
+    }
+
+    private static AuthenticatorMessage getErrorMessage(String errorCode, String accountConfirmationPending) {
+
+        return new AuthenticatorMessage
+                (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
+                        accountConfirmationPending, null);
+    }
+
+    private static void setAuthenticatorErrorMessage(AuthenticatorMessage errorMessage, AuthenticationContext context) {
+
+        context.setProperty(AUTHENTICATOR_MESSAGE, errorMessage);
+    }
 
     @Override
     protected void processAuthenticationResponse(HttpServletRequest request,
@@ -1175,6 +1219,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
 
         AuthenticatorData authenticatorData = new AuthenticatorData();
+        if (context.getProperty(AUTHENTICATOR_MESSAGE) != null) {
+            AuthenticatorMessage authenticatorMessage = (AuthenticatorMessage) context.getProperty
+                    (AUTHENTICATOR_MESSAGE);
+            authenticatorData.setMessage(authenticatorMessage);
+        }
+
         authenticatorData.setName(getName());
         authenticatorData.setIdp(idpName);
         authenticatorData.setDisplayName(getFriendlyName());

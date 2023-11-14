@@ -36,6 +36,7 @@ public abstract class BasicAuthenticatorConstants {
     public static final String CONFIRMATION_PARAM = "&confirmation=";
     public static final String REMAINING_ATTEMPTS = "&remainingAttempts=";
     public static final String LOCKED_REASON = "&lockedReason=";
+    public static final String ACCOUNT_LOCKED_REASON = "lockedReason";
     public static final String CONF_SHOW_AUTH_FAILURE_REASON = "showAuthFailureReason";
     public static final String CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE = "showAuthFailureReasonOnLoginPage";
     public static final String CONF_MASK_USER_NOT_EXISTS_ERROR_CODE = "maskUserNotExistsErrorCode";
@@ -64,6 +65,19 @@ public abstract class BasicAuthenticatorConstants {
     public static final String USERNAME_PARAM = "username.param";
     public static final String PASSWORD_PARAM = "password.param";
     public static final String USER_PROMPT = "USER_PROMPT";
+    public static final String ACCOUNT_CONFIRMATION_PENDING = "The account confirmation is pending.";
+    public static final String AUTHENTICATOR_MESSAGE = "authenticatorMessage";
+    public static final String ACCOUNT_PENDING_APPROVAL = "Account approval is pending.";
+    public static final String INVALID_CREDENTIALS_ARE_PROVIDED = "Invalid credentials are provided.";
+    public static final String ACCOUNT_IS_DISABLED = "The user account is disabled.";
+    public static final String ACCOUNT_IS_LOCKED = "The account is locked" +
+            " after multiple incorrect login attempts.";
+    public static final String OTP_MISMATCH_IN_ADMIN_FORCED_PASSWORD_RESET = "OTP mismatch in admin forced password " +
+            "reset.";
+    public static final String FORCED_PASSWORD_RESET_VIA_OTP = "The admin has forced user to reset" +
+            " password via OTP.";
+    public static final String FORCED_PASSWORD_RESET_VIA_EMAIL = "The admin has forced user to " +
+            "reset password via Email.";
 
     /**
      * Constants related to log management.
