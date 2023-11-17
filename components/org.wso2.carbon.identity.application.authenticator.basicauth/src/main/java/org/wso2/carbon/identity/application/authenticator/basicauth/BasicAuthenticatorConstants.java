@@ -25,7 +25,9 @@ public abstract class BasicAuthenticatorConstants {
     public static final String AUTHENTICATOR_NAME = "BasicAuthenticator";
     public static final String AUTHENTICATOR_FRIENDLY_NAME = "Username & Password";
     public static final String USER_NAME = "username";
+    public static final String DISPLAY_USER_NAME = "Username";
     public static final String PASSWORD = "password";
+    public static final String DISPLAY_PASSWORD = "Password";
     public static final String FAILED_USERNAME = "&failedUsername=";
     public static final String ERROR_CODE = "&errorCode=";
     public static final String AUTHENTICATORS = "&authenticators=";

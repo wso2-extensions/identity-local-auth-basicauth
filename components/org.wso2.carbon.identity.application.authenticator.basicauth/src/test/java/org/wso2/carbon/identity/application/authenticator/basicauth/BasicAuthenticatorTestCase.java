@@ -120,10 +120,14 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_PASSWORD;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_USER_NAME;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.PASSWORD;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_TYPE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_CONFIG;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USER_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.CONTENT;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.COOKIE_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant.CREATED_TIME;
@@ -1689,12 +1693,12 @@ public class BasicAuthenticatorTestCase {
 
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
         AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
-                BasicAuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
-                0, false, BasicAuthenticatorConstants.USERNAME_PARAM);
+                USER_NAME, DISPLAY_USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
+                0, Boolean.FALSE, BasicAuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
         AuthenticatorParamMetadata passwordMetadata = new AuthenticatorParamMetadata(
-                BasicAuthenticatorConstants.PASSWORD, FrameworkConstants.AuthenticatorParamType.STRING,
-                1, true, BasicAuthenticatorConstants.PASSWORD_PARAM);
+                PASSWORD, DISPLAY_PASSWORD, FrameworkConstants.AuthenticatorParamType.STRING,
+                1, Boolean.TRUE, BasicAuthenticatorConstants.PASSWORD_PARAM);
         authenticatorParamMetadataList.add(passwordMetadata);
 
         Assert.assertEquals(authenticatorDataObj.getDisplayName(),

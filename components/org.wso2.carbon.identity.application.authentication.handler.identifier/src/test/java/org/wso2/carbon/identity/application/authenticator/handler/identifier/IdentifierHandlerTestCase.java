@@ -41,6 +41,8 @@ import java.util.List;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USER_NAME;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_USER_NAME;
 
 /**
  * Unit test cases for the Identifier-first Authenticator.
@@ -87,8 +89,8 @@ public class IdentifierHandlerTestCase {
 
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
         AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
-                BasicAuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
-                0, false, BasicAuthenticatorConstants.USERNAME_PARAM);
+                USER_NAME, DISPLAY_USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
+                0, Boolean.FALSE, BasicAuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
 
         Assert.assertEquals(authenticatorDataObj.getDisplayName(), IdentifierHandlerConstants.HANDLER_FRIENDLY_NAME);
