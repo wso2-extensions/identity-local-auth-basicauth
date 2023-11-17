@@ -86,11 +86,13 @@ import static org.wso2.carbon.identity.application.authentication.handler.identi
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.IDENTIFIER_AUTH_SERVICE;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.IS_USER_RESOLVED;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USERNAME_USER_INPUT;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.USER_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_CONFIRMATION_PENDING;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_DISABLED;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_LOCKED;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_LOCKED_REASON;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_MESSAGE;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_USER_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.INVALID_CREDENTIALS_ARE_PROVIDED;
 import static org.wso2.carbon.user.core.UserCoreConstants.DOMAIN_SEPARATOR;
 import static org.wso2.carbon.user.core.UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME;
@@ -114,7 +116,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     @Override
     public boolean canHandle(HttpServletRequest request) {
 
-        String userName = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+        String userName = request.getParameter(USER_NAME);
         String identifierConsent = request.getParameter(IDENTIFIER_CONSENT);
         String restart = request.getParameter(RESTART_FLOW);
         Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
@@ -182,7 +184,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                 } else if (RESET.equals(identifierConsent)) {
                                     initiateAuthenticationRequest(request, response, context);
                                     return AuthenticatorFlowStatus.INCOMPLETE;
-                                } else if (request.getParameter(IdentifierHandlerConstants.USER_NAME) != null) {
+                                } else if (request.getParameter(USER_NAME) != null) {
                                     processAuthenticationResponse(request, response, context);
                                     return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
                                 } else {
@@ -288,7 +290,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
                 if (errorCode.equals(IdentityCoreConstants.USER_ACCOUNT_NOT_CONFIRMED_ERROR_CODE)) {
                     retryParam = "&authFailure=true&authFailureMsg=account.confirmation.pending";
-                    String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+                    String username = request.getParameter(USER_NAME);
                     Object domain = IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN);
                     if (domain != null) {
                         username = IdentityUtil.addDomainToName(username, domain.toString());
@@ -322,14 +324,14 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
                     if (log.isDebugEnabled()) {
                         log.debug("errorCode : " + errorCode);
-                        log.debug("username : " + request.getParameter(IdentifierHandlerConstants.USER_NAME));
+                        log.debug("username : " + request.getParameter(USER_NAME));
                         log.debug("remainingAttempts : " + remainingAttempts);
                     }
 
                     if (errorCode.equals(UserCoreConstants.ErrorCode.INVALID_CREDENTIAL)) {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
-                                .encode(request.getParameter(IdentifierHandlerConstants.USER_NAME),
+                                .encode(request.getParameter(USER_NAME),
                                         IdentifierHandlerConstants.UTF_8)
                                 + "&remainingAttempts=" + remainingAttempts;
                         String redirectURL = loginPage + ("?" + queryParams)
@@ -337,7 +339,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                 IdentifierHandlerConstants.LOCAL + retryParam;
                         response.sendRedirect(redirectURL);
                         if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
-                            String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+                            String username = request.getParameter(USER_NAME);
                             diagnosticLogBuilder.resultMessage("Invalid credentials.")
                                     .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
                                             LoggerUtils.getMaskedContent(username) : username)
@@ -354,25 +356,25 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                             if (StringUtils.isBlank(reason)) {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
                                         IdentifierHandlerConstants.ERROR_CODE + errorCode + IdentifierHandlerConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(IdentifierHandlerConstants.USER_NAME), IdentifierHandlerConstants.UTF_8) +
+                                        URLEncoder.encode(request.getParameter(USER_NAME), IdentifierHandlerConstants.UTF_8) +
                                         "&remainingAttempts=0";
                             } else {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
                                         IdentifierHandlerConstants.ERROR_CODE + errorCode + "&lockedReason="
                                         + reason + IdentifierHandlerConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(IdentifierHandlerConstants.USER_NAME),
+                                        URLEncoder.encode(request.getParameter(USER_NAME),
                                                 IdentifierHandlerConstants.UTF_8) + "&remainingAttempts=0";
                             }
                         } else {
                             if (StringUtils.isBlank(reason)) {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
                                         IdentifierHandlerConstants.ERROR_CODE + errorCode + IdentifierHandlerConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(IdentifierHandlerConstants.USER_NAME), IdentifierHandlerConstants.UTF_8);
+                                        URLEncoder.encode(request.getParameter(USER_NAME), IdentifierHandlerConstants.UTF_8);
                             } else {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
                                         IdentifierHandlerConstants.ERROR_CODE + errorCode + "&lockedReason="
                                         + reason + IdentifierHandlerConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(IdentifierHandlerConstants.USER_NAME),
+                                        URLEncoder.encode(request.getParameter(USER_NAME),
                                                 IdentifierHandlerConstants.UTF_8);
                             }
                             if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
@@ -381,7 +383,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         }
                         response.sendRedirect(redirectURL);
                         if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
-                            String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+                            String username = request.getParameter(USER_NAME);
                             diagnosticLogBuilder.resultMessage("User is locked.")
                                     .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
                                             LoggerUtils.getMaskedContent(username) : username);
@@ -395,14 +397,14 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST)) {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
-                                .encode(request.getParameter(IdentifierHandlerConstants.USER_NAME),
+                                .encode(request.getParameter(USER_NAME),
                                         IdentifierHandlerConstants.UTF_8);
                         String redirectURL = loginPage + ("?" + queryParams)
                                 + IdentifierHandlerConstants.AUTHENTICATORS + getName() + ":" +
                                 IdentifierHandlerConstants.LOCAL + retryParam;
                         response.sendRedirect(redirectURL);
                         if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
-                            String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+                            String username = request.getParameter(USER_NAME);
                             diagnosticLogBuilder.resultMessage("User does not exist.")
                                     .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
                                             LoggerUtils.getMaskedContent(username) : username);
@@ -412,14 +414,14 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                     } else if (errorCode.equals(IdentityCoreConstants.USER_ACCOUNT_DISABLED_ERROR_CODE)) {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
-                                .encode(request.getParameter(IdentifierHandlerConstants.USER_NAME),
+                                .encode(request.getParameter(USER_NAME),
                                         IdentifierHandlerConstants.UTF_8);
                         String redirectURL = loginPage + ("?" + queryParams)
                                 + IdentifierHandlerConstants.AUTHENTICATORS + getName() + ":" +
                                 IdentifierHandlerConstants.LOCAL + retryParam;
                         response.sendRedirect(redirectURL);
                         if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
-                            String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+                            String username = request.getParameter(USER_NAME);
                             diagnosticLogBuilder.resultMessage("User account is disabled.")
                                     .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
                                             LoggerUtils.getMaskedContent(username) : username);
@@ -428,14 +430,14 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                     } else {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
-                                .encode(request.getParameter(IdentifierHandlerConstants.USER_NAME),
+                                .encode(request.getParameter(USER_NAME),
                                         IdentifierHandlerConstants.UTF_8);
                         String redirectURL = loginPage + ("?" + queryParams)
                                 + IdentifierHandlerConstants.AUTHENTICATORS + getName() + ":"
                                 + IdentifierHandlerConstants.LOCAL + retryParam;
                         response.sendRedirect(redirectURL);
                         if (LoggerUtils.isDiagnosticLogsEnabled() && diagnosticLogBuilder != null) {
-                            String username = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+                            String username = request.getParameter(USER_NAME);
                             diagnosticLogBuilder.resultMessage("Unknown error occurred.")
                                     .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
                                             LoggerUtils.getMaskedContent(username) : username);
@@ -470,7 +472,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         } catch (IOException e) {
             throw new AuthenticationFailedException(ErrorMessages.SYSTEM_ERROR_WHILE_AUTHENTICATING.getCode(),
                     e.getMessage(),
-                    User.getUserFromUserName(request.getParameter(IdentifierHandlerConstants.USER_NAME)), e);
+                    User.getUserFromUserName(request.getParameter(USER_NAME)), e);
         }
     }
 
@@ -498,7 +500,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                     .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep());
         }
         Map<String, String> runtimeParams = getRuntimeParams(context);
-        String identifierFromRequest = request.getParameter(IdentifierHandlerConstants.USER_NAME);
+        String identifierFromRequest = request.getParameter(USER_NAME);
         String validateUsernameAdaptiveParam = null;
         if (StringUtils.isBlank(identifierFromRequest)) {
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
@@ -914,7 +916,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
         AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
-                BasicAuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
+                USER_NAME, DISPLAY_USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
                 0, Boolean.FALSE, BasicAuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
         authenticatorData.setAuthParams(authenticatorParamMetadataList);
