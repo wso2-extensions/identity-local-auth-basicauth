@@ -52,6 +52,7 @@ public abstract class IdentifierHandlerConstants {
 
             public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-identifier-authentication-response";
             public static final String INITIATE_IDENTIFIER_AUTH_REQUEST = "initiate-identifier-authentication-request";
+            public static final String AUTHENTICATOR_IDENTIFIER = "authenticator.identifier";
         }
     }
 }

@@ -81,6 +81,7 @@ import javax.servlet.http.HttpServletResponse;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.REMAINING_ATTEMPTS;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.IDENTIFIER_CONSENT;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.RESTART_FLOW;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.AUTHENTICATOR_IDENTIFIER;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.INITIATE_IDENTIFIER_AUTH_REQUEST;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.IDENTIFIER_AUTH_SERVICE;
@@ -91,6 +92,7 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.Basic
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_DISABLED;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_LOCKED;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_LOCKED_REASON;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_BASIC;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_MESSAGE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_USER_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.INVALID_CREDENTIALS_ARE_PROVIDED;
@@ -900,6 +902,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         AuthenticatorData authenticatorData = new AuthenticatorData();
         authenticatorData.setName(getName());
         authenticatorData.setIdp(idpName);
+        authenticatorData.setI18nKey(getI18nKey());
         authenticatorData.setDisplayName(getFriendlyName());
         authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.USER_PROMPT);
 
@@ -920,5 +923,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 0, Boolean.FALSE, BasicAuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
         authenticatorData.setAuthParams(authenticatorParamMetadataList);
+    }
+
+    @Override
+    public String getI18nKey() {
+
+        return AUTHENTICATOR_IDENTIFIER;
     }
 }

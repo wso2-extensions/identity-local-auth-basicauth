@@ -93,6 +93,7 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.Basic
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_LOCKED;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_LOCKED_REASON;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_PENDING_APPROVAL;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_BASIC;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_PASSWORD;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_USER_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.FORCED_PASSWORD_RESET_VIA_EMAIL;
@@ -1229,6 +1230,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
 
         authenticatorData.setName(getName());
+        authenticatorData.setI18nKey(getI18nKey());
         authenticatorData.setIdp(idpName);
         authenticatorData.setDisplayName(getFriendlyName());
         authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.USER_PROMPT);
@@ -1282,4 +1284,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         applicationName));
 
     }
+
+    @Override
+    public String getI18nKey() {
+
+        return AUTHENTICATOR_BASIC;
+    }
+
 }
