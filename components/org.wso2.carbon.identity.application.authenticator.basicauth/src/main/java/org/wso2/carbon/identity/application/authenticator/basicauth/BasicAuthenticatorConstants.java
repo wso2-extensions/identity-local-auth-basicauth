@@ -23,6 +23,7 @@ package org.wso2.carbon.identity.application.authenticator.basicauth;
 public abstract class BasicAuthenticatorConstants {
 
     public static final String AUTHENTICATOR_NAME = "BasicAuthenticator";
+    public static  final String AUTHENTICATOR_BASIC = "authenticator.basic";
     public static final String AUTHENTICATOR_FRIENDLY_NAME = "Username & Password";
     public static final String USER_NAME = "username";
     public static final String DISPLAY_USER_NAME = "Username";
