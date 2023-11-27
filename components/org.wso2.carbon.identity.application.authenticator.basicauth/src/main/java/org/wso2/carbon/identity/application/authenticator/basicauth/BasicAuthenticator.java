@@ -1285,6 +1285,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
     }
 
+    /**
+     * Set i18nKey.
+     *
+     * @return the i18n key
+     */
     @Override
     public String getI18nKey() {
 
