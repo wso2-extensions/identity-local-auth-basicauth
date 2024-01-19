@@ -118,6 +118,7 @@
                             org.wso2.carbon.user.core.tenant; version="${carbon.kernel.imp.pkg.version.range}",
                             org.wso2.carbon.utils; version="${carbon.kernel.imp.pkg.version.range}",
                             org.wso2.carbon.core.util; version="${carbon.kernel.imp.pkg.version.range}",
+                            org.wso2.carbon.utils.security.*; version="${carbon.kernel.imp.pkg.version.range}",
 
                             org.wso2.carbon.identity.application.authentication.framework.*;
                             version="${carbon.identity.framework.imp.pkg.version.range}",
