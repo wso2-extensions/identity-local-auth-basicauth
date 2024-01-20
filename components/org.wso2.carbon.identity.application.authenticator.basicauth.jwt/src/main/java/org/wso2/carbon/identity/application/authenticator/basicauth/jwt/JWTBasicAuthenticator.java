@@ -38,6 +38,7 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.jwt.internal
 import org.wso2.carbon.identity.application.authenticator.basicauth.jwt.util.JwtBasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
+import org.wso2.carbon.utils.security.KeystoreUtils;
 
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -232,9 +233,7 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
 
     private String generateKSNameFromDomainName(String tenantDomain) {
 
-        String ksName = tenantDomain.trim().replace(JWTBasicAuthenticatorConstants.FULLSTOP_DELIMITER,
-                JWTBasicAuthenticatorConstants.DASH_DELIMITER);
-        return ksName + JWTBasicAuthenticatorConstants.KEYSTORE_FILE_EXTENSION;
+        return KeystoreUtils.getKeyStoreFileLocation(tenantDomain);
     }
 
     private boolean validateSignature(SignedJWT signedJWT, X509Certificate x509Certificate) throws
