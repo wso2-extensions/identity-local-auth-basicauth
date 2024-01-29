@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.application.authenticator.basicauth.jwt;
 
+import org.wso2.carbon.base.MultitenantConstants;
 import org.wso2.carbon.utils.security.KeystoreUtils;
 
 public class JWTBasicAuthenticatorConstants {
@@ -25,7 +26,8 @@ public class JWTBasicAuthenticatorConstants {
     public static final String FULLSTOP_DELIMITER = ".";
     public static final String DASH_DELIMITER = "-";
     @Deprecated
-    public static final String KEYSTORE_FILE_EXTENSION = KeystoreUtils.StoreFileType.defaultFileType();
+    public static final String KEYSTORE_FILE_EXTENSION = KeystoreUtils.getKeyStoreFileExtension(
+            MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
 
     // Authenticator Name
     public static final String AUTHENTICATOR_NAME = "JWTBasicAuthenticator";
