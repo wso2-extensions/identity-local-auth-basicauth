@@ -40,7 +40,7 @@
         <developerConnection>scm:git:https://github.com/wso2-extensions/identity-local-auth-basicauth.git
         </developerConnection>
         <connection>scm:git:https://github.com/wso2-extensions/identity-local-auth-basicauth.git</connection>
-        <tag>v6.7.8</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <modules>
