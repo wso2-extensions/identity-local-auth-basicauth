@@ -39,7 +39,6 @@ import org.wso2.carbon.identity.application.authentication.framework.model.Authe
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorMessage;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
-import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkErrorConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
@@ -200,25 +199,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 AutoLoginUtilities.removeAutoLoginCookieInResponse(response, autoLoginCookie);
             }
         } else if (runtimeParams.containsKey(USER_NAME) && runtimeParams.containsKey(PASSWORD)) {
-            processAuthenticationResponse(request, response, context);
-            if (!context.getSequenceConfig().getApplicationConfig().isSaaSApp()) {
-                String userDomain = context.getSubject().getTenantDomain();
-                String tenantDomain = context.getTenantDomain();
-                if (!StringUtils.equals(userDomain, tenantDomain)) {
-                    context.setProperty(FrameworkConstants.USER_TENANT_DOMAIN_MISMATCH, true);
-                    throw new AuthenticationFailedException(
-                            FrameworkErrorConstants.ErrorMessages.MISMATCHING_TENANT_DOMAIN.getCode(),
-                            FrameworkErrorConstants.ErrorMessages.MISMATCHING_TENANT_DOMAIN.getMessage(),
-                            context.getSubject());
-                }
+            if (context.getCurrentStep() > 0) {
+                context.getSequenceConfig().getStepMap().get(context.getCurrentStep()).setSkipPrompt(true);
             }
-
-            request.setAttribute(FrameworkConstants.REQ_ATTR_HANDLED, true);
-            context.setProperty(FrameworkConstants.LAST_FAILED_AUTHENTICATOR, null);
-            publishAuthenticationStepAttempt(request, context, context.getSubject(), true);
-            return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
         }
-
         return super.process(request, response, context);
     }
 
@@ -638,17 +622,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         if (StringUtils.isNotBlank(captchaParamString)) {
             context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING, captchaParamString);
         }
-        Map<String, String> runtimeParameters = getRuntimeParams(context);
+        Map<String, String> runtimeParams = getRuntimeParams(context);
         String loginIdentifierFromRequest = request.getParameter(USER_NAME);
         if (StringUtils.isBlank(loginIdentifierFromRequest)) {
-            loginIdentifierFromRequest = runtimeParameters.get(USER_NAME);
+            loginIdentifierFromRequest = runtimeParams.get(USER_NAME);
         }
         if (StringUtils.isBlank(loginIdentifierFromRequest)) {
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
                     ErrorMessages.EMPTY_USERNAME.getMessage());
         }
         context.setProperty(USERNAME_USER_INPUT, loginIdentifierFromRequest);
-        Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
             // FrameworkUtils.preprocessUsername will not append the tenant domain to username, if you are using
             // email as username and EnableEmailUserName config is not enabled. So for a SaaS app, this config needs
@@ -695,7 +678,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
         String password = request.getParameter(PASSWORD);
         if (StringUtils.isBlank(password)) {
-            password = runtimeParameters.get(PASSWORD);
+            password = runtimeParams.get(PASSWORD);
         }
         if (StringUtils.isBlank(password)) {
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_PASSWORD.getCode(),
