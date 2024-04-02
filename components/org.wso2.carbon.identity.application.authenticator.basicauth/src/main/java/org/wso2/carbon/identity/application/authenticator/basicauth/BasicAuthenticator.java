@@ -130,6 +130,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String APPEND_APP_TENANT_TO_USERNAME = "appendAppTenantToUsername";
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     public static final String ADDITIONAL_QUERY_PARAMS = "additionalParams";
+    public static final String RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS = "RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS";
 
     /**
      * USER_EXIST_THREAD_LOCAL_PROPERTY is used to maintain the state of user existence
@@ -199,7 +200,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 AutoLoginUtilities.removeAutoLoginCookieInResponse(response, autoLoginCookie);
             }
         } else if (runtimeParams.containsKey(USER_NAME) && runtimeParams.containsKey(PASSWORD)) {
+            /*
+             * If the username and password are available in the runtime params, resolve the credentials
+             * from the runtime params. In this case, `skipPrompt` will be set to `true` in order to bypass
+             * the execution of initiateAuthenticationRequest and send to processAuthenticationRequest method as
+             * credentials are already available as runtime params.
+             * Also, `RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS` property will be added as a context property to
+             * indicate that the credentials are resolved from runtime params.
+             */
             if (context.getCurrentStep() > 0) {
+                context.setProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS, true);
                 context.getSequenceConfig().getStepMap().get(context.getCurrentStep()).setSkipPrompt(true);
             }
         }
@@ -624,7 +634,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
         Map<String, String> runtimeParams = getRuntimeParams(context);
         String loginIdentifierFromRequest = request.getParameter(USER_NAME);
-        if (StringUtils.isBlank(loginIdentifierFromRequest)) {
+        if (StringUtils.isBlank(loginIdentifierFromRequest) &&
+                (Boolean) context.getProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS)) {
             loginIdentifierFromRequest = runtimeParams.get(USER_NAME);
         }
         if (StringUtils.isBlank(loginIdentifierFromRequest)) {
@@ -677,8 +688,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
         }
         String password = request.getParameter(PASSWORD);
-        if (StringUtils.isBlank(password)) {
+        if (StringUtils.isBlank(password) && (Boolean) context.getProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS)) {
             password = runtimeParams.get(PASSWORD);
+            context.removeProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS);
         }
         if (StringUtils.isBlank(password)) {
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_PASSWORD.getCode(),
@@ -692,10 +704,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         if (runtimeParams != null) {
             String usernameFromContext = runtimeParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME);
-            // Check whether Username set for identifier first login and username submitted from login page does not
-            // match. If the username submitted by login page is null, then the username from the context will be
-            // considered as the username submitted from the login page.
-            if (request.getParameter(USER_NAME) != null && usernameFromContext != null &&
+            /*
+             * Check whether Username set for identifier first login and username submitted from
+             * login page does not match. If the username submitted by login page is null, then the
+             * username from the context will be considered as the username submitted from the login page.
+             */
+             if (request.getParameter(USER_NAME) != null && usernameFromContext != null &&
                     !usernameFromContext.equals(request.getParameter(USER_NAME))) {
                 if (log.isDebugEnabled()) {
                     log.debug("Username set for identifier first login: " + usernameFromContext + " and username " +
