@@ -43,8 +43,8 @@ import org.wso2.carbon.identity.application.authentication.framework.util.Framew
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
-import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
@@ -81,8 +81,8 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Optional;
+import java.util.Properties;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -94,26 +94,26 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.Basic
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_LOCKED_REASON;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_PENDING_APPROVAL;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_BASIC;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_MESSAGE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_PASSWORD;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_USER_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.FORCED_PASSWORD_RESET_VIA_EMAIL;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.FORCED_PASSWORD_RESET_VIA_OTP;
-import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_MESSAGE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.INVALID_CREDENTIALS_ARE_PROVIDED;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.IS_INVALID_USERNAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.OTP_MISMATCH_IN_ADMIN_FORCED_PASSWORD_RESET;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.PASSWORD;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.RESOURCE_TYPE_NAME_CONFIG;
-import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.PENDING_USER_INFORMATION_ATTRIBUTE_NAME_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USERNAME_USER_INPUT;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USER_NAME;
-import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS;
-import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_FEATURE_NOT_ENABLED;
+import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
+import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS;
 
 /**
  * Username Password based Authenticator.
@@ -130,6 +130,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String APPEND_APP_TENANT_TO_USERNAME = "appendAppTenantToUsername";
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     public static final String ADDITIONAL_QUERY_PARAMS = "additionalParams";
+    public static final String RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS = "RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS";
 
     /**
      * USER_EXIST_THREAD_LOCAL_PROPERTY is used to maintain the state of user existence
@@ -167,7 +168,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             return AuthenticatorFlowStatus.INCOMPLETE;
         }
         Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
-
+        Map<String, String> runtimeParams = getRuntimeParams(context);
         if (context.isLogoutRequest()) {
             return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
         } else if (autoLoginCookie != null && !Boolean.TRUE.equals(
@@ -197,6 +198,19 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 }
             } finally {
                 AutoLoginUtilities.removeAutoLoginCookieInResponse(response, autoLoginCookie);
+            }
+        } else if (runtimeParams.containsKey(USER_NAME) && runtimeParams.containsKey(PASSWORD)) {
+            /*
+             * If the username and password are available in the runtime params, resolve the credentials
+             * from the runtime params. In this case, `skipPrompt` will be set to `true` in order to bypass
+             * the execution of initiateAuthenticationRequest and send to processAuthenticationRequest method as
+             * credentials are already available as runtime params.
+             * Also, `RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS` property will be added as a context property to
+             * indicate that the credentials are resolved from runtime params.
+             */
+            if (context.getCurrentStep() > 0) {
+                context.setProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS, true);
+                context.getSequenceConfig().getStepMap().get(context.getCurrentStep()).setSkipPrompt(true);
             }
         }
         return super.process(request, response, context);
@@ -618,14 +632,17 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         if (StringUtils.isNotBlank(captchaParamString)) {
             context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING, captchaParamString);
         }
-
+        Map<String, String> runtimeParams = getRuntimeParams(context);
         String loginIdentifierFromRequest = request.getParameter(USER_NAME);
+        if (StringUtils.isBlank(loginIdentifierFromRequest) &&
+                (Boolean) context.getProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS)) {
+            loginIdentifierFromRequest = runtimeParams.get(USER_NAME);
+        }
         if (StringUtils.isBlank(loginIdentifierFromRequest)) {
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
                     ErrorMessages.EMPTY_USERNAME.getMessage());
         }
         context.setProperty(USERNAME_USER_INPUT, loginIdentifierFromRequest);
-        Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
             // FrameworkUtils.preprocessUsername will not append the tenant domain to username, if you are using
             // email as username and EnableEmailUserName config is not enabled. So for a SaaS app, this config needs
@@ -671,6 +688,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
         }
         String password = request.getParameter(PASSWORD);
+        if (StringUtils.isBlank(password) && (Boolean) context.getProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS)) {
+            password = runtimeParams.get(PASSWORD);
+            context.removeProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS);
+        }
         if (StringUtils.isBlank(password)) {
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_PASSWORD.getCode(),
                     ErrorMessages.EMPTY_PASSWORD.getMessage());
@@ -683,7 +704,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         if (runtimeParams != null) {
             String usernameFromContext = runtimeParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME);
-            if (usernameFromContext != null &&
+            /*
+             * Check whether Username set for identifier first login and username submitted from
+             * login page does not match. If the username submitted by login page is null, then the
+             * username from the context will be considered as the username submitted from the login page.
+             */
+             if (request.getParameter(USER_NAME) != null && usernameFromContext != null &&
                     !usernameFromContext.equals(request.getParameter(USER_NAME))) {
                 if (log.isDebugEnabled()) {
                     log.debug("Username set for identifier first login: " + usernameFromContext + " and username " +

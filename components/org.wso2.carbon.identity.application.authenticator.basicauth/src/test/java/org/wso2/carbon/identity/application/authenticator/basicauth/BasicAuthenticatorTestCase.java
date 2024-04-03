@@ -45,6 +45,7 @@ import org.wso2.carbon.identity.application.authentication.framework.config.mode
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.internal.FrameworkServiceDataHolder;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
@@ -171,6 +172,10 @@ public class BasicAuthenticatorTestCase {
     private AxisConfiguration mockAxisConfiguration;
     private PrivilegedCarbonContext mockPrivilegedCarbonContext;
     private ServerConfiguration mockServerConfiguration;
+    private SequenceConfig mockSequenceConfig;
+    private ApplicationConfig mockApplicationConfig;
+    private AuthenticatedUser mockAuthenticatedUser;
+    private FrameworkServiceDataHolder mockFrameworkServiceDataHolder;
     private MockedStatic<IdentityTenantUtil> mockIdentityTenantUtil;
     private MockedStatic<LoggerUtils> mockLoggerUtils;
 
@@ -248,6 +253,10 @@ public class BasicAuthenticatorTestCase {
         mockAxisConfiguration = mock(AxisConfiguration.class);
         mockPrivilegedCarbonContext = mock(PrivilegedCarbonContext.class);
         mockServerConfiguration = mock(ServerConfiguration.class);
+        mockSequenceConfig = mock(SequenceConfig.class);
+        mockApplicationConfig = mock(ApplicationConfig.class);
+        mockAuthenticatedUser = mock(AuthenticatedUser.class);
+        mockFrameworkServiceDataHolder = mock(FrameworkServiceDataHolder.class);
 
         Property[] captchaProperties = new Property[1];
         Property captchaEnabled = new Property();
@@ -692,6 +701,82 @@ public class BasicAuthenticatorTestCase {
             if (Boolean.parseBoolean(chkRemember)) {
                 assertEquals(isRememberMe, (Boolean) true);
             }
+        }
+    }
+
+    @DataProvider(name = "runtimeParamAttributeProvider")
+    public Object[][] getRuntimeParamAttributeProvider() {
+
+        String dummyUserNameValue = "dummyusernameValue";
+        return new Object[][]{{DUMMY_USER_NAME, DUMMY_PASSWORD, false}, {DUMMY_USER_NAME, DUMMY_PASSWORD, true},};
+    }
+
+    @Test(dataProvider = "runtimeParamAttributeProvider")
+    public void testProcessRequestWhenUsernamePasswordSubmitAsRuntimeParams(String username, String password,
+                                                                            boolean isSaasApp)
+            throws AuthenticationFailedException, LogoutFailedException, UserStoreException {
+
+        try (MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+             MockedStatic<User> user = Mockito.mockStatic(User.class);
+             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorServiceComponent = Mockito.mockStatic(
+                     BasicAuthenticatorServiceComponent.class);
+             MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
+             MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder = Mockito.mockStatic(
+                     FileBasedConfigurationBuilder.class);
+             MockedStatic<FrameworkServiceDataHolder> frameworkServiceDataHolderMockedStatic = Mockito.mockStatic(
+                     FrameworkServiceDataHolder.class)) {
+
+            Map<String, String> parameterMap = new HashMap<>();
+            parameterMap.put("UserNameAttributeClaimUri", username);
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig(username, true, parameterMap);
+            fileBasedConfigurationBuilder.when(FileBasedConfigurationBuilder::getInstance)
+                    .thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+            frameworkServiceDataHolderMockedStatic.when(() -> FrameworkServiceDataHolder.getInstance())
+                    .thenReturn(mockFrameworkServiceDataHolder);
+            when(mockFrameworkServiceDataHolder.getAuthnDataPublisherProxy()).thenReturn(null);
+            when(mockAuthnCtxt.getProperties()).thenReturn(null);
+
+            mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(username)).thenReturn(-1234);
+
+            frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(username, mockAuthnCtxt)).thenReturn(username);
+
+            User userFromUsername = new User();
+            user.when(() -> User.getUserFromUserName(anyString())).thenReturn(userFromUsername);
+
+            basicAuthenticatorServiceComponent.when(BasicAuthenticatorServiceComponent::getRealmService)
+                    .thenReturn(mockRealmService);
+            when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
+            when(mockRealmService.getTenantManager()).thenReturn(mockTenantManager);
+            when(mockTenantManager.getTenantId(anyString())).thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+            when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
+            when(mockUserStoreManager.getSecondaryUserStoreManager(DUMMY_DOMAIN)).thenReturn(mockUserStoreManager);
+            when(mockUserStoreManager.getRealmConfiguration()).thenReturn(mockRealmConfiguration);
+            when(mockRealmConfiguration.getUserStoreProperty("MultipleAttributeEnable")).thenReturn("false");
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(null);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(null);
+            Map<String, String> runtimeParams = new HashMap<>();
+            runtimeParams.put(BasicAuthenticatorConstants.USER_NAME, username);
+            runtimeParams.put(BasicAuthenticatorConstants.PASSWORD, password);
+            when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(null);
+            when(mockAuthnCtxt.getAuthenticatorParams(BasicAuthenticatorConstants.AUTHENTICATOR_NAME)).thenReturn(
+                    runtimeParams);
+            when((mockAuthnCtxt.getSequenceConfig())).thenReturn(mockSequenceConfig);
+            when(mockAuthnCtxt.getSubject()).thenReturn(mockAuthenticatedUser);
+            when(mockAuthenticatedUser.getTenantDomain()).thenReturn(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
+            when(mockAuthnCtxt.getTenantDomain()).thenReturn(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
+            when(mockSequenceConfig.getApplicationConfig()).thenReturn(mockApplicationConfig);
+            when(mockApplicationConfig.isSaaSApp()).thenReturn(isSaasApp);
+            org.wso2.carbon.user.core.common.User userObj =
+                    new org.wso2.carbon.user.core.common.User("c2de9b28-f258-4df0-ba29-f4803e4e821a", username,
+                            username);
+            userObj.setTenantDomain(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
+            userObj.setUserStoreDomain("PRIMARY");
+            processAuthenticationResponseStartUp(basicAuthenticatorServiceComponent, multitenantUtils, user,
+                    frameworkUtils, userObj);
+            AuthenticatorFlowStatus flowStatus = basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt);
+            assertEquals(flowStatus, AuthenticatorFlowStatus.SUCCESS_COMPLETED);
         }
     }
 
