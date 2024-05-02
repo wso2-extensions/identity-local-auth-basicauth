@@ -202,6 +202,11 @@
                 <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.wso2.carbon.identity.framework</groupId>
+                <artifactId>org.wso2.carbon.identity.user.registration.engine</artifactId>
+                <version>${carbon.identity.framework.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.wso2.carbon.identity.organization.management.core</groupId>
                 <artifactId>org.wso2.carbon.identity.organization.management.service</artifactId>
                 <version>${org.wso2.carbon.identity.organization.management.core.version}</version>
@@ -375,7 +380,7 @@
         <carbon.base.imp.pkg.version.range>[1.0.0, 2.0.0)</carbon.base.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>7.7.21</carbon.identity.framework.version>
+        <carbon.identity.framework.version>7.8.42</carbon.identity.framework.version>
         <carbon.identity.framework.imp.pkg.version.range>[5.19.14, 8.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 
