@@ -306,11 +306,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String queryParams = context.getContextIdIncludedQueryParams();
         String password = (String) context.getProperty(PASSWORD_PROPERTY);
         String redirectURL;
+        String inputType = null;
         context.getProperties().remove(PASSWORD_PROPERTY);
 
         Map<String, String> runtimeParams = getRuntimeParams(context);
         if (runtimeParams != null) {
-            String inputType = null;
             String usernameFromContext = runtimeParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME);
             if (usernameFromContext != null) {
                 inputType = FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST;
@@ -327,8 +327,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         String loginHint = request.getParameter(BasicAuthenticatorConstants.LOGIN_HINT);
 
-        if (StringUtils.isNotBlank(loginHint)) {
-            String inputType = FrameworkConstants.INPUT_TYPE_LOGIN_HINT;
+        if (StringUtils.isNotBlank(loginHint) && StringUtils.isBlank(inputType)) {
+            inputType = FrameworkConstants.INPUT_TYPE_LOGIN_HINT;
             queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE + "=" + inputType;
             context.addEndpointParam(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, loginHint);
             String additionalParams = runtimeParams.get(ADDITIONAL_QUERY_PARAMS);
