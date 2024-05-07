@@ -1144,6 +1144,7 @@ public class BasicAuthenticatorTestCase {
             when(mockIdentityErrorMsgContext.getErrorCode()).thenReturn("dummyErrorCode");
 
             identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(mockIdentityErrorMsgContext);
+            when(mockRequest.getParameter("login_hint")).thenReturn(contextInvalidEmailUsername);
 
             basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
 
@@ -1161,6 +1162,7 @@ public class BasicAuthenticatorTestCase {
                         + BasicAuthenticatorConstants.LOCAL + "");
             } else if (Boolean.parseBoolean(statusProvider) && Boolean.parseBoolean(contextInvalidEmailUsername)) {
                 assertEquals(redirect, DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
+                        + "&inputType=login_hint"
                         + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME
                         + ":" + BasicAuthenticatorConstants.LOCAL
                         + "&authFailure=true&authFailureMsg=emailusername.fail.message");
