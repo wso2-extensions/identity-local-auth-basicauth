@@ -233,7 +233,7 @@ public class AutoLoginUtilities {
             }
         } catch (Exception e) {
             throw new AuthenticationFailedException("Error occurred while validating the signature for the Auto " +
-                    "Login Cookie");
+                    "Login Cookie", e);
         }
     }
 
