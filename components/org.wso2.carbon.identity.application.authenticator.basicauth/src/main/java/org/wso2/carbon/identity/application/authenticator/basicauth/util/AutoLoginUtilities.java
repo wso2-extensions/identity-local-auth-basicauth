@@ -20,8 +20,6 @@ package org.wso2.carbon.identity.application.authenticator.basicauth.util;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -44,8 +42,6 @@ import javax.servlet.http.HttpServletResponse;
  * Utilities class for auto login related funcationalities.
  */
 public class AutoLoginUtilities {
-
-    private static final Log LOG = LogFactory.getLog(AutoLoginUtilities.class);
 
     /**
      * Get ALOR cookie from provided list of cookies.
@@ -236,9 +232,8 @@ public class AutoLoginUtilities {
                         "for user: " + content);
             }
         } catch (Exception e) {
-            LOG.error(e);
             throw new AuthenticationFailedException("Error occurred while validating the signature for the Auto " +
-                    "Login Cookie");
+                    "Login Cookie", e);
         }
     }
 
