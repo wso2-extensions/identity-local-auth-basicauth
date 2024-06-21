@@ -635,7 +635,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         Map<String, String> runtimeParams = getRuntimeParams(context);
         String loginIdentifierFromRequest = request.getParameter(USER_NAME);
         if (StringUtils.isBlank(loginIdentifierFromRequest) &&
-                (Boolean) context.getProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS)) {
+                Boolean.TRUE.equals(context.getProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS))) {
             loginIdentifierFromRequest = runtimeParams.get(USER_NAME);
         }
         if (StringUtils.isBlank(loginIdentifierFromRequest)) {
@@ -688,7 +688,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
         }
         String password = request.getParameter(PASSWORD);
-        if (StringUtils.isBlank(password) && (Boolean) context.getProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS)) {
+        if (StringUtils.isBlank(password) &&
+                Boolean.TRUE.equals(context.getProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS))) {
             password = runtimeParams.get(PASSWORD);
             context.removeProperty(RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS);
         }
