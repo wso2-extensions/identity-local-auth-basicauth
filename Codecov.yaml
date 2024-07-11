@@ -4,7 +4,7 @@ codecov:
    wait_for_ci: yes
 coverage:
  status:
-   project: # checks the effect for the overall code coverage rate of the repository.
+   project: # Checks the effect for the overall code coverage rate of the repository.
      default:
        enabled: yes
        threshold: null
