@@ -41,7 +41,7 @@ jobs:
       - name: Generate coverage report
         run: mvn -B test
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@v3
         with:
          working-directory: ${{github.workspace}}/source
          token: ${{ secrets.CODECOV_TOKEN }}
