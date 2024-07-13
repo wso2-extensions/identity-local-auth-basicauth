@@ -40,8 +40,6 @@ jobs:
         run: mvn clean install -U -B
       - name: Generate coverage report
         run: mvn test jacoco:report
-      - uses: codecov/codecov-action@v3.1.6
+      - uses: codecov/codecov-action@v3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: components/**/target/site/jacoco/jacoco.xml
-          fail_ci_if_error: true
