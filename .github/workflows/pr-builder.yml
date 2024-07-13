@@ -42,4 +42,5 @@ jobs:
         run: mvn test jacoco:report
       - uses: codecov/codecov-action@v3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: components/org.wso2.carbon.identity.application.authentication.handler.identifier/target/site/jacoco/jacoco.xml
