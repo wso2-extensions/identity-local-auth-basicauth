@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2014-2024, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
  * WSO2 Inc. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -664,12 +664,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             }
         }
 
-        String username = loginIdentifierFromRequest;
+        String username = FrameworkUtils.preprocessUsername(loginIdentifierFromRequest, context);
         if (!IdentityUtil.isEmailUsernameValidationDisabled()) {
             FrameworkUtils.validateUsername(loginIdentifierFromRequest, context);
-            username = FrameworkUtils.preprocessUsername(loginIdentifierFromRequest, context);
         }
-
         String requestTenantDomain = MultitenantUtils.getTenantDomain(username);
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
         String userId = null;
