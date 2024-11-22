@@ -127,8 +127,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                            HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException, LogoutFailedException {
 
-        if (isURLContainSensitiveData(request, response, context)) {
-           return AuthenticatorFlowStatus.INCOMPLETE;
+        if (!IdentityUtil.shouldAllowSensitiveDataInURL() &&
+                isURLContainSensitiveData(request, response, context)) {
+            return AuthenticatorFlowStatus.INCOMPLETE;
         }
         Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
 
@@ -1034,6 +1035,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         return MultitenantUtils.getTenantDomain(username);
     }
 
+    /**
+     * Checks if the URL contains sensitive data such as username or password and redirects the user
+     * to the login page with an error message if such data is found.
+     *
+     * @param request  the HTTP request object containing the query parameters to validate.
+     * @param response the HTTP response object used for redirection in case sensitive data is detected.
+     * @param context  the authentication context providing additional information for redirection.
+     * @return true if sensitive data is detected in the URL and the user is redirected; false otherwise.
+     * @throws AuthenticationFailedException if an error occurs during redirection.
+     */
     private boolean isURLContainSensitiveData(HttpServletRequest request, HttpServletResponse response,
                                               AuthenticationContext context) throws AuthenticationFailedException {
 
