@@ -1641,4 +1641,42 @@ public class BasicAuthenticatorTestCase {
             return null;
         }).when(mockResponse).sendRedirect(anyString());
     }
+
+    @Test
+    public void testProcessWithSensitiveDataInURLWhenNotAllowed() throws AuthenticationFailedException,
+            LogoutFailedException {
+
+        try (MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);) {
+            mockAuthnCtxt = mock(AuthenticationContext.class);
+            mockRequest = mock(HttpServletRequest.class);
+            mockResponse = mock(HttpServletResponse.class);
+            identityUtil.when(IdentityUtil::shouldAllowSensitiveDataInURL).thenReturn(false);
+
+            String queryString = BasicAuthenticatorConstants.USER_NAME + "=" + DUMMY_USER_NAME + "&" +
+                    BasicAuthenticatorConstants.PASSWORD + "=" + DUMMY_PASSWORD;
+            when(mockRequest.getQueryString()).thenReturn(queryString);
+            assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt),
+                    AuthenticatorFlowStatus.INCOMPLETE);
+        }
+    }
+
+    @Test
+    public void testProcessWithSensitiveDataInURLWhenAllowed() throws AuthenticationFailedException,
+            LogoutFailedException {
+
+        try (MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);) {
+            mockAuthnCtxt = mock(AuthenticationContext.class);
+            mockRequest = mock(HttpServletRequest.class);
+            mockResponse = mock(HttpServletResponse.class);
+
+            identityUtil.when(IdentityUtil::shouldAllowSensitiveDataInURL).thenReturn(true);
+
+            String queryString = BasicAuthenticatorConstants.USER_NAME + "=" + DUMMY_USER_NAME + "&" +
+                    BasicAuthenticatorConstants.PASSWORD + "=" + DUMMY_PASSWORD;
+            when(mockRequest.getQueryString()).thenReturn(queryString);
+            when(mockAuthnCtxt.isLogoutRequest()).thenReturn(true);
+            assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt),
+                    AuthenticatorFlowStatus.SUCCESS_COMPLETED);
+        }
+    }
 }
