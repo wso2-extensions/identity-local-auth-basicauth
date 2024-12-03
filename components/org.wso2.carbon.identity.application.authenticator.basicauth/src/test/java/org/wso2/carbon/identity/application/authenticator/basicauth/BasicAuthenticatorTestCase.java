@@ -339,7 +339,8 @@ public class BasicAuthenticatorTestCase {
              MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
                      Mockito.mockStatic(BasicAuthenticatorServiceComponent.class);
              MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
-             MockedStatic<SignatureUtil> signatureUtil = Mockito.mockStatic(SignatureUtil.class)) {
+             MockedStatic<SignatureUtil> signatureUtil = Mockito.mockStatic(SignatureUtil.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
 
             fileBasedConfigurationBuilder
                     .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
@@ -351,11 +352,8 @@ public class BasicAuthenticatorTestCase {
             when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn("admin");
             when((mockAuthnCtxt.getSequenceConfig())).thenReturn(new SequenceConfig());
 
-            signatureUtil.when(() -> SignatureUtil.validateSignature(anyString(), any(byte[].class))).thenReturn(true);
-            signatureUtil.when(() -> SignatureUtil.validateSignature(any(byte[].class), anyString(),
-                    any(byte[].class))).thenReturn(true);
-            signatureUtil.when(() -> SignatureUtil.getThumbPrintForAlias("alias")).thenReturn(new byte[0]);
-
+            identityUtil.when(() -> IdentityUtil.validateSignature(anyString(), any(byte[].class), anyString()))
+                    .thenReturn(true);
             frameworkUtils.when(
                     () -> FrameworkUtils.prependUserStoreDomainToName("admin"))
                     .thenReturn("admin" + "@" + DUMMY_DOMAIN);
