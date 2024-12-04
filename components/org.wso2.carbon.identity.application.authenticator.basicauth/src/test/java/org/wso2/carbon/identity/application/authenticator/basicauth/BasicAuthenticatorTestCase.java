@@ -339,7 +339,8 @@ public class BasicAuthenticatorTestCase {
              MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
                      Mockito.mockStatic(BasicAuthenticatorServiceComponent.class);
              MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
-             MockedStatic<SignatureUtil> signatureUtil = Mockito.mockStatic(SignatureUtil.class)) {
+             MockedStatic<SignatureUtil> signatureUtil = Mockito.mockStatic(SignatureUtil.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
 
             fileBasedConfigurationBuilder
                     .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
@@ -351,7 +352,8 @@ public class BasicAuthenticatorTestCase {
             when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn("admin");
             when((mockAuthnCtxt.getSequenceConfig())).thenReturn(new SequenceConfig());
 
-            signatureUtil.when(() -> SignatureUtil.validateSignature(anyString(), any(byte[].class))).thenReturn(true);
+            identityUtil.when(() -> IdentityUtil.validateSignature(anyString(), any(byte[].class), anyString()))
+                    .thenReturn(true);
             signatureUtil.when(() -> SignatureUtil.validateSignature(any(byte[].class), anyString(),
                     any(byte[].class))).thenReturn(true);
             signatureUtil.when(() -> SignatureUtil.getThumbPrintForAlias("alias")).thenReturn(new byte[0]);
@@ -401,6 +403,13 @@ public class BasicAuthenticatorTestCase {
                     Base64.getEncoder().encodeToString(cookieValueInJson.toString().getBytes()));
             when(mockRequest.getCookies()).thenReturn(cookies);
 
+            assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt).toString(), status);
+
+            // Validate for carbon.super.
+            when(mockAuthnCtxt.getTenantDomain()).thenReturn("carbon.super");
+            cookies[0] = new Cookie(COOKIE_NAME,
+                    Base64.getEncoder().encodeToString(cookieValueInJson.toString().getBytes()));
+            when(mockRequest.getCookies()).thenReturn(cookies);
             assertEquals(basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt).toString(), status);
         }
     }
