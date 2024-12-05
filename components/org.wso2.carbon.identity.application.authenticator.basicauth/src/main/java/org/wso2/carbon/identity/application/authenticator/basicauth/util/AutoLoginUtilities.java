@@ -228,8 +228,8 @@ public class AutoLoginUtilities {
                 isSignatureValid = SignatureUtil.validateSignature(thumpPrint, content,
                         Base64.getDecoder().decode(signature));
             } else {
-                isSignatureValid = IdentityUtil.validateSignature(content, Base64.getDecoder().decode(signature),
-                        tenantDomain);
+                isSignatureValid = IdentityUtil.validateSignatureFromTenant(content,
+                        Base64.getDecoder().decode(signature), tenantDomain);
             }
             if (!isSignatureValid) {
                 throw new AuthenticationFailedException("Signature verification failed in Auto Login Cookie " +

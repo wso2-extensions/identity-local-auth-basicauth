@@ -352,7 +352,7 @@ public class BasicAuthenticatorTestCase {
             when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn("admin");
             when((mockAuthnCtxt.getSequenceConfig())).thenReturn(new SequenceConfig());
 
-            identityUtil.when(() -> IdentityUtil.validateSignature(anyString(), any(byte[].class), anyString()))
+            identityUtil.when(() -> IdentityUtil.validateSignatureFromTenant(anyString(), any(byte[].class), anyString()))
                     .thenReturn(true);
             signatureUtil.when(() -> SignatureUtil.validateSignature(any(byte[].class), anyString(),
                     any(byte[].class))).thenReturn(true);
