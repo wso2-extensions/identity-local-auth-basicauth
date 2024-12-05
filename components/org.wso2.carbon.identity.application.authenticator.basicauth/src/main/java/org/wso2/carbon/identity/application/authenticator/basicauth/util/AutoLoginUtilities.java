@@ -27,8 +27,10 @@ import org.wso2.carbon.core.util.SignatureUtil;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
+import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.recovery.util.Utils;
+import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 
 import java.util.Arrays;
 import java.util.Base64;
@@ -207,10 +209,11 @@ public class AutoLoginUtilities {
         if (AutoLoginConstant.SIGNUP.equals(flowType)) {
             alias = getSelfRegistrationAutoLoginAlias(context);
         }
-        validateAutoLoginCookieSignature(content, signature, alias);
+        validateAutoLoginCookieSignature(content, signature, alias, context.getTenantDomain());
     }
 
-    private static void validateAutoLoginCookieSignature(String content, String signature, String alias)
+    private static void validateAutoLoginCookieSignature(String content, String signature, String alias,
+                                                         String tenantDomain)
             throws AuthenticationFailedException {
 
         if (StringUtils.isEmpty(content) || StringUtils.isEmpty(signature)) {
@@ -220,12 +223,13 @@ public class AutoLoginUtilities {
 
         try {
             boolean isSignatureValid;
-            if (StringUtils.isEmpty(alias)) {
-                isSignatureValid = SignatureUtil.validateSignature(content, Base64.getDecoder().decode(signature));
-            } else {
+            if (MultitenantConstants.SUPER_TENANT_DOMAIN_NAME.equals(tenantDomain) && StringUtils.isNotEmpty(alias)) {
                 byte[] thumpPrint = SignatureUtil.getThumbPrintForAlias(alias);
                 isSignatureValid = SignatureUtil.validateSignature(thumpPrint, content,
                         Base64.getDecoder().decode(signature));
+            } else {
+                isSignatureValid = IdentityUtil.validateSignatureFromTenant(content,
+                        Base64.getDecoder().decode(signature), tenantDomain);
             }
             if (!isSignatureValid) {
                 throw new AuthenticationFailedException("Signature verification failed in Auto Login Cookie " +
