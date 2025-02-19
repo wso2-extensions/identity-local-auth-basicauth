@@ -30,6 +30,7 @@ import org.osgi.service.component.annotations.ReferencePolicy;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.UserSessionManagementService;
 import org.wso2.carbon.identity.application.authentication.handler.session.ActiveSessionsLimitHandler;
+import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
@@ -113,4 +114,20 @@ public class ActiveSessionsLimitHandlerServiceComponent {
         ActiveSessionsLimitHandlerServiceHolder.getInstance().setUserSessionManagementService(null);
     }
 
+    @Reference(name = "identity.organization.management.component",
+            service = OrganizationManager.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetOrganizationManager")
+    protected void setOrganizationManager(OrganizationManager organizationManager) {
+
+        ActiveSessionsLimitHandlerServiceHolder.getInstance().setOrganizationManager(organizationManager);
+        log.debug("Organization Manager is set in the ActiveSessionsLimitHandlerServiceComponent bundle.");
+    }
+
+    protected void unsetOrganizationManager(OrganizationManager organizationManager) {
+
+        ActiveSessionsLimitHandlerServiceHolder.getInstance().setOrganizationManager(null);
+        log.debug("Organization Manager is unset in the ActiveSessionsLimitHandlerServiceComponent bundle.");
+    }
 }
