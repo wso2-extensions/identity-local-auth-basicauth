@@ -19,6 +19,7 @@
 package org.wso2.carbon.identity.application.authentication.handler.session.internal;
 
 import org.wso2.carbon.identity.application.authentication.framework.UserSessionManagementService;
+import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
@@ -29,6 +30,7 @@ public class ActiveSessionsLimitHandlerServiceHolder {
     private static ActiveSessionsLimitHandlerServiceHolder instance = new ActiveSessionsLimitHandlerServiceHolder();
     private RealmService realmService;
     private UserSessionManagementService userSessionManagementService;
+    private OrganizationManager organizationManager;
 
     private ActiveSessionsLimitHandlerServiceHolder() {
 
@@ -57,5 +59,15 @@ public class ActiveSessionsLimitHandlerServiceHolder {
     public void setUserSessionManagementService(UserSessionManagementService userSessionManagementService) {
 
         this.userSessionManagementService = userSessionManagementService;
+    }
+
+    public void setOrganizationManager(OrganizationManager organizationManager) {
+
+        this.organizationManager = organizationManager;
+    }
+
+    public OrganizationManager getOrganizationManager() {
+
+        return organizationManager;
     }
 }

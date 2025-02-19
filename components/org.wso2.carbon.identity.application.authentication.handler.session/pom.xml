@@ -71,6 +71,10 @@
             <artifactId>org.wso2.carbon.identity.application.common</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.wso2.carbon.identity.organization.management.core</groupId>
+            <artifactId>org.wso2.carbon.identity.organization.management.service</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
             <scope>test</scope>
@@ -135,7 +139,10 @@
 
                             org.wso2.carbon.user.core.service; version="${carbon.kernel.imp.pkg.version.range}",
                             org.wso2.carbon.user.core.util; version="${carbon.kernel.imp.pkg.version.range}",
-                            org.wso2.carbon.utils.multitenancy; version="${carbon.kernel.imp.pkg.version.range}"
+                            org.wso2.carbon.utils.multitenancy; version="${carbon.kernel.imp.pkg.version.range}",
+
+                            org.wso2.carbon.identity.organization.management.service;version="${org.wso2.carbon.identity.organization.management.core.version.range}",
+                            org.wso2.carbon.identity.organization.management.service.exception;version="${org.wso2.carbon.identity.organization.management.core.version.range}"
                         </Import-Package>
                         <Export-Package>
                             !org.wso2.carbon.identity.application.authentication.handler.session.internal,

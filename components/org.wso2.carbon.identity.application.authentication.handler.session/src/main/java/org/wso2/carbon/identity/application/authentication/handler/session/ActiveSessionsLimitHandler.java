@@ -41,6 +41,7 @@ import org.wso2.carbon.identity.application.authentication.handler.session.inter
 import org.wso2.carbon.identity.core.ServiceURLBuilder;
 import org.wso2.carbon.identity.core.URLBuilderException;
 import org.wso2.carbon.identity.core.model.UserAgent;
+import org.wso2.carbon.identity.organization.management.service.exception.OrganizationManagementException;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -116,14 +117,16 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             try {
                 String userId = getUserId(context);
 
-                List<UserSession> userSessions = null;
-                if (userId != null) {
-                    userSessions = getUserSessions(userId, context.getTenantDomain());
-                }
-
                 StepConfig stepConfig = getCurrentSubjectIdentifierStep(context);
                 AuthenticatedUser authenticatedUser = stepConfig.getAuthenticatedUser();
                 context.setSubject(authenticatedUser);
+
+                String tenantDomain = getUserTenantDomain(context);
+                List<UserSession> userSessions = null;
+                if (userId != null) {
+                    userSessions = getUserSessions(userId, tenantDomain);
+                }
+
                 if (userSessions != null && userSessions.size() >= maxSessionCount) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     return super.process(request, response, context);
@@ -183,7 +186,8 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                         = request.getParameterValues(ActiveSessionsLimitHandlerConstants.SESSIONS_TO_TERMINATE);
                 terminateSessions(userId, sessionIdsToTerminate);
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
-                userSessions = getUserSessions(userId, context.getTenantDomain());
+                String tenantDomain = getUserTenantDomain(context);
+                userSessions = getUserSessions(userId, tenantDomain);
                 if (userSessions != null && userSessions.size() >= maxSessionCount) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     throw new AuthenticationFailedException("Active session count: " + userSessions.size()
@@ -339,5 +343,24 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         Optional<StepConfig> subjectIdentifierStep = stepConfigs.values().stream()
                 .filter(stepConfig -> (stepConfig.isSubjectIdentifierStep())).findFirst();
         return subjectIdentifierStep.orElse(null);
+    }
+
+    private String getUserTenantDomain(AuthenticationContext context) throws AuthenticationFailedException {
+
+        String tenantDomain = context.getTenantDomain();
+        AuthenticatedUser authenticatedUser = context.getSubject();
+        if (authenticatedUser != null) {
+            String userAccessingOrganization = authenticatedUser.getAccessingOrganization();
+            if (StringUtils.isNotBlank(userAccessingOrganization)) {
+                try {
+                    tenantDomain = ActiveSessionsLimitHandlerServiceHolder.getInstance().getOrganizationManager()
+                            .resolveTenantDomain(userAccessingOrganization);
+                } catch (OrganizationManagementException e) {
+                    throw new AuthenticationFailedException(
+                            "Error occurred while resolving tenant domain of the accessing organization.", e);
+                }
+            }
+        }
+        return tenantDomain;
     }
 }
