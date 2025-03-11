@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.application.authentication.handler.session;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -51,6 +52,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -127,7 +129,8 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                     userSessions = getUserSessions(userId, tenantDomain);
                 }
 
-                if (userSessions != null && userSessions.size() >= maxSessionCount) {
+                if (userSessions != null && userSessions.size() >= maxSessionCount
+                        && !isActiveSessionInSameContext(request, userSessions)) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     return super.process(request, response, context);
                 } else {
@@ -362,5 +365,23 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             }
         }
         return tenantDomain;
+    }
+
+    private boolean isActiveSessionInSameContext(HttpServletRequest request, List<UserSession> userSessions) {
+
+        Cookie cookie = FrameworkUtils.getAuthCookie(request);
+        if (cookie == null) {
+            return false;
+        }
+        String sessionContextKey = DigestUtils.sha256Hex(cookie.getValue());
+        for (UserSession userSession : userSessions) {
+            if (sessionContextKey.equals(userSession.getSessionId())) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Session context key matches with the session ID: " + userSession.getSessionId());
+                }
+                return true;
+            }
+        }
+        return false;
     }
 }
