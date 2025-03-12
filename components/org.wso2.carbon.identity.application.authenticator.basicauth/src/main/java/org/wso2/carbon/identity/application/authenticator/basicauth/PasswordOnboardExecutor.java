@@ -28,11 +28,10 @@ import org.wso2.carbon.identity.user.registration.engine.model.RegistrationConte
 
 import java.util.ArrayList;
 import java.util.List;
-import org.wso2.carbon.identity.user.registration.engine.util.RegistrationFlowEngine;
 
 import static org.wso2.carbon.identity.user.registration.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 import static org.wso2.carbon.identity.user.registration.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
-import static org.wso2.carbon.identity.user.registration.engine.Constants.PASSWORD;
+import static org.wso2.carbon.identity.user.registration.engine.Constants.PASSWORD_KEY;
 import static org.wso2.carbon.identity.user.registration.engine.Constants.USERNAME_CLAIM_URI;
 
 /**
@@ -51,15 +50,15 @@ public class PasswordOnboardExecutor implements Executor {
     public ExecutorResponse execute(RegistrationContext context) throws RegistrationEngineException {
 
         ExecutorResponse response;
-        if (context.getUserInputData() == null || StringUtils.isEmpty(context.getUserInputData().get(PASSWORD))) {
+        if (context.getUserInputData() == null || StringUtils.isEmpty(context.getUserInputData().get(PASSWORD_KEY))) {
             response = new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
-            response.setRequiredData(Collections.singletonList(PASSWORD));
+            response.setRequiredData(Collections.singletonList(PASSWORD_KEY));
             return response;
         } else {
             // Todo enforce password policies.
             response = new ExecutorResponse(STATUS_COMPLETE);
             Map<String, char[]> credentials =
-                    Collections.singletonMap(PASSWORD, context.getUserInputData().get(PASSWORD).toCharArray());
+                    Collections.singletonMap(PASSWORD_KEY, context.getUserInputData().get(PASSWORD_KEY).toCharArray());
             response.setUserCredentials(credentials);
         }
         return response;
@@ -70,7 +69,7 @@ public class PasswordOnboardExecutor implements Executor {
 
         List<String> initiationData = new ArrayList<>();
         initiationData.add(USERNAME_CLAIM_URI);
-        initiationData.add(PASSWORD);
+        initiationData.add(PASSWORD_KEY);
         return initiationData;
     }
 }
