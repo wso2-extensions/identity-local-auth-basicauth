@@ -130,7 +130,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                 }
 
                 if (userSessions != null && userSessions.size() >= maxSessionCount
-                        && !isActiveSessionInSameContext(request, userSessions)) {
+                        && !isSessionActiveInSameBrowser(request, userSessions)) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     return super.process(request, response, context);
                 } else {
@@ -367,21 +367,18 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         return tenantDomain;
     }
 
-    private boolean isActiveSessionInSameContext(HttpServletRequest request, List<UserSession> userSessions) {
+    private boolean isSessionActiveInSameBrowser(HttpServletRequest request, List<UserSession> userSessions) {
 
         Cookie cookie = FrameworkUtils.getAuthCookie(request);
         if (cookie == null) {
             return false;
         }
         String sessionContextKey = DigestUtils.sha256Hex(cookie.getValue());
-        for (UserSession userSession : userSessions) {
-            if (sessionContextKey.equals(userSession.getSessionId())) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Session context key matches with the session ID: " + userSession.getSessionId());
-                }
-                return true;
-            }
+        boolean isSessionMatch = userSessions.stream()
+                .anyMatch(userSession -> sessionContextKey.equals(userSession.getSessionId()));
+        if (isSessionMatch && log.isDebugEnabled()) {
+            log.debug("Session context key matches with the session ID: " + sessionContextKey);
         }
-        return false;
+        return isSessionMatch;
     }
 }
