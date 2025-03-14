@@ -22,6 +22,8 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticationFlowHandler;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
@@ -33,8 +35,13 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.A
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.UserIdNotFoundException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.session.mgt.SessionManagementException;
+import org.wso2.carbon.identity.application.authentication.framework.model.AdditionalData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorMessage;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.model.UserSession;
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionRetrievalException;
 import org.wso2.carbon.identity.application.authentication.handler.session.exception.UserSessionTerminationException;
@@ -46,6 +53,7 @@ import org.wso2.carbon.identity.organization.management.service.exception.Organi
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +63,10 @@ import java.util.stream.Collectors;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import static org.wso2.carbon.identity.application.authentication.handler.session.ActiveSessionsLimitHandlerConstants.MAX_SESSION_COUNT;
+import static org.wso2.carbon.identity.application.authentication.handler.session.ActiveSessionsLimitHandlerConstants.SESSIONS;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_MESSAGE;
 
 /**
  * Handler for multiple active user sessions.
@@ -68,7 +80,17 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
     private static final String REDIRECT_URL = "/authenticationendpoint/handle-multiple-sessions.do";
     public static final String DEFAULT_MAX_SESSION_COUNT = "1";
     public static final String PROMPT_ID = "promptId";
+    public static final String PROMPT_RESP = "promptResp";
+
     public static final String SP_NAME = "sp";
+    public static final String PROMPT_RESP_PARAM = "promptResp.param";
+    public static final String PROMPT_ID_PARAM = "promptId.param";
+    public static final String ACTIVE_SESSIONS_LIMIT_ACTION_PARAM = "activeSessionsLimitAction.param";
+    public static final String SESSIONS_TO_TERMINATE_PARAM = "sessionsToTerminate.param";
+    public static final String DISPLAY_PROMPT_RESPONSE = "Prompt Response";
+    public static final String DISPLAY_PROMPT_ID = "Prompt ID";
+    public static final String DISPLAY_ACTIVE_SESSIONS_LIMIT_ACTION = "Active Sessions Limit Action";
+    public static final String DISPLAY_SESSIONS_TO_TERMINATE = "Sessions to Terminate";
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
@@ -76,6 +98,12 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         String activeSessionsLimitAction = request
                 .getParameter(ActiveSessionsLimitHandlerConstants.ACTIVE_SESSIONS_LIMIT_ACTION);
         return activeSessionsLimitAction != null;
+    }
+
+    @Override
+    public boolean isAPIBasedAuthenticationSupported() {
+
+        return true;
     }
 
     @Override
@@ -213,6 +241,89 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
 
     }
 
+    @Override
+    public Optional<AuthenticatorData> getAuthInitiationData(AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        String idpName = null;
+        if (context != null && context.getExternalIdP() != null) {
+            idpName = context.getExternalIdP().getIdPName();
+        }
+
+        AuthenticatorData authenticatorData = new AuthenticatorData();
+        if (context.getProperty(AUTHENTICATOR_MESSAGE) != null) {
+            AuthenticatorMessage authenticatorMessage =
+                    (AuthenticatorMessage) context.getProperty(AUTHENTICATOR_MESSAGE);
+            authenticatorData.setMessage(authenticatorMessage);
+        }
+
+        authenticatorData.setName(getName());
+        authenticatorData.setI18nKey(getI18nKey());
+        authenticatorData.setIdp(idpName);
+        authenticatorData.setDisplayName(getFriendlyName());
+        authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.USER_PROMPT);
+        setAuthParams(authenticatorData);
+
+        List<String> requiredParams = new ArrayList<>();
+        requiredParams.add(PROMPT_RESP);
+        requiredParams.add(PROMPT_ID);
+        requiredParams.add(ActiveSessionsLimitHandlerConstants.ACTIVE_SESSIONS_LIMIT_ACTION);
+        authenticatorData.setRequiredParams(requiredParams);
+        authenticatorData.setAdditionalData(getAdditionalData(context));
+        return Optional.of(authenticatorData);
+    }
+
+    private void setAuthParams(AuthenticatorData authenticatorData) {
+
+        List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
+        AuthenticatorParamMetadata promptResponse = new AuthenticatorParamMetadata(PROMPT_RESP, DISPLAY_PROMPT_RESPONSE,
+                FrameworkConstants.AuthenticatorParamType.STRING, 1, false, PROMPT_RESP_PARAM);
+        AuthenticatorParamMetadata promptId =
+                new AuthenticatorParamMetadata(PROMPT_ID, DISPLAY_PROMPT_ID,
+                        FrameworkConstants.AuthenticatorParamType.STRING,
+                        2, false, PROMPT_ID_PARAM);
+        AuthenticatorParamMetadata ActiveSessionsLimitAction =
+                new AuthenticatorParamMetadata(ActiveSessionsLimitHandlerConstants.ACTIVE_SESSIONS_LIMIT_ACTION,
+                        DISPLAY_ACTIVE_SESSIONS_LIMIT_ACTION, FrameworkConstants.AuthenticatorParamType.STRING, 3,
+                        false,
+                        ACTIVE_SESSIONS_LIMIT_ACTION_PARAM);
+        AuthenticatorParamMetadata sessionsToTerminate =
+                new AuthenticatorParamMetadata(ActiveSessionsLimitHandlerConstants.SESSIONS_TO_TERMINATE,
+                        DISPLAY_SESSIONS_TO_TERMINATE, FrameworkConstants.AuthenticatorParamType.MULTI_VALUED, 4, false,
+                        SESSIONS_TO_TERMINATE_PARAM);
+        authenticatorParamMetadataList.add(promptResponse);
+        authenticatorParamMetadataList.add(promptId);
+        authenticatorParamMetadataList.add(ActiveSessionsLimitAction);
+        authenticatorParamMetadataList.add(sessionsToTerminate);
+
+        authenticatorData.setAuthParams(authenticatorParamMetadataList);
+    }
+
+    private AdditionalData getAdditionalData(AuthenticationContext context) throws AuthenticationFailedException {
+
+        String userId;
+        List<UserSession> userSessions;
+        try {
+            userId = getUserId(context);
+            userSessions = getUserSessions(userId, context.getTenantDomain());
+        } catch (UserSessionRetrievalException e) {
+            throw new AuthenticationFailedException("Error occurred while retrieving user sessions.", e);
+        }
+
+        String maxSessionCount =
+                getAuthenticatorParams(ActiveSessionsLimitHandlerConstants.MAX_SESSION_COUNT, DEFAULT_MAX_SESSION_COUNT,
+                        context);
+
+        AdditionalData additionalData = new AdditionalData();
+        Map<String, String> additionalParams = new HashMap<>();
+        additionalParams.put(MAX_SESSION_COUNT, maxSessionCount);
+        additionalParams.put(SESSIONS, getSessionPropertiesJSON(userSessions));
+        additionalParams.put(PROMPT_ID, context.getContextIdentifier());
+        additionalData.setAdditionalAuthenticationParams(additionalParams);
+
+        return additionalData;
+    }
+
     private String getAuthenticatorParams(String parameterName, String defaultValue,
                                           AuthenticationContext authenticationContext) {
 
@@ -226,6 +337,22 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             return authenticatorConfig.getParameterMap().get(parameterName);
         }
         return defaultValue;
+    }
+
+    private String getSessionPropertiesJSON(List<UserSession> userSessions) {
+
+        JSONArray sessionDataArray = new JSONArray();
+        for (UserSession userSession : userSessions) {
+            JSONObject sessionData = new JSONObject();
+            UserAgent userAgent = new UserAgent(userSession.getUserAgent());
+            sessionData.put("sessionId", userSession.getSessionId());
+            sessionData.put("lastAccessTime", userSession.getLastAccessTime());
+            sessionData.put("browser", userAgent.getBrowser());
+            sessionData.put("platform", userAgent.getPlatform());
+            sessionData.put("device", userAgent.getDevice());
+            sessionDataArray.add(sessionData);
+        }
+        return sessionDataArray.toJSONString();
     }
 
     private List<String[]> getSessionProperties(List<UserSession> userSessions) {
