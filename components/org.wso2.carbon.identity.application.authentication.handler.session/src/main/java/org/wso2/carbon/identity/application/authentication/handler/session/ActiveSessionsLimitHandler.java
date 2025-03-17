@@ -18,7 +18,7 @@
 
 package org.wso2.carbon.identity.application.authentication.handler.session;
 
-import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -60,7 +60,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -505,12 +504,9 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
     private boolean isSingleSignOnAttempt(AuthenticationContext context, List<UserSession> userSessions) {
 
         String sessionIdFromContext = context.getSessionIdentifier();
-        if (sessionIdFromContext != null) {
-            for (UserSession userSession : userSessions) {
-                if (sessionIdFromContext.equals(userSession.getSessionId())) {
-                    return true;
-                }
-            }
+        if (userSessions != null && StringUtils.isNotBlank(sessionIdFromContext)) {
+            return userSessions.stream()
+                    .anyMatch(userSession -> sessionIdFromContext.equals(userSession.getSessionId()));
         }
         return false;
     }
