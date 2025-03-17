@@ -127,7 +127,8 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                     userSessions = getUserSessions(userId, tenantDomain);
                 }
 
-                if (userSessions != null && userSessions.size() >= maxSessionCount) {
+                if (userSessions != null && userSessions.size() >= maxSessionCount &&
+                        !isSingleSignOnAttempt(context, userSessions)) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     return super.process(request, response, context);
                 } else {
@@ -188,7 +189,8 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
                 String tenantDomain = getUserTenantDomain(context);
                 userSessions = getUserSessions(userId, tenantDomain);
-                if (userSessions != null && userSessions.size() >= maxSessionCount) {
+                if (userSessions != null && userSessions.size() >= maxSessionCount &&
+                        !isSingleSignOnAttempt(context, userSessions)) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     throw new AuthenticationFailedException("Active session count: " + userSessions.size()
                             + " exceeds the specified limit: " + maxSessionCountParamValue);
@@ -362,5 +364,25 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             }
         }
         return tenantDomain;
+    }
+
+    /**
+     * Check whether the current authentication attempt is a single sign-on attempt.
+     *
+     * @param context      Authentication context.
+     * @param userSessions List of user sessions.
+     * @return True if the current authentication attempt is a single sign-on attempt.
+     */
+    private boolean isSingleSignOnAttempt(AuthenticationContext context, List<UserSession> userSessions) {
+
+        String sessionIdFromContext = context.getSessionIdentifier();
+        if (sessionIdFromContext != null) {
+            for (UserSession userSession : userSessions) {
+                if (sessionIdFromContext.equals(userSession.getSessionId())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
