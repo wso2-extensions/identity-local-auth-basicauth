@@ -33,6 +33,7 @@
     <test name="basic-authenticator-tests-with-info-logs" preserve-order="true" parallel="false">
         <parameter name="log-level" value="info"/>
         <classes>
+            <class name="org.wso2.carbon.identity.application.authenticator.basicauth.PasswordOnboardExecutorTest"/>
             <class name="org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorTestCase"/>
             <class name="org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponentTestCase"/>
             <class name="org.wso2.carbon.identity.application.authenticator.basicauth.attribute.handler.BasicAuthAuthAttributeHandlerTest"/>
