@@ -504,7 +504,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
     private boolean isSingleSignOnAttempt(AuthenticationContext context, List<UserSession> userSessions) {
 
         String sessionIdFromContext = context.getSessionIdentifier();
-        if (userSessions != null && StringUtils.isNotBlank(sessionIdFromContext)) {
+        if (StringUtils.isNotBlank(sessionIdFromContext)) {
             return userSessions.stream()
                     .anyMatch(userSession -> sessionIdFromContext.equals(userSession.getSessionId()));
         }
