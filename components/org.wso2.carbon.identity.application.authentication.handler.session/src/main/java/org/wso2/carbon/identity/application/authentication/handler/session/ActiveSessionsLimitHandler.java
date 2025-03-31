@@ -18,7 +18,7 @@
 
 package org.wso2.carbon.identity.application.authentication.handler.session;
 
-import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -60,7 +60,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -157,8 +156,8 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                     userSessions = getUserSessions(userId, tenantDomain);
                 }
 
-                if (userSessions != null && userSessions.size() >= maxSessionCount
-                        && !isSessionActiveInSameBrowser(request, userSessions)) {
+                if (userSessions != null && userSessions.size() >= maxSessionCount &&
+                        !isSingleSignOnAttempt(context, userSessions)) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     return super.process(request, response, context);
                 } else {
@@ -219,7 +218,8 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
                 String tenantDomain = getUserTenantDomain(context);
                 userSessions = getUserSessions(userId, tenantDomain);
-                if (userSessions != null && userSessions.size() >= maxSessionCount) {
+                if (userSessions != null && userSessions.size() >= maxSessionCount &&
+                        !isSingleSignOnAttempt(context, userSessions)) {
                     prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
                     throw new AuthenticationFailedException("Active session count: " + userSessions.size()
                             + " exceeds the specified limit: " + maxSessionCountParamValue);
@@ -494,18 +494,20 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
         return tenantDomain;
     }
 
-    private boolean isSessionActiveInSameBrowser(HttpServletRequest request, List<UserSession> userSessions) {
+    /**
+     * Check whether the current authentication attempt is a single sign-on attempt.
+     *
+     * @param context      Authentication context.
+     * @param userSessions List of user sessions.
+     * @return True if the current authentication attempt is a single sign-on attempt.
+     */
+    private boolean isSingleSignOnAttempt(AuthenticationContext context, List<UserSession> userSessions) {
 
-        Cookie cookie = FrameworkUtils.getAuthCookie(request);
-        if (cookie == null) {
-            return false;
+        String sessionIdFromContext = context.getSessionIdentifier();
+        if (StringUtils.isNotBlank(sessionIdFromContext)) {
+            return userSessions.stream()
+                    .anyMatch(userSession -> sessionIdFromContext.equals(userSession.getSessionId()));
         }
-        String sessionContextKey = DigestUtils.sha256Hex(cookie.getValue());
-        boolean isSessionMatch = userSessions.stream()
-                .anyMatch(userSession -> sessionContextKey.equals(userSession.getSessionId()));
-        if (isSessionMatch && log.isDebugEnabled()) {
-            log.debug("Session context key matches with the session ID: " + sessionContextKey);
-        }
-        return isSessionMatch;
+        return false;
     }
 }
