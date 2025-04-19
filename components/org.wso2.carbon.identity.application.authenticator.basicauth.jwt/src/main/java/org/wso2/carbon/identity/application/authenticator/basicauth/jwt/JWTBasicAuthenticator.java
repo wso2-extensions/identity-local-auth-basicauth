@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2018-2025, WSO2 LLC. (http://www.wso2.com).
  *
- * WSO2 Inc. licenses this file to you under the Apache License,
+ * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License.
  * You may obtain a copy of the License at
  *
- *  http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -27,21 +27,18 @@ import com.nimbusds.jwt.SignedJWT;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.wso2.carbon.base.MultitenantConstants;
-import org.wso2.carbon.core.util.KeyStoreManager;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
 import org.wso2.carbon.identity.application.authenticator.basicauth.jwt.cache.AuthJwtCache;
-import org.wso2.carbon.identity.application.authenticator.basicauth.jwt.internal.JWTBasicAuthenticatorServiceComponentDataHolder;
 import org.wso2.carbon.identity.application.authenticator.basicauth.jwt.util.JwtBasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.common.model.User;
+import org.wso2.carbon.identity.core.IdentityKeyStoreResolver;
+import org.wso2.carbon.identity.core.util.IdentityKeyStoreResolverConstants;
+import org.wso2.carbon.identity.core.util.IdentityKeyStoreResolverException;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
-import org.wso2.carbon.utils.security.KeystoreUtils;
 
-import java.security.KeyStore;
-import java.security.KeyStoreException;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPublicKey;
@@ -188,29 +185,10 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
 
     private X509Certificate getCertificate(String tenantDomain) throws AuthenticationFailedException {
 
-        int tenantId;
         try {
-            tenantId = JWTBasicAuthenticatorServiceComponentDataHolder.getInstance().getRealmService()
-                    .getTenantManager().getTenantId(tenantDomain);
-        } catch (org.wso2.carbon.user.api.UserStoreException e) {
-            String errorMsg = String.format(ErrorMessages.GETTING_THE_TENANT_ID_FROM_TENANT_DOMAIN_FAILED.getMessage(),
-                    tenantDomain);
-            throw new AuthenticationFailedException(
-                    ErrorMessages.GETTING_THE_TENANT_ID_FROM_TENANT_DOMAIN_FAILED.getCode(), errorMsg);
-        }
-
-        // get an instance of the corresponding Key Store Manager instance
-        KeyStoreManager keyStoreManager = KeyStoreManager.getInstance(tenantId);
-        try {
-            if (tenantId != MultitenantConstants.SUPER_TENANT_ID) {
-                // for tenants, load key from their generated key store and get the primary certificate.
-                KeyStore keyStore = keyStoreManager.getKeyStore(generateKSNameFromDomainName(tenantDomain));
-                return (X509Certificate) keyStore.getCertificate(tenantDomain);
-            } else {
-                // for super tenant, load the default public cert using the config in carbon.xml
-                return keyStoreManager.getDefaultPrimaryCertificate();
-            }
-        } catch (KeyStoreException e) {
+            return (X509Certificate) IdentityKeyStoreResolver.getInstance().getCertificate(tenantDomain,
+                    IdentityKeyStoreResolverConstants.InboundProtocol.OAUTH);
+        } catch (IdentityKeyStoreResolverException e) {
             String errorMsg = String.format(
                     "Error instantiating an X509Certificate object for the primary certificate in tenant: %s",
                     tenantDomain);
@@ -219,21 +197,7 @@ public class JWTBasicAuthenticator extends BasicAuthenticator {
             }
             throw new AuthenticationFailedException(
                     ErrorMessages.KEY_STORE_EXCEPTION_WHILE_INSTANTIATING_X_509_CERTIFICATE_OBJECT.getCode(), errorMsg);
-        } catch (Exception e) {
-            String errorMsg =
-                    String.format(ErrorMessages.UNABLE_TO_LOAD_KEY_STORE_MANAGER_FOR_TENANT_DOMAIN.getMessage(),
-                            tenantDomain);
-            if (log.isDebugEnabled()) {
-                log.debug(errorMsg, e);
-            }
-            throw new AuthenticationFailedException(
-                    ErrorMessages.UNABLE_TO_LOAD_KEY_STORE_MANAGER_FOR_TENANT_DOMAIN.getCode(), errorMsg);
         }
-    }
-
-    private String generateKSNameFromDomainName(String tenantDomain) {
-
-        return KeystoreUtils.getKeyStoreFileLocation(tenantDomain);
     }
 
     private boolean validateSignature(SignedJWT signedJWT, X509Certificate x509Certificate) throws
