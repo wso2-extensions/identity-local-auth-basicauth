@@ -123,7 +123,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
     private static final long serialVersionUID = 1819664539416029785L;
     private static final String PASSWORD_PROPERTY = "PASSWORD_PROPERTY";
-    private static final String PASSWORD_RESET_ENDPOINT = "accountrecoveryendpoint/confirmrecovery.do?";
+    private static final String CONFIRM_RECOVERY_DO = "/confirmrecovery.do?";
     private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
     private static final String RESEND_CONFIRMATION_RECAPTCHA_ENABLE = "SelfRegistration.ResendConfirmationReCaptcha";
     private static final String APPEND_USER_TENANT_TO_USERNAME = "appendUserTenantToUsername";
@@ -302,6 +302,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
 
         String loginPage = ConfigurationFacade.getInstance().getAuthenticationEndpointURL();
+        String recoveryPage = ConfigurationFacade.getInstance().getAccountRecoveryEndpointPath();
         String retryPage = ConfigurationFacade.getInstance().getAuthenticationEndpointRetryURL();
         String queryParams = context.getContextIdIncludedQueryParams();
         String password = (String) context.getProperty(PASSWORD_PROPERTY);
@@ -423,7 +424,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             BasicAuthenticatorConstants.LOCAL;
                     String reason = RecoveryScenarios.ADMIN_FORCED_PASSWORD_RESET_VIA_OTP.name();
 
-                    redirectURL = PASSWORD_RESET_ENDPOINT +
+                    redirectURL = recoveryPage + CONFIRM_RECOVERY_DO +
                             BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username,
                             BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
                             URLEncoder.encode(tenantDomain, BasicAuthenticatorConstants.UTF_8) +
