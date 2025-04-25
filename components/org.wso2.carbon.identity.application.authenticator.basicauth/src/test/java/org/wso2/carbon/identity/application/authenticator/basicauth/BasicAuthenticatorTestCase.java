@@ -188,6 +188,7 @@ public class BasicAuthenticatorTestCase {
     private static final String DUMMY_PASSWORD = "dummyPassword";
     private static final String DUMMY_QUERY_PARAMS = "dummyQueryParams";
     private static final String DUMMY_LOGIN_PAGEURL = "dummyLoginPageurl";
+    private static final String DUMMY_RECOVERY_URL = "dummyRecoveryUrl";
     private static final String DUMMY_DOMAIN = "dummyDomain";
     private static final String DUMMY_RETRY_URL = "DummyRetryUrl";
     private static final String DUMMY_RETRY_URL_WITH_QUERY = "DummyRetryUrl?dummyQueryParams";
@@ -1434,7 +1435,7 @@ public class BasicAuthenticatorTestCase {
                 },
                 {
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE,
-                        "accountrecoveryendpoint/confirmrecovery.do?"
+                        DUMMY_RECOVERY_URL + "/confirmrecovery.do?"
                                 + BasicAuthenticatorConstants.USER_NAME_PARAM
                                 + URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8)
                                 + BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM
@@ -1446,7 +1447,7 @@ public class BasicAuthenticatorTestCase {
                 },
                 {
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE,
-                        "accountrecoveryendpoint/confirmrecovery.do?" +
+                        DUMMY_RECOVERY_URL + "/confirmrecovery.do?" +
                                 BasicAuthenticatorConstants.USER_NAME_PARAM +
                                 URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8) +
                                 BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
@@ -1524,6 +1525,7 @@ public class BasicAuthenticatorTestCase {
             configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
             when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
             when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+            when(mockConfigurationFacade.getAccountRecoveryEndpointPath()).thenReturn(DUMMY_RECOVERY_URL);
             when(mockAuthnCtxt.isRetrying()).thenReturn(true);
 
             when(mockIdentityErrorMsgContext.getErrorCode()).thenReturn(errorCode);
