@@ -595,6 +595,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                         tenantAwareUsername, user.getTenantDomain());
                                 userId = user.getUserID();
                                 userStoreDomain = user.getUserStoreDomain();
+                                // Set a property to the context to indicate that the user is resolved from this step.
+                                setIsUserResolvedToContext(context);
                             }
                         } catch (OrganizationManagementException e) {
                             if (log.isDebugEnabled()) {
@@ -623,6 +625,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                     if (StringUtils.isNotEmpty(userDetails[1])) {
                         userStoreDomain = userDetails[1];
                     }
+                    // Set a property to the context to indicate that the user is resolved from this step.
+                    setIsUserResolvedToContext(context);
                 }
 
                 // TODO: user tenant domain has to be an attribute in the AuthenticationContext.
