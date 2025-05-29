@@ -36,6 +36,8 @@ import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
+import org.wso2.carbon.identity.organization.management.organization.user.sharing.OrganizationUserSharingService;
+import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
 import org.wso2.carbon.identity.user.registration.engine.graph.Executor;
 import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.securevault.SecretResolver;
@@ -167,6 +169,43 @@ public class BasicAuthenticatorServiceComponent {
             log.debug("Unsetting the configuration manager in basic authenticator bundle.");
         }
         BasicAuthenticatorDataHolder.getInstance().setConfigurationManager(null);
+    }
+
+    @Reference(
+            name = "organization.user.sharing.service",
+            service = OrganizationUserSharingService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetOrganizationUserAssociationService")
+    protected void setOrganizationUserSharingService(OrganizationUserSharingService organizationUserSharingService) {
+
+        BasicAuthenticatorDataHolder.getInstance().setOrganizationUserSharingService(organizationUserSharingService);
+        log.debug("Set organization user association service.");
+    }
+
+    protected void unsetOrganizationUserAssociationService(
+            OrganizationUserSharingService organizationUserSharingService) {
+
+        BasicAuthenticatorDataHolder.getInstance().setOrganizationUserSharingService(null);
+        log.debug("Unset organization user association Service.");
+    }
+
+    @Reference(
+            name = "organization.management.service",
+            service = OrganizationManager.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetOrganizationManagementService")
+    protected void setOrganizationManagementService(OrganizationManager organizationManager) {
+
+        BasicAuthenticatorDataHolder.getInstance().setOrganizationManager(organizationManager);
+        log.debug("Set Organization Management Service");
+    }
+
+    protected void unsetOrganizationManagementService(OrganizationManager organizationManager) {
+
+        BasicAuthenticatorDataHolder.getInstance().setOrganizationManager(null);
+        log.debug("Unset Organization Management Service");
     }
 
     /**

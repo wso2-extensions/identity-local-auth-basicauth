@@ -62,6 +62,9 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
+import org.wso2.carbon.identity.organization.management.organization.user.sharing.models.UserAssociation;
+import org.wso2.carbon.identity.organization.management.service.exception.OrganizationManagementException;
+import org.wso2.carbon.identity.organization.management.service.util.OrganizationManagementUtil;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.core.UserCoreConstants;
@@ -735,8 +738,41 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (userId != null) {
                 authenticationResult = userStoreManager.authenticateWithID(userId, password);
             } else {
-                authenticationResult = userStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
-                        tenantAwareUsername, password, UserCoreConstants.DEFAULT_PROFILE);
+                // Check whether the user is a shared user, if yes authenticate from the user resident org.
+                org.wso2.carbon.user.core.common.User user = userStoreManager.getUser(null, tenantAwareUsername);
+                if (user != null) {
+                    String userID = user.getUserID();
+                    boolean sharedUserProfile = isSharedUserProfile(userID, requestTenantDomain);
+                    if (sharedUserProfile) {
+                        // Get user's resident org.
+                        String currentOrganizationId =
+                                BasicAuthenticatorDataHolder.getInstance().getOrganizationManager()
+                                        .resolveOrganizationId(requestTenantDomain);
+                        UserAssociation userAssociation =
+                                BasicAuthenticatorDataHolder.getInstance().getOrganizationUserSharingService()
+                                        .getUserAssociation(userID, currentOrganizationId);
+                        String associationUserResidentOrganizationId = userAssociation.getUserResidentOrganizationId();
+                        String associationUserTenantDomain =
+                                BasicAuthenticatorDataHolder.getInstance().getOrganizationManager()
+                                        .resolveTenantDomain(associationUserResidentOrganizationId);
+                        AbstractUserStoreManager residentOrguserStoreManager =
+                                getUserStoreManager(username, associationUserTenantDomain);
+                        authenticationResult = residentOrguserStoreManager.authenticateWithID(
+                                UserCoreClaimConstants.USERNAME_CLAIM_URI,
+                                tenantAwareUsername, password, UserCoreConstants.DEFAULT_PROFILE);
+                        if (AuthenticationResult.AuthenticationStatus.SUCCESS == authenticationResult.getAuthenticationStatus()) {
+                            authenticationResult.setAuthenticatedUser(user);
+                        }
+                    } else {
+                        authenticationResult =
+                                userStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
+                                        tenantAwareUsername, password, UserCoreConstants.DEFAULT_PROFILE);
+                    }
+                } else {
+                    authenticationResult =
+                            userStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
+                                    tenantAwareUsername, password, UserCoreConstants.DEFAULT_PROFILE);
+                }
             }
             if (AuthenticationResult.AuthenticationStatus.SUCCESS == authenticationResult.getAuthenticationStatus()
                     && authenticationResult.getAuthenticatedUser().isPresent()) {
@@ -825,6 +861,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         ErrorMessages.USER_STORE_EXCEPTION_WHILE_TRYING_TO_AUTHENTICATE.getCode(), e.getMessage(),
                         e);
             }
+        } catch (OrganizationManagementException e) {
+            throw new AuthenticationFailedException("Error while resolving organization", e);
         } finally {
             clearUserExistThreadLocal();
         }
@@ -1321,6 +1359,34 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     public String getI18nKey() {
 
         return AUTHENTICATOR_BASIC;
+    }
+
+    private static boolean isSharedUserProfile(String userID, String currentTenantDomain)
+            throws UserStoreClientException {
+
+        String currentOrganizationId = PrivilegedCarbonContext.getThreadLocalCarbonContext().getOrganizationId();
+        try {
+            if (!OrganizationManagementUtil.isOrganization(currentTenantDomain)) {
+                // There is no shared users in root organizations. Hence, return false.
+                return false;
+            }
+            if (StringUtils.isBlank(currentOrganizationId)) {
+                currentOrganizationId = BasicAuthenticatorDataHolder.getInstance().getOrganizationManager()
+                        .resolveOrganizationId(currentTenantDomain);
+            }
+            UserAssociation userAssociation =
+                    BasicAuthenticatorDataHolder.getInstance().getOrganizationUserSharingService()
+                            .getUserAssociation(userID, currentOrganizationId);
+            if (userAssociation == null) {
+                // User is not a shared user. Hence, return false.
+                return false;
+            }
+        } catch (OrganizationManagementException e) {
+            throw new UserStoreClientException(
+                    "Error while checking the user association of the user: " + userID + " with the organization: " +
+                            currentOrganizationId, e);
+        }
+        return true;
     }
 
 }

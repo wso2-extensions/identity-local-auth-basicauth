@@ -21,6 +21,8 @@ package org.wso2.carbon.identity.application.authenticator.basicauth.internal;
 import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
+import org.wso2.carbon.identity.organization.management.organization.user.sharing.OrganizationUserSharingService;
+import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
 
 import java.util.Properties;
 
@@ -35,6 +37,8 @@ public class BasicAuthenticatorDataHolder {
     private MultiAttributeLoginService multiAttributeLogin;
     private Properties recaptchaConfigs;
     private ConfigurationManager configurationManager = null;
+    private OrganizationUserSharingService organizationUserSharingService;
+    private OrganizationManager organizationManager;
 
     private BasicAuthenticatorDataHolder() {
 
@@ -78,5 +82,25 @@ public class BasicAuthenticatorDataHolder {
     public ConfigurationManager getConfigurationManager() {
 
         return configurationManager;
+    }
+
+    public OrganizationManager getOrganizationManager() {
+
+        return organizationManager;
+    }
+
+    public void setOrganizationManager(OrganizationManager organizationManager) {
+
+        this.organizationManager = organizationManager;
+    }
+
+    public void setOrganizationUserSharingService(OrganizationUserSharingService organizationUserSharingService) {
+
+        this.organizationUserSharingService = organizationUserSharingService;
+    }
+
+    public OrganizationUserSharingService getOrganizationUserSharingService() {
+
+        return organizationUserSharingService;
     }
 }
