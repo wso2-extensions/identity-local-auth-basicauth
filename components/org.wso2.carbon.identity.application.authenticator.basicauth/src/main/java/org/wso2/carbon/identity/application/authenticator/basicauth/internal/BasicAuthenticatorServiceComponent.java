@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2014, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2014-2025, WSO2 LLC. (http://www.wso2.com).
  *
- * WSO2 Inc. licenses this file to you under the Apache License,
+ * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -31,6 +31,8 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthent
 import org.wso2.carbon.identity.application.authenticator.basicauth.PasswordOnboardExecutor;
 import org.wso2.carbon.identity.application.authenticator.basicauth.attribute.handler.BasicAuthAuthAttributeHandler;
 import org.wso2.carbon.identity.auth.attribute.handler.AuthAttributeHandler;
+import org.wso2.carbon.identity.captcha.exception.CaptchaServerException;
+import org.wso2.carbon.identity.captcha.provider_mgt.service.CaptchaConfigService;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
@@ -81,8 +83,8 @@ public class BasicAuthenticatorServiceComponent {
     @Activate
     protected void activate(ComponentContext ctxt) {
 
-        buildReCaptchaFilterProperties();
         try {
+            buildReCaptchaFilterProperties();
             BasicAuthenticator basicAuth = new BasicAuthenticator();
             ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), basicAuth, null);
 
@@ -169,31 +171,39 @@ public class BasicAuthenticatorServiceComponent {
         BasicAuthenticatorDataHolder.getInstance().setConfigurationManager(null);
     }
 
+    @Reference(
+            name = "identity.captcha.config.service",
+            service = CaptchaConfigService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetCaptchaConfigService"
+    )
+    protected void setCaptchaConfigService(CaptchaConfigService captchaConfigService) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Setting the Captcha Config Service in basic authenticator bundle.");
+        }
+        BasicAuthenticatorDataHolder.getInstance().setCaptchaConfigService(captchaConfigService);
+    }
+
+    protected void unsetCaptchaConfigService(CaptchaConfigService captchaConfigService) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Unsetting the Captcha Config Service in basic authenticator bundle.");
+        }
+        BasicAuthenticatorDataHolder.getInstance().setCaptchaConfigService(null);
+    }
     /**
      * Read the captcha-config.properties file located in repository/conf/identity directory and set the
      * configurations required to enable recaptcha in the Data holder.
      */
-    private void buildReCaptchaFilterProperties() {
+    private void buildReCaptchaFilterProperties() throws CaptchaServerException {
 
-        Path path = Paths.get(IdentityUtil.getIdentityConfigDirPath(), CaptchaConstants.CAPTCHA_CONFIG_FILE_NAME);
+        CaptchaConfigService captchaConfigService = BasicAuthenticatorDataHolder.getInstance().getCaptchaConfigService();
 
-        if (Files.exists(path)) {
-            Properties properties = new Properties();
-            try (Reader in = new InputStreamReader(Files.newInputStream(path), StandardCharsets.UTF_8)) {
-                properties.load(in);
-            } catch (IOException e) {
-                log.error("Error while loading '" + CaptchaConstants.CAPTCHA_CONFIG_FILE_NAME + "' configuration " +
-                        "file", e);
-            }
+        BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(
+                captchaConfigService.getActiveCaptchaProviderConfig());
 
-            boolean reCaptchaEnabled = Boolean.valueOf(properties.getProperty(CaptchaConstants
-                    .RE_CAPTCHA_ENABLED));
-
-            if (reCaptchaEnabled) {
-                resolveSecrets(properties);
-                BasicAuthenticatorDataHolder.getInstance().setRecaptchaConfigs(properties);
-            }
-        }
     }
 
     /**
