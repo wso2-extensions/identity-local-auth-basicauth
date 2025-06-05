@@ -29,8 +29,10 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandler;
+import org.wso2.carbon.identity.application.authentication.handler.identifier.UserResolveExecutor;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.identity.organization.management.service.OrganizationUserResidentResolverService;
+import org.wso2.carbon.identity.user.registration.engine.graph.Executor;
 import org.wso2.carbon.user.core.service.RealmService;
 
 @Component(
@@ -80,6 +82,10 @@ public class IdentifierAuthenticatorServiceComponent {
         try {
             IdentifierHandler identifierHandler = new IdentifierHandler();
             ctxt.getBundleContext().registerService(ApplicationAuthenticator.class.getName(), identifierHandler, null);
+
+            UserResolveExecutor userResolveExecutor = new UserResolveExecutor();
+            ctxt.getBundleContext().registerService(Executor.class.getName(), userResolveExecutor, null);
+
             if (log.isDebugEnabled()) {
                 log.info("IdentifierHandler bundle is activated");
             }
