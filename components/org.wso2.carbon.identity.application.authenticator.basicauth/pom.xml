@@ -180,6 +180,8 @@
                             org.wso2.carbon.utils; version="${carbon.kernel.imp.pkg.version.range}",
                             org.wso2.carbon.identity.captcha.connector.recaptcha; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.captcha.util; version="${identity.governance.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.captcha.provider_mgt.service; version="${identity.governance.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.captcha.exception; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.governance; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.recovery; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.recovery.util; version="${identity.governance.imp.pkg.version.range}",
@@ -269,6 +271,12 @@
                         </configuration>
                     </execution>
                 </executions>
+                <configuration>
+                    <excludes>
+                        <exclude>org/wso2/carbon/identity/application/authenticator/basicauth/internal/BasicAuthenticatorDataHolder.class</exclude>
+                        <exclude>org/wso2/carbon/identity/application/authenticator/basicauth/internal/BasicAuthenticatorServiceComponent.class</exclude>
+                    </excludes>
+                </configuration>
             </plugin>
         </plugins>
     </build>
