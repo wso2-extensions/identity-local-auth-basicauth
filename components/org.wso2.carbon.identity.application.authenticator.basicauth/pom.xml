@@ -131,7 +131,7 @@
         </dependency>
         <dependency>
             <groupId>org.wso2.carbon.identity.framework</groupId>
-            <artifactId>org.wso2.carbon.identity.user.registration.engine</artifactId>
+            <artifactId>org.wso2.carbon.identity.flow.execution.engine</artifactId>
         </dependency>
     </dependencies>
     <build>
@@ -191,11 +191,11 @@
                             org.wso2.securevault.*; version="${org.wso2.securevault.import.version.range}",
                             org.wso2.carbon.identity.configuration.mgt.core.*; version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.context.*; version="${carbon.kernel.imp.pkg.version.range}",
-                            org.wso2.carbon.identity.user.registration.engine.graph;
+                            org.wso2.carbon.identity.flow.execution.engine.graph;
                             version="${carbon.identity.framework.imp.pkg.version.range}",
-                            org.wso2.carbon.identity.user.registration.engine.model;
+                            org.wso2.carbon.identity.flow.execution.engine.model;
                             version="${carbon.identity.framework.imp.pkg.version.range}",
-                            org.wso2.carbon.identity.user.registration.engine.exception;
+                            org.wso2.carbon.identity.flow.execution.engine.exception;
                             version="${carbon.identity.framework.imp.pkg.version.range}",
                         </Import-Package>
                         <Export-Package>
