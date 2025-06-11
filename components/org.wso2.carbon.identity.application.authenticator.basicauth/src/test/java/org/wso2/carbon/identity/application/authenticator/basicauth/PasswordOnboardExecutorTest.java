@@ -18,21 +18,22 @@
 
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
-import java.util.HashMap;
-import java.util.Map;
 import org.mockito.Mock;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.wso2.carbon.identity.user.registration.engine.model.ExecutorResponse;
-import org.wso2.carbon.identity.user.registration.engine.model.RegistrationContext;
+import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
+import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.openMocks;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.PASSWORD;
-import static org.wso2.carbon.identity.user.registration.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
-import static org.wso2.carbon.identity.user.registration.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 
 /**
  * Unit tests for PasswordOnboardExecutor.
@@ -40,7 +41,7 @@ import static org.wso2.carbon.identity.user.registration.engine.Constants.Execut
 public class PasswordOnboardExecutorTest {
 
     @Mock
-    private RegistrationContext mockRegContext;
+    private FlowExecutionContext mockFlowExecContext;
 
     private PasswordOnboardExecutor passwordOnboardExecutor;
 
@@ -55,9 +56,9 @@ public class PasswordOnboardExecutorTest {
     public void testPasswordRequiredState() throws Exception {
 
         Map<String, String> userInputData = new HashMap<>();
-        when(mockRegContext.getUserInputData()).thenReturn(userInputData);
+        when(mockFlowExecContext.getUserInputData()).thenReturn(userInputData);
 
-        ExecutorResponse response = passwordOnboardExecutor.execute(mockRegContext);
+        ExecutorResponse response = passwordOnboardExecutor.execute(mockFlowExecContext);
         assertEquals(response.getResult(), STATUS_USER_INPUT_REQUIRED);
         assertEquals(response.getRequiredData().size(), 1);
         assertEquals(response.getRequiredData().get(0), PASSWORD);
@@ -69,9 +70,9 @@ public class PasswordOnboardExecutorTest {
         Map<String, String> userInputData = new HashMap<>();
         userInputData.put(PASSWORD, "P@ssw0rd");
 
-        when(mockRegContext.getUserInputData()).thenReturn(userInputData);
+        when(mockFlowExecContext.getUserInputData()).thenReturn(userInputData);
 
-        ExecutorResponse response = passwordOnboardExecutor.execute(mockRegContext);
+        ExecutorResponse response = passwordOnboardExecutor.execute(mockFlowExecContext);
         assertEquals(response.getResult(), STATUS_COMPLETE);
         assertNotNull(response.getUserCredentials().get(PASSWORD));
     }

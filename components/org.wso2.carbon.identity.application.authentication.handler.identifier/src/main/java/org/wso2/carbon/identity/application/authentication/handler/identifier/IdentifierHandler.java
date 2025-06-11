@@ -651,7 +651,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         username = FrameworkUtils.prependUserStoreDomainToName(username);
         authProperties.put("username", username);
 
-        persistUsername(context, identifierFromRequest);
+        persistUsername(context, username);
 
         if (userStoreDomain == null) {
             userStoreDomain = IdentityUtil.extractDomainFromName(username);
