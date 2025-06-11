@@ -32,7 +32,7 @@ import org.wso2.carbon.identity.application.authentication.handler.identifier.Id
 import org.wso2.carbon.identity.application.authentication.handler.identifier.UserResolveExecutor;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.identity.organization.management.service.OrganizationUserResidentResolverService;
-import org.wso2.carbon.identity.user.registration.engine.graph.Executor;
+import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
 import org.wso2.carbon.user.core.service.RealmService;
 
 @Component(

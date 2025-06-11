@@ -25,13 +25,12 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.internal.IdentifierAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.util.IdentifierErrorConstants;
-import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticator;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
-import org.wso2.carbon.identity.user.registration.engine.exception.RegistrationEngineException;
-import org.wso2.carbon.identity.user.registration.engine.graph.Executor;
-import org.wso2.carbon.identity.user.registration.engine.model.ExecutorResponse;
-import org.wso2.carbon.identity.user.registration.engine.model.RegistrationContext;
+import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineException;
+import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
+import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
+import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.core.UserStoreException;
@@ -42,9 +41,9 @@ import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.wso2.carbon.identity.user.registration.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
-import static org.wso2.carbon.identity.user.registration.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
-import static org.wso2.carbon.identity.user.registration.engine.Constants.USERNAME_CLAIM_URI;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_CLAIM_URI;
 
 /**
  * This class is responsible for resolving user attributes.
@@ -57,7 +56,7 @@ public class UserResolveExecutor implements Executor {
     public static final String CLAIM_URI_MOBILE = "http://wso2.org/claims/mobile";
     public static final String CLAIM_URI_FIRST_NAME = "http://wso2.org/claims/givenname";
     public static final String CLAIM_URI_LAST_NAME = "http://wso2.org/claims/lastname";
-    private static final Log log = LogFactory.getLog(BasicAuthenticator.class);
+    private static final Log log = LogFactory.getLog(UserResolveExecutor.class);
 
     public String getName() {
 
@@ -65,10 +64,10 @@ public class UserResolveExecutor implements Executor {
     }
 
     @Override
-    public ExecutorResponse execute(RegistrationContext context) throws RegistrationEngineException {
+    public ExecutorResponse execute(FlowExecutionContext context) throws FlowEngineException {
 
         ExecutorResponse response;
-        String usernameClaimValue = (String) context.getRegisteringUser().getClaim(CLAIM_URI_USERNAME);
+        String usernameClaimValue = (String) context.getFlowUser().getClaim(CLAIM_URI_USERNAME);
         if (usernameClaimValue != null) {
             String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(usernameClaimValue);
             resolveUser(tenantAwareUsername, context.getTenantDomain(), context);
@@ -79,7 +78,8 @@ public class UserResolveExecutor implements Executor {
         return response;
     }
 
-    private void resolveUser(String username, String tenantDomain, RegistrationContext context) {
+    private void resolveUser(String username, String tenantDomain, FlowExecutionContext context) {
+
         try {
             RealmService realmService = IdentifierAuthenticatorServiceComponent.getRealmService();
             int tenantId = realmService.getTenantManager().getTenantId(tenantDomain);
@@ -128,10 +128,10 @@ public class UserResolveExecutor implements Executor {
             }
 
             if (retrievedClaims != null && !retrievedClaims.isEmpty()) {
-                context.getRegisteringUser().addClaim(CLAIM_URI_EMAIL, retrievedClaims.get(CLAIM_URI_EMAIL));
-                context.getRegisteringUser().addClaim(CLAIM_URI_FIRST_NAME, retrievedClaims.get(CLAIM_URI_FIRST_NAME));
-                context.getRegisteringUser().addClaim(CLAIM_URI_LAST_NAME, retrievedClaims.get(CLAIM_URI_LAST_NAME));
-                context.getRegisteringUser().addClaim(CLAIM_URI_MOBILE, retrievedClaims.get(CLAIM_URI_MOBILE));
+                context.getFlowUser().addClaim(CLAIM_URI_EMAIL, retrievedClaims.get(CLAIM_URI_EMAIL));
+                context.getFlowUser().addClaim(CLAIM_URI_FIRST_NAME, retrievedClaims.get(CLAIM_URI_FIRST_NAME));
+                context.getFlowUser().addClaim(CLAIM_URI_LAST_NAME, retrievedClaims.get(CLAIM_URI_LAST_NAME));
+                context.getFlowUser().addClaim(CLAIM_URI_MOBILE, retrievedClaims.get(CLAIM_URI_MOBILE));
             }
 
         } catch (UserStoreException e) {
@@ -153,5 +153,11 @@ public class UserResolveExecutor implements Executor {
         List<String> initiationData = new ArrayList<>();
         initiationData.add(USERNAME_CLAIM_URI);
         return initiationData;
+    }
+
+    @Override
+    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) throws FlowEngineException {
+
+        return null;
     }
 }
