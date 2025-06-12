@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_CLAIM_URI;
@@ -78,13 +79,15 @@ public class UserResolveExecutor implements Executor {
     @Override
     public ExecutorResponse execute(FlowExecutionContext context) throws FlowEngineException {
 
+        ExecutorResponse executorResponse;
         String usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
         if (usernameClaim == null) {
-            return new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
+            executorResponse = new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
+        } else {
+            String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(usernameClaim);
+            executorResponse = resolveUser(tenantAwareUsername, context.getTenantDomain(), context);
         }
-        String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(usernameClaim);
-        resolveUser(tenantAwareUsername, context.getTenantDomain(), context);
-        return new ExecutorResponse(STATUS_COMPLETE);
+        return executorResponse;
     }
 
     /**
@@ -94,8 +97,9 @@ public class UserResolveExecutor implements Executor {
      * @param tenantDomain Tenant domain.
      * @param context      Flow execution context.
      */
-    private void resolveUser(String username, String tenantDomain, FlowExecutionContext context) {
+    private ExecutorResponse resolveUser(String username, String tenantDomain, FlowExecutionContext context) {
 
+        ExecutorResponse executorResponse;
         try {
             // Obtain the realm service and user realm for the tenant.
             RealmService realmService = IdentifierAuthenticatorServiceComponent.getRealmService();
@@ -125,14 +129,18 @@ public class UserResolveExecutor implements Executor {
                         .collect(Collectors.toMap(Claim::getClaimUri, Claim::getValue));
                 context.getFlowUser().addClaims(claimMap);
             }
+            executorResponse = new ExecutorResponse(STATUS_COMPLETE);
 
         } catch (UserStoreException e) {
             log.debug("Error fetching attributes for: " +
                     LoggerUtils.getMaskedContent(username) + " in tenant: " + tenantDomain, e);
+            executorResponse = new ExecutorResponse(STATUS_ERROR);
         } catch (Exception e) {
             log.debug("Unexpected error while fetching attributes for: " +
                     LoggerUtils.getMaskedContent(username) + " in tenant: " + tenantDomain, e);
+            executorResponse = new ExecutorResponse(STATUS_ERROR);
         }
+        return executorResponse;
     }
 
     /**
