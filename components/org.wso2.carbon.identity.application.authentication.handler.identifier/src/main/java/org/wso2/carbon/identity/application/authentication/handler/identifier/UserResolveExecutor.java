@@ -117,12 +117,7 @@ public class UserResolveExecutor implements Executor {
 
             UserStoreManager userStoreManager = userRealm.getUserStoreManager();
             String resolvedUsername = resolveQualifiedUsername(username, userStoreManager);
-
-            Claim[] claims = null;
-            if (userStoreManager.isExistingUser(resolvedUsername)) {
-                claims = userStoreManager.getUserClaimValues(resolvedUsername, null);
-            }
-
+            Claim[] claims = userStoreManager.getUserClaimValues(resolvedUsername, null);
             if (claims != null && claims.length > 0) {
                 Map<String, String> claimMap = Arrays.stream(claims)
                         .filter(c -> c != null && c.getClaimUri() != null)
@@ -159,23 +154,19 @@ public class UserResolveExecutor implements Executor {
             return username;
         }
 
-        // Get the primary domain name.
-        String primaryDomain = userStoreManager.getRealmConfiguration()
-                .getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME);
-
         // Iterate through secondary user stores to find the user.
-        UserStoreManager current = userStoreManager.getSecondaryUserStoreManager();
-        while (current != null) {
-            String domain = current.getRealmConfiguration()
+        UserStoreManager secondaryUserStoreManager = userStoreManager.getSecondaryUserStoreManager();
+        while (secondaryUserStoreManager != null) {
+            String domain = secondaryUserStoreManager.getRealmConfiguration()
                     .getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME);
 
-            if (StringUtils.isNotBlank(domain) && !domain.equalsIgnoreCase(primaryDomain)) {
-                String qualified = domain + UserCoreConstants.DOMAIN_SEPARATOR + username;
-                if (userStoreManager.isExistingUser(qualified)) {
-                    return qualified;
+            if (StringUtils.isNotBlank(domain)) {
+                String domainQualifiedUsername = domain + UserCoreConstants.DOMAIN_SEPARATOR + username;
+                if (userStoreManager.isExistingUser(domainQualifiedUsername)) {
+                    return domainQualifiedUsername;
                 }
             }
-            current = current.getSecondaryUserStoreManager();
+            secondaryUserStoreManager = secondaryUserStoreManager.getSecondaryUserStoreManager();
         }
 
         // If no user found in any user store, return the original username.
