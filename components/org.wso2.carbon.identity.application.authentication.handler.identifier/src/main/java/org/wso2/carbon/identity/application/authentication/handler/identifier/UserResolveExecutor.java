@@ -51,7 +51,7 @@ import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorS
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_CLAIM_URI;
 
 /**
- * This class is responsible for resolving user attributes.
+ * This class is responsible for resolving user.
  */
 public class UserResolveExecutor implements Executor {
 
