@@ -18,6 +18,9 @@
 
 package org.wso2.carbon.identity.application.authentication.handler.identifier.util;
 
+/**
+ * This class holds the error messages and error codes related to identifier authentication handler.
+ */
 public class IdentifierErrorConstants {
 
     /**
@@ -25,7 +28,7 @@ public class IdentifierErrorConstants {
      */
     public enum ErrorMessages {
 
-        // Tenant related Error codes
+        // Tenant related Error codes.
         CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT("IDS-65012",
                 "Cannot find the user realm for the given tenant: %s");
 
