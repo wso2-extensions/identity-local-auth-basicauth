@@ -47,7 +47,7 @@ public class PasswordOnboardExecutor implements Executor {
     }
 
     @Override
-    public ExecutorResponse execute(FlowExecutionContext flowExecutionContext) throws FlowEngineException {
+    public ExecutorResponse execute(FlowExecutionContext flowExecutionContext) {
 
         ExecutorResponse response;
         if (flowExecutionContext.getUserInputData() == null || StringUtils.isEmpty(flowExecutionContext.getUserInputData().get(PASSWORD_KEY))) {
@@ -75,7 +75,7 @@ public class PasswordOnboardExecutor implements Executor {
     }
 
     @Override
-    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) throws FlowEngineException {
+    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) {
 
         return null;
     }

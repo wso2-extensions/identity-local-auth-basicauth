@@ -53,7 +53,7 @@ public class PasswordOnboardExecutorTest {
     }
 
     @Test
-    public void testPasswordRequiredState() throws Exception {
+    public void testPasswordRequiredState() {
 
         Map<String, String> userInputData = new HashMap<>();
         when(mockFlowExecContext.getUserInputData()).thenReturn(userInputData);
@@ -65,7 +65,7 @@ public class PasswordOnboardExecutorTest {
     }
 
     @Test
-    public void testPasswordProvidedState() throws Exception {
+    public void testPasswordProvidedState() {
 
         Map<String, String> userInputData = new HashMap<>();
         userInputData.put(PASSWORD, "P@ssw0rd");
