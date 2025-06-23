@@ -23,11 +23,8 @@ import java.util.Map;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.internal.IdentifierAuthenticatorServiceComponent;
-import org.wso2.carbon.identity.application.authentication.handler.identifier.util.IdentifierErrorConstants;
-import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineException;
 import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
@@ -35,7 +32,7 @@ import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
-import org.wso2.carbon.user.core.UserStoreException;
+import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.claim.Claim;
 import org.wso2.carbon.user.core.service.RealmService;
@@ -107,12 +104,9 @@ public class UserResolveExecutor implements Executor {
             UserRealm userRealm = (UserRealm) realmService.getTenantUserRealm(tenantId);
 
             if (userRealm == null) {
-                throw new AuthenticationFailedException(
-                        IdentifierErrorConstants.ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT
-                                .getCode(), String.format(
-                        IdentifierErrorConstants.ErrorMessages.CANNOT_FIND_THE_USER_REALM_FOR_THE_GIVEN_TENANT
-                                .getMessage(), tenantId),
-                        User.getUserFromUserName(username));
+                log.debug("Cannot find the user realm for the given tenant: " + tenantDomain);
+                executorResponse = new ExecutorResponse(STATUS_ERROR);
+                return executorResponse;
             }
 
             UserStoreManager userStoreManager = userRealm.getUserStoreManager();
@@ -127,11 +121,7 @@ public class UserResolveExecutor implements Executor {
             executorResponse = new ExecutorResponse(STATUS_COMPLETE);
 
         } catch (UserStoreException e) {
-            log.debug("Error fetching attributes for: " +
-                    LoggerUtils.getMaskedContent(username) + " in tenant: " + tenantDomain, e);
-            executorResponse = new ExecutorResponse(STATUS_ERROR);
-        } catch (Exception e) {
-            log.debug("Unexpected error while fetching attributes for: " +
+            log.debug("Error while fetching attributes for: " +
                     LoggerUtils.getMaskedContent(username) + " in tenant: " + tenantDomain, e);
             executorResponse = new ExecutorResponse(STATUS_ERROR);
         }
