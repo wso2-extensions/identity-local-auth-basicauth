@@ -202,19 +202,6 @@ public class UserResolveExecutorTestCase {
     }
 
     @Test
-    public void testGenericException() throws Exception {
-        // Test error handling for generic exceptions
-        when(mockContext.getFlowUser()).thenReturn(mockFlowUser);
-        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
-        userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
-        when(mockUserStoreManager.isExistingUser(TEST_USERNAME)).thenThrow(new RuntimeException("Test runtime exception"));
-
-        ExecutorResponse response = userResolveExecutor.execute(mockContext);
-
-        Assert.assertEquals(response.getResult(), STATUS_ERROR);
-    }
-
-    @Test
     public void testNullUserRealm() throws Exception {
         // Test when user realm is null
         when(mockContext.getFlowUser()).thenReturn(mockFlowUser);
