@@ -60,9 +60,23 @@ public class UserResolveExecutor implements Executor {
      *
      * @return Name of the executor.
      */
+    @Override
     public String getName() {
 
         return USER_RESOLVE_EXECUTOR;
+    }
+
+    /**
+     * Returns the list of claims required to initiate the flow.
+     *
+     * @return List of claim URIs required for initiation.
+     */
+    @Override
+    public List<String> getInitiationData() {
+
+        List<String> initiationData = new ArrayList<>();
+        initiationData.add(USERNAME_CLAIM_URI);
+        return initiationData;
     }
 
     /**
@@ -85,6 +99,19 @@ public class UserResolveExecutor implements Executor {
             executorResponse = resolveUser(tenantAwareUsername, context.getTenantDomain(), context);
         }
         return executorResponse;
+    }
+
+    /**
+     * Rollback logic for the executor. Not implemented.
+     *
+     * @param flowExecutionContext Flow execution context.
+     * @return Always returns null.
+     * @throws FlowEngineException Not thrown in this implementation.
+     */
+    @Override
+    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) throws FlowEngineException {
+
+        return null;
     }
 
     /**
@@ -161,31 +188,5 @@ public class UserResolveExecutor implements Executor {
 
         // If no user found in any user store, return the original username.
         return username;
-    }
-
-    /**
-     * Returns the list of claims required to initiate the flow.
-     *
-     * @return List of claim URIs required for initiation.
-     */
-    @Override
-    public List<String> getInitiationData() {
-
-        List<String> initiationData = new ArrayList<>();
-        initiationData.add(USERNAME_CLAIM_URI);
-        return initiationData;
-    }
-
-    /**
-     * Rollback logic for the executor. Not implemented.
-     *
-     * @param flowExecutionContext Flow execution context.
-     * @return Always returns null.
-     * @throws FlowEngineException Not thrown in this implementation.
-     */
-    @Override
-    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) throws FlowEngineException {
-
-        return null;
     }
 }
