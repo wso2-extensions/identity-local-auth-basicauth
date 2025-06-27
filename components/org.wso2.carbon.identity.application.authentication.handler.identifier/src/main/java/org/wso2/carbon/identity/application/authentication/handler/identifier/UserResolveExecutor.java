@@ -131,8 +131,9 @@ public class UserResolveExecutor implements Executor {
             UserRealm userRealm = (UserRealm) realmService.getTenantUserRealm(tenantId);
 
             if (userRealm == null) {
-                log.debug("Cannot find the user realm for the given tenant: " + tenantDomain);
                 executorResponse = new ExecutorResponse(STATUS_ERROR);
+                executorResponse.setErrorMessage("User realm is not available for tenant: " +
+                        tenantDomain + " (tenantId: " + tenantId + ").");
                 return executorResponse;
             }
 
@@ -148,9 +149,9 @@ public class UserResolveExecutor implements Executor {
             executorResponse = new ExecutorResponse(STATUS_COMPLETE);
 
         } catch (UserStoreException e) {
-            log.debug("Error while fetching attributes for: " +
-                    LoggerUtils.getMaskedContent(username) + " in tenant: " + tenantDomain, e);
             executorResponse = new ExecutorResponse(STATUS_ERROR);
+            executorResponse.setErrorMessage("Error while resolving user '" +
+                    LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
         }
         return executorResponse;
     }
