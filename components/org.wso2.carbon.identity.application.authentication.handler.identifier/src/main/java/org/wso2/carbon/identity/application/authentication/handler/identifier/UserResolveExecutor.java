@@ -30,6 +30,7 @@ import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineExcept
 import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
@@ -53,6 +54,7 @@ import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_
 public class UserResolveExecutor implements Executor {
 
     public static final String USER_RESOLVE_EXECUTOR = "UserResolveExecutor";
+    public static final String USER_IDENTIFIER = "userIdentifier";
     private static final Log log = LogFactory.getLog(UserResolveExecutor.class);
 
     /**
@@ -92,6 +94,11 @@ public class UserResolveExecutor implements Executor {
 
         ExecutorResponse executorResponse;
         String usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
+
+        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())){
+            usernameClaim = resolveAlternativeLoginUsername(context);
+        }
+
         if (usernameClaim == null) {
             return new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
         }
@@ -152,6 +159,25 @@ public class UserResolveExecutor implements Executor {
                     LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
         }
         return executorResponse;
+    }
+
+    /**
+     * Resolves the alternative login username if multi-attribute login is enabled.
+     *
+     * @param context Flow execution context.
+     * @return Username if resolved, otherwise null.
+     */
+    private String resolveAlternativeLoginUsername(FlowExecutionContext context) {
+        String userIdentifier = context.getUserInputData().get(USER_IDENTIFIER);
+        ResolvedUserResult resolvedResult = IdentifierAuthenticatorServiceComponent
+                .getMultiAttributeLogin()
+                .resolveUser(userIdentifier, context.getTenantDomain());
+
+        if (ResolvedUserResult.UserResolvedStatus.SUCCESS.equals(resolvedResult.getResolvedStatus())) {
+            return resolvedResult.getUser().getUsername();
+        }
+
+        return null;
     }
 
     /**
