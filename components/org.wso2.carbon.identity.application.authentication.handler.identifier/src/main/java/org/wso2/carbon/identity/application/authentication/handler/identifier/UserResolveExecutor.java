@@ -93,12 +93,10 @@ public class UserResolveExecutor implements Executor {
         ExecutorResponse executorResponse;
         String usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
         if (usernameClaim == null) {
-            executorResponse = new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
-        } else {
-            String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(usernameClaim);
-            executorResponse = resolveUser(tenantAwareUsername, context.getTenantDomain(), context);
+            return new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
         }
-        return executorResponse;
+        String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(usernameClaim);
+        return resolveUser(tenantAwareUsername, context.getTenantDomain(), context);
     }
 
     /**
@@ -180,7 +178,7 @@ public class UserResolveExecutor implements Executor {
 
             if (StringUtils.isNotBlank(domain)) {
                 String domainQualifiedUsername = domain + UserCoreConstants.DOMAIN_SEPARATOR + username;
-                if (userStoreManager.isExistingUser(domainQualifiedUsername)) {
+                if (secondaryUserStoreManager.isExistingUser(domainQualifiedUsername)) {
                     return domainQualifiedUsername;
                 }
             }

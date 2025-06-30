@@ -178,9 +178,9 @@ public class UserResolveExecutorTestCase {
         when(mockContext.getFlowUser()).thenReturn(mockFlowUser);
         when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
-        when(mockUserStoreManager.isExistingUser(TEST_USERNAME)).thenReturn(false);
-        when(mockUserStoreManager.isExistingUser(TEST_DOMAIN_QUALIFIED_USERNAME)).thenReturn(true);
-        when(mockUserStoreManager.getUserClaimValues(TEST_DOMAIN_QUALIFIED_USERNAME, null)).thenReturn(new Claim[0]);
+        when(mockSecondaryUserStoreManager.isExistingUser(TEST_USERNAME)).thenReturn(false);
+        when(mockSecondaryUserStoreManager.isExistingUser(TEST_DOMAIN_QUALIFIED_USERNAME)).thenReturn(true);
+        when(mockSecondaryUserStoreManager.getUserClaimValues(TEST_DOMAIN_QUALIFIED_USERNAME, null)).thenReturn(new Claim[0]);
 
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
