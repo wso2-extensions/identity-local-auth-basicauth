@@ -12,6 +12,7 @@ import org.wso2.carbon.identity.application.authentication.handler.identifier.in
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowUser;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.core.UserStoreException;
@@ -29,9 +30,7 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
@@ -69,6 +68,9 @@ public class UserResolveExecutorTestCase {
     @Mock
     private RealmConfiguration mockRealmConfiguration;
 
+    @Mock
+    private MultiAttributeLoginService mockMultiAttributeLoginService;
+
     private UserResolveExecutor userResolveExecutor;
     private final Map<String, Object> userClaims = new HashMap<>();
     private AutoCloseable closeable;
@@ -77,6 +79,10 @@ public class UserResolveExecutorTestCase {
     public void setUp() throws Exception {
         closeable = MockitoAnnotations.openMocks(this);
         userResolveExecutor = new UserResolveExecutor();
+
+        // Always disable multi-attribute login in all tests
+        when(mockMultiAttributeLoginService.isEnabled(anyString())).thenReturn(false);
+        setMockMultiAttributeLoginService();
 
         // Mock context setup
         when(mockContext.getFlowUser()).thenReturn(mockFlowUser);
@@ -104,6 +110,7 @@ public class UserResolveExecutorTestCase {
         userClaims.clear();
         closeable.close();
         resetMockRealmService();
+        resetMockMultiAttributeLoginService();
     }
 
     @Test
@@ -120,24 +127,18 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testExecuteWithNullUsername() throws Exception {
-        // Test case when username is null, should return STATUS_USER_INPUT_REQUIRED
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, null);
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
         Assert.assertEquals(response.getResult(), STATUS_USER_INPUT_REQUIRED);
-
-        // Verify no interactions with user store
         verify(mockUserStoreManager, never()).getUserClaimValues(anyString(), any());
     }
 
     @Test
     public void testExecuteWithValidUsername() throws Exception {
-        // Setup test user with claims
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
         when(mockUserStoreManager.isExistingUser(TEST_USERNAME)).thenReturn(true);
-        when(mockContext.getFlowUser()).thenReturn(mockFlowUser);
         when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
 
-        // Setup test claims to be returned
         Claim emailClaim = new Claim();
         emailClaim.setClaimUri("http://wso2.org/claims/emailaddress");
         emailClaim.setValue("test@example.com");
@@ -158,11 +159,9 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testExecuteWithQualifiedUsername() throws Exception {
-        // Test when username already contains domain
         String qualifiedUsername = TEST_DOMAIN_QUALIFIED_USERNAME;
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, qualifiedUsername);
 
-        when(mockContext.getFlowUser()).thenReturn(mockFlowUser);
         when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
         when(mockUserStoreManager.isExistingUser(qualifiedUsername)).thenReturn(true);
         when(mockUserStoreManager.getUserClaimValues(qualifiedUsername, null)).thenReturn(new Claim[0]);
@@ -174,10 +173,8 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testResolveQualifiedUsernameInSecondaryUserStore() throws Exception {
-        // Setup for username in secondary user store
-        when(mockContext.getFlowUser()).thenReturn(mockFlowUser);
-        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
         when(mockSecondaryUserStoreManager.isExistingUser(TEST_USERNAME)).thenReturn(false);
         when(mockSecondaryUserStoreManager.isExistingUser(TEST_DOMAIN_QUALIFIED_USERNAME)).thenReturn(true);
         when(mockSecondaryUserStoreManager.getUserClaimValues(TEST_DOMAIN_QUALIFIED_USERNAME, null)).thenReturn(new Claim[0]);
@@ -190,10 +187,8 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testUserStoreException() throws Exception {
-        // Test error handling for UserStoreException
-        when(mockContext.getFlowUser()).thenReturn(mockFlowUser);
-        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
         when(mockUserStoreManager.isExistingUser(TEST_USERNAME)).thenThrow(new UserStoreException("Test exception"));
 
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
@@ -203,10 +198,8 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testNullUserRealm() throws Exception {
-        // Test when user realm is null
-        when(mockContext.getFlowUser()).thenReturn(mockFlowUser);
-        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
         when(mockRealmService.getTenantUserRealm(TEST_TENANT_ID)).thenReturn(null);
 
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
@@ -216,7 +209,6 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testRollback() throws Exception {
-        // Test rollback method
         ExecutorResponse response = userResolveExecutor.rollback(mockContext);
         Assert.assertNull(response);
     }
@@ -229,6 +221,18 @@ public class UserResolveExecutorTestCase {
 
     private void resetMockRealmService() throws Exception {
         Field field = IdentifierAuthenticatorServiceComponent.class.getDeclaredField("realmService");
+        field.setAccessible(true);
+        field.set(null, null);
+    }
+
+    private void setMockMultiAttributeLoginService() throws Exception {
+        Field field = IdentifierAuthenticatorServiceComponent.class.getDeclaredField("multiAttributeLogin");
+        field.setAccessible(true);
+        field.set(null, mockMultiAttributeLoginService);
+    }
+
+    private void resetMockMultiAttributeLoginService() throws Exception {
+        Field field = IdentifierAuthenticatorServiceComponent.class.getDeclaredField("multiAttributeLogin");
         field.setAccessible(true);
         field.set(null, null);
     }
