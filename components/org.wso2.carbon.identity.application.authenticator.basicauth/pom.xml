@@ -20,7 +20,7 @@
         <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
         <artifactId>identity-application-auth-basicauth</artifactId>
         <relativePath>../../pom.xml</relativePath>
-        <version>6.8.33-SNAPSHOT</version>
+        <version>6.8.36-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
@@ -131,7 +131,7 @@
         </dependency>
         <dependency>
             <groupId>org.wso2.carbon.identity.framework</groupId>
-            <artifactId>org.wso2.carbon.identity.user.registration.engine</artifactId>
+            <artifactId>org.wso2.carbon.identity.flow.execution.engine</artifactId>
         </dependency>
     </dependencies>
     <build>
@@ -180,6 +180,8 @@
                             org.wso2.carbon.utils; version="${carbon.kernel.imp.pkg.version.range}",
                             org.wso2.carbon.identity.captcha.connector.recaptcha; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.captcha.util; version="${identity.governance.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.captcha.provider_mgt.service; version="${identity.governance.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.captcha.exception; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.governance; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.recovery; version="${identity.governance.imp.pkg.version.range}",
                             org.wso2.carbon.identity.recovery.util; version="${identity.governance.imp.pkg.version.range}",
@@ -191,11 +193,11 @@
                             org.wso2.securevault.*; version="${org.wso2.securevault.import.version.range}",
                             org.wso2.carbon.identity.configuration.mgt.core.*; version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.context.*; version="${carbon.kernel.imp.pkg.version.range}",
-                            org.wso2.carbon.identity.user.registration.engine.graph;
+                            org.wso2.carbon.identity.flow.execution.engine.graph;
                             version="${carbon.identity.framework.imp.pkg.version.range}",
-                            org.wso2.carbon.identity.user.registration.engine.model;
+                            org.wso2.carbon.identity.flow.execution.engine.model;
                             version="${carbon.identity.framework.imp.pkg.version.range}",
-                            org.wso2.carbon.identity.user.registration.engine.exception;
+                            org.wso2.carbon.identity.flow.execution.engine.exception;
                             version="${carbon.identity.framework.imp.pkg.version.range}",
                         </Import-Package>
                         <Export-Package>
@@ -269,6 +271,12 @@
                         </configuration>
                     </execution>
                 </executions>
+                <configuration>
+                    <excludes>
+                        <exclude>org/wso2/carbon/identity/application/authenticator/basicauth/internal/BasicAuthenticatorDataHolder.class</exclude>
+                        <exclude>org/wso2/carbon/identity/application/authenticator/basicauth/internal/BasicAuthenticatorServiceComponent.class</exclude>
+                    </excludes>
+                </configuration>
             </plugin>
         </plugins>
     </build>

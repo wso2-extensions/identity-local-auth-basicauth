@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2019-2025, WSO2 LLC. (http://www.wso2.com).
  *
- * WSO2 Inc. licenses this file to you under the Apache License,
+ * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License.
  * You may obtain a copy of the License at
@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.application.authenticator.basicauth.internal;
 
+import org.wso2.carbon.identity.captcha.provider_mgt.service.CaptchaConfigService;
 import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
@@ -35,6 +36,7 @@ public class BasicAuthenticatorDataHolder {
     private MultiAttributeLoginService multiAttributeLogin;
     private Properties recaptchaConfigs;
     private ConfigurationManager configurationManager = null;
+    private CaptchaConfigService captchaConfigService;
 
     private BasicAuthenticatorDataHolder() {
 
@@ -78,5 +80,14 @@ public class BasicAuthenticatorDataHolder {
     public ConfigurationManager getConfigurationManager() {
 
         return configurationManager;
+    }
+
+    public void setCaptchaConfigService(CaptchaConfigService captchaConfigService) {
+
+        this.captchaConfigService = captchaConfigService;
+    }
+
+    public CaptchaConfigService getCaptchaConfigService() {
+        return captchaConfigService;
     }
 }

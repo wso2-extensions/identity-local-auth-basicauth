@@ -18,21 +18,21 @@
 
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
-import java.util.Collections;
-import java.util.Map;
 import org.apache.commons.lang.StringUtils;
-import org.wso2.carbon.identity.user.registration.engine.exception.RegistrationEngineException;
-import org.wso2.carbon.identity.user.registration.engine.graph.Executor;
-import org.wso2.carbon.identity.user.registration.engine.model.ExecutorResponse;
-import org.wso2.carbon.identity.user.registration.engine.model.RegistrationContext;
+import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineException;
+import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
+import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
+import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
-import static org.wso2.carbon.identity.user.registration.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
-import static org.wso2.carbon.identity.user.registration.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
-import static org.wso2.carbon.identity.user.registration.engine.Constants.PASSWORD_KEY;
-import static org.wso2.carbon.identity.user.registration.engine.Constants.USERNAME_CLAIM_URI;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.PASSWORD_KEY;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_CLAIM_URI;
 
 /**
  * This class is responsible for onboarding the password of the user.
@@ -47,10 +47,10 @@ public class PasswordOnboardExecutor implements Executor {
     }
 
     @Override
-    public ExecutorResponse execute(RegistrationContext context) throws RegistrationEngineException {
+    public ExecutorResponse execute(FlowExecutionContext flowExecutionContext) {
 
         ExecutorResponse response;
-        if (context.getUserInputData() == null || StringUtils.isEmpty(context.getUserInputData().get(PASSWORD_KEY))) {
+        if (flowExecutionContext.getUserInputData() == null || StringUtils.isEmpty(flowExecutionContext.getUserInputData().get(PASSWORD_KEY))) {
             response = new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
             response.setRequiredData(Collections.singletonList(PASSWORD_KEY));
             return response;
@@ -58,7 +58,8 @@ public class PasswordOnboardExecutor implements Executor {
             // Todo enforce password policies.
             response = new ExecutorResponse(STATUS_COMPLETE);
             Map<String, char[]> credentials =
-                    Collections.singletonMap(PASSWORD_KEY, context.getUserInputData().get(PASSWORD_KEY).toCharArray());
+                    Collections.singletonMap(PASSWORD_KEY, flowExecutionContext.getUserInputData().
+                            get(PASSWORD_KEY).toCharArray());
             response.setUserCredentials(credentials);
         }
         return response;
@@ -71,5 +72,11 @@ public class PasswordOnboardExecutor implements Executor {
         initiationData.add(USERNAME_CLAIM_URI);
         initiationData.add(PASSWORD_KEY);
         return initiationData;
+    }
+
+    @Override
+    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) {
+
+        return null;
     }
 }

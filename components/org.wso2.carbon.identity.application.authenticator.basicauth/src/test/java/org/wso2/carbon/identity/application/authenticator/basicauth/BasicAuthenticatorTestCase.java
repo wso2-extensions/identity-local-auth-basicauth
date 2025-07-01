@@ -989,6 +989,7 @@ public class BasicAuthenticatorTestCase {
                     .thenReturn(DUMMY_USER_NAME);
 
             User userFromUsername = new User();
+            userFromUsername.setUserName(DUMMY_USER_NAME);
             user.when(() -> User.getUserFromUserName(anyString())).thenReturn(userFromUsername);
 
             basicAuthenticatorServiceComponent
@@ -1065,7 +1066,8 @@ public class BasicAuthenticatorTestCase {
                     .thenReturn(DUMMY_USER_NAME);
             when(mockUserStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
                     MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME), DUMMY_PASSWORD,
-                    UserCoreConstants.DEFAULT_PROFILE)).thenThrow(new org.wso2.carbon.user.core.UserStoreException());
+                    UserCoreConstants.DEFAULT_PROFILE))
+                    .thenThrow(new org.wso2.carbon.user.core.UserStoreException());
 
             identityUtil.when(() -> IdentityUtil.getProperty(SHOW_PENDING_USER_INFORMATION_CONFIG))
                     .thenReturn("false");
@@ -1257,7 +1259,7 @@ public class BasicAuthenticatorTestCase {
 
         String captchaParams = BasicAuthenticatorConstants.RECAPTCHA_PARAM + "true";
 
-        return new String[][]{
+        return new Object[][]{
                 {"true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", "true", "false", basicUrl + captchaParams},
                 {"true", "dummySiteKey", "dummyApiUrl", "dummySecret", "dummyUrl", "false", "true", basicUrl},
                 {"true", "", "dummyApiUrl", "dummySecret", "dummyUrl", "true", "false", basicUrl},
@@ -1816,6 +1818,131 @@ public class BasicAuthenticatorTestCase {
                     "Parameter order should match.");
             Assert.assertEquals(actualParam.isConfidential(), expectedParam.isConfidential(),
                     "Parameter mandatory status should match.");
+        }
+    }
+
+    // Test canHandle with diagnostic logging enabled
+    @Test
+    public void testCanHandleWithDiagnosticLogging() {
+
+        mockLoggerUtils.when(LoggerUtils::isDiagnosticLogsEnabled).thenReturn(true);
+        mockLoggerUtils.when(() -> LoggerUtils.triggerDiagnosticLogEvent(any())).then(invocation -> null);
+
+        when(mockRequest.getParameter(USER_NAME)).thenReturn("admin");
+        when(mockRequest.getParameter(PASSWORD)).thenReturn("admin");
+
+        assertTrue(basicAuthenticator.canHandle(mockRequest));
+    }
+
+    // Test process with runtime params and current step = 0
+    @Test
+    public void testProcessWithRuntimeParamsCurrentStepZero() throws Exception {
+        Map<String, String> runtimeParams = new HashMap<>();
+        runtimeParams.put(USER_NAME, DUMMY_USER_NAME);
+        runtimeParams.put(PASSWORD, DUMMY_PASSWORD);
+
+        when(mockAuthnCtxt.isLogoutRequest()).thenReturn(false);
+        when(mockAuthnCtxt.getAuthenticatorParams(BasicAuthenticatorConstants.AUTHENTICATOR_NAME))
+                .thenReturn(runtimeParams);
+        when(mockAuthnCtxt.getCurrentStep()).thenReturn(0);
+
+        AuthenticatorFlowStatus result = basicAuthenticator.process(mockRequest, mockResponse, mockAuthnCtxt);
+        assertEquals(result, AuthenticatorFlowStatus.INCOMPLETE);
+    }
+
+    // Test executeAutoLoginFlow with invalid JSON
+    @Test
+    public void testExecuteAutoLoginFlowInvalidJSON() {
+        Cookie invalidCookie = new Cookie(COOKIE_NAME, "invalid-base64");
+
+        try {
+            basicAuthenticator.executeAutoLoginFlow(mockRequest, mockResponse, mockAuthnCtxt, invalidCookie);
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalArgumentException || e instanceof AuthenticationFailedException);
+        }
+    }
+
+    // Test initiateAuthenticationRequest with null parameterMap
+    @Test
+    public void testInitiateAuthenticationRequestNullParameterMap() throws Exception {
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade =
+                     Mockito.mockStatic(ConfigurationFacade.class)) {
+
+            AuthenticatorConfig config = new AuthenticatorConfig();
+            config.setParameterMap(null);
+
+            fileBasedConfigurationBuilder.when(FileBasedConfigurationBuilder::getInstance)
+                    .thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(config);
+
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+            when(mockConfigurationFacade.getAccountRecoveryEndpointPath()).thenReturn(DUMMY_RECOVERY_URL);
+
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(false);
+            when(mockAuthnCtxt.getProperties()).thenReturn(new HashMap<>());
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+        }
+    }
+
+    // Test initiateAuthenticationRequest with login hint and blank input type
+    @Test
+    public void testInitiateAuthenticationRequestWithLoginHint() throws Exception {
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade =
+                     Mockito.mockStatic(ConfigurationFacade.class)) {
+
+            initiateAuthenticationRequest(fileBasedConfigurationBuilder, configurationFacade);
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.LOGIN_HINT)).thenReturn("test@example.com");
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+        }
+    }
+
+    // Test initiateAuthenticationRequest with email username validation error
+    @Test
+    public void testInitiateAuthenticationRequestEmailUsernameError() throws Exception {
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade =
+                     Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
+
+            initiateAuthenticationRequest(fileBasedConfigurationBuilder, configurationFacade);
+
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+            when(mockAuthnCtxt.getProperty(FrameworkConstants.CONTEXT_PROP_INVALID_EMAIL_USERNAME))
+                    .thenReturn(true);
+
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(null);
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+        }
+    }
+
+    // Test initiateAuthenticationRequest with UserTenantDomainMismatch
+    @Test
+    public void testInitiateAuthenticationRequestTenantMismatch() throws Exception {
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade =
+                     Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
+
+            initiateAuthenticationRequest(fileBasedConfigurationBuilder, configurationFacade);
+
+            when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(true);
+
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(null);
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
         }
     }
 }
