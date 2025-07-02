@@ -19,7 +19,6 @@
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
 import org.apache.commons.lang.StringUtils;
-import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineException;
 import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
@@ -47,7 +46,7 @@ public class PasswordOnboardExecutor implements Executor {
     }
 
     @Override
-    public ExecutorResponse execute(FlowExecutionContext flowExecutionContext) throws FlowEngineException {
+    public ExecutorResponse execute(FlowExecutionContext flowExecutionContext) {
 
         ExecutorResponse response;
         if (flowExecutionContext.getUserInputData() == null || StringUtils.isEmpty(flowExecutionContext.getUserInputData().get(PASSWORD_KEY))) {
@@ -75,7 +74,7 @@ public class PasswordOnboardExecutor implements Executor {
     }
 
     @Override
-    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) throws FlowEngineException {
+    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) {
 
         return null;
     }

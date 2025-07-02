@@ -26,7 +26,6 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.internal.IdentifierAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
-import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineException;
 import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
@@ -88,10 +87,9 @@ public class UserResolveExecutor implements Executor {
      *
      * @param context Flow execution context.
      * @return ExecutorResponse indicating the status of execution.
-     * @throws FlowEngineException If an error occurs during execution.
      */
     @Override
-    public ExecutorResponse execute(FlowExecutionContext context) throws FlowEngineException {
+    public ExecutorResponse execute(FlowExecutionContext context) {
 
         String usernameClaim = resolveUsernameClaim(context);
         if (usernameClaim == null) {
@@ -106,10 +104,9 @@ public class UserResolveExecutor implements Executor {
      *
      * @param flowExecutionContext Flow execution context.
      * @return Always returns null.
-     * @throws FlowEngineException Not thrown in this implementation.
      */
     @Override
-    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) throws FlowEngineException {
+    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) {
 
         return null;
     }
