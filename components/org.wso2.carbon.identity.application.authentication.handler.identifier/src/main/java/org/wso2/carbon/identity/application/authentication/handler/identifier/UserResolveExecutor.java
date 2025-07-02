@@ -78,6 +78,7 @@ public class UserResolveExecutor implements Executor {
 
         List<String> initiationData = new ArrayList<>();
         initiationData.add(USERNAME_CLAIM_URI);
+        initiationData.add(USER_IDENTIFIER);
         return initiationData;
     }
 
@@ -92,13 +93,7 @@ public class UserResolveExecutor implements Executor {
     @Override
     public ExecutorResponse execute(FlowExecutionContext context) throws FlowEngineException {
 
-        ExecutorResponse executorResponse;
-        String usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
-
-        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())){
-            usernameClaim = resolveAlternativeLoginUsername(context);
-        }
-
+        String usernameClaim = resolveUsernameClaim(context);
         if (usernameClaim == null) {
             return new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
         }
@@ -130,15 +125,10 @@ public class UserResolveExecutor implements Executor {
 
         ExecutorResponse executorResponse;
         try {
-            // Obtain the realm service and user realm for the tenant.
-            RealmService realmService = IdentifierAuthenticatorServiceComponent.getRealmService();
-            int tenantId = realmService.getTenantManager().getTenantId(tenantDomain);
-            UserRealm userRealm = (UserRealm) realmService.getTenantUserRealm(tenantId);
-
+            UserRealm userRealm = getUserRealm(tenantDomain);
             if (userRealm == null) {
                 executorResponse = new ExecutorResponse(STATUS_ERROR);
-                executorResponse.setErrorMessage("User realm is not available for tenant: " +
-                        tenantDomain + " (tenantId: " + tenantId + ").");
+                executorResponse.setErrorMessage("User realm is not available for tenant: " + tenantDomain);
                 return executorResponse;
             }
 
@@ -162,12 +152,31 @@ public class UserResolveExecutor implements Executor {
     }
 
     /**
+     * Retrieves the user realm for the given tenant domain.
+     *
+     * @param tenantDomain Tenant domain.
+     * @return UserRealm for the tenant, or null if not available.
+     * @throws UserStoreException If an error occurs while retrieving the user realm.
+     */
+    private UserRealm getUserRealm(String tenantDomain) throws UserStoreException {
+
+        try {
+            RealmService realmService = IdentifierAuthenticatorServiceComponent.getRealmService();
+            int tenantId = realmService.getTenantManager().getTenantId(tenantDomain);
+            return (UserRealm) realmService.getTenantUserRealm(tenantId);
+        } catch (Exception e) {
+            throw new UserStoreException("Error while retrieving user realm for tenant: " + tenantDomain, e);
+        }
+    }
+
+    /**
      * Resolves the alternative login username if multi-attribute login is enabled.
      *
      * @param context Flow execution context.
      * @return Username if resolved, otherwise null.
      */
-    private String resolveAlternativeLoginUsername(FlowExecutionContext context) {
+    private String resolveUsernameFromUserIdentifier(FlowExecutionContext context) {
+
         String userIdentifier = context.getUserInputData().get(USER_IDENTIFIER);
         ResolvedUserResult resolvedResult = IdentifierAuthenticatorServiceComponent
                 .getMultiAttributeLogin()
@@ -213,5 +222,21 @@ public class UserResolveExecutor implements Executor {
 
         // If no user found in any user store, return the original username.
         return username;
+    }
+
+    /**
+     * Resolves the username claim from the flow context.
+     *
+     * @param context Flow execution context.
+     * @return Username claim if resolved, otherwise null.
+     */
+    private String resolveUsernameClaim(FlowExecutionContext context) {
+        String usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
+
+        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())){
+            usernameClaim = resolveUsernameFromUserIdentifier(context);
+        }
+
+        return usernameClaim;
     }
 }

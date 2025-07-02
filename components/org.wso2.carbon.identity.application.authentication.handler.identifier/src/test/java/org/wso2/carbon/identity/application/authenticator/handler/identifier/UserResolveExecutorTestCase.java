@@ -121,7 +121,7 @@ public class UserResolveExecutorTestCase {
     @Test
     public void testGetInitiationData() {
         List<String> initiationData = userResolveExecutor.getInitiationData();
-        Assert.assertEquals(initiationData.size(), 1);
+        Assert.assertEquals(initiationData.size(), 2);
         Assert.assertTrue(initiationData.contains(USERNAME_CLAIM_URI));
     }
 
