@@ -45,6 +45,7 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLog
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
 import org.wso2.carbon.identity.application.common.model.User;
+import org.wso2.carbon.identity.base.IdentityConstants;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
 import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
@@ -651,7 +652,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         username = FrameworkUtils.prependUserStoreDomainToName(username);
         authProperties.put("username", username);
 
-        persistUsername(context, username);
+        if (Boolean.parseBoolean(IdentityUtil.getProperty(IdentityConstants.ServerConfig.IDENTIFIER_AS_USERNAME))) {
+            persistUsername(context, identifierFromRequest);
+        } else {
+            persistUsername(context, username);
+        }
 
         if (userStoreDomain == null) {
             userStoreDomain = IdentityUtil.extractDomainFromName(username);
