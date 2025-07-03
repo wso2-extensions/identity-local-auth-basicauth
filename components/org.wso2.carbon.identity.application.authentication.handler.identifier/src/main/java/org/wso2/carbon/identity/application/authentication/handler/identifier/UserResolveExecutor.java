@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.internal.IdentifierAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
@@ -76,8 +77,11 @@ public class UserResolveExecutor implements Executor {
     public List<String> getInitiationData() {
 
         List<String> initiationData = new ArrayList<>();
+        String tenantDomain = PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantDomain();
+        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(tenantDomain)){
+            initiationData.add(USER_IDENTIFIER);
+        }
         initiationData.add(USERNAME_CLAIM_URI);
-        initiationData.add(USER_IDENTIFIER);
         return initiationData;
     }
 
@@ -152,18 +156,14 @@ public class UserResolveExecutor implements Executor {
      * Retrieves the user realm for the given tenant domain.
      *
      * @param tenantDomain Tenant domain.
-     * @return UserRealm for the tenant, or null if not available.
+     * @return UserRealm instance for the tenant.
      * @throws UserStoreException If an error occurs while retrieving the user realm.
      */
     private UserRealm getUserRealm(String tenantDomain) throws UserStoreException {
 
-        try {
-            RealmService realmService = IdentifierAuthenticatorServiceComponent.getRealmService();
-            int tenantId = realmService.getTenantManager().getTenantId(tenantDomain);
-            return (UserRealm) realmService.getTenantUserRealm(tenantId);
-        } catch (Exception e) {
-            throw new UserStoreException("Error while retrieving user realm for tenant: " + tenantDomain, e);
-        }
+        RealmService realmService = IdentifierAuthenticatorServiceComponent.getRealmService();
+        int tenantId = realmService.getTenantManager().getTenantId(tenantDomain);
+        return (UserRealm) realmService.getTenantUserRealm(tenantId);
     }
 
     /**
