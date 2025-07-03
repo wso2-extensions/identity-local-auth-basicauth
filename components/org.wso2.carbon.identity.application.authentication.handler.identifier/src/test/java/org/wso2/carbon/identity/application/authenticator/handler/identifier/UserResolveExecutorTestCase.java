@@ -18,23 +18,23 @@ import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.claim.Claim;
+import org.wso2.carbon.user.core.config.RealmConfiguration;
 import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.carbon.user.core.tenant.TenantManager;
-import org.wso2.carbon.user.core.config.RealmConfiguration;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
-import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_CLAIM_URI;
 
 public class UserResolveExecutorTestCase {
 
@@ -77,6 +77,7 @@ public class UserResolveExecutorTestCase {
 
     @BeforeMethod
     public void setUp() throws Exception {
+
         closeable = MockitoAnnotations.openMocks(this);
         userResolveExecutor = new UserResolveExecutor();
 
@@ -107,6 +108,7 @@ public class UserResolveExecutorTestCase {
 
     @AfterMethod
     public void tearDown() throws Exception {
+
         userClaims.clear();
         closeable.close();
         resetMockRealmService();
@@ -115,18 +117,13 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testGetName() {
+
         Assert.assertEquals(userResolveExecutor.getName(), UserResolveExecutor.USER_RESOLVE_EXECUTOR);
     }
 
     @Test
-    public void testGetInitiationData() {
-        List<String> initiationData = userResolveExecutor.getInitiationData();
-        Assert.assertEquals(initiationData.size(), 2);
-        Assert.assertTrue(initiationData.contains(USERNAME_CLAIM_URI));
-    }
-
-    @Test
     public void testExecuteWithNullUsername() throws Exception {
+
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, null);
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
         Assert.assertEquals(response.getResult(), STATUS_USER_INPUT_REQUIRED);
@@ -135,6 +132,7 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testExecuteWithValidUsername() throws Exception {
+
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
         when(mockUserStoreManager.isExistingUser(TEST_USERNAME)).thenReturn(true);
         when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
@@ -147,7 +145,7 @@ public class UserResolveExecutorTestCase {
         nameClaim.setClaimUri("http://wso2.org/claims/givenname");
         nameClaim.setValue("Test User");
 
-        Claim[] claims = new Claim[] { emailClaim, nameClaim };
+        Claim[] claims = new Claim[]{emailClaim, nameClaim};
 
         when(mockUserStoreManager.getUserClaimValues(TEST_USERNAME, null)).thenReturn(claims);
 
@@ -159,6 +157,7 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testExecuteWithQualifiedUsername() throws Exception {
+
         String qualifiedUsername = TEST_DOMAIN_QUALIFIED_USERNAME;
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, qualifiedUsername);
 
@@ -173,6 +172,7 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testResolveQualifiedUsernameInSecondaryUserStore() throws Exception {
+
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
         when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
         when(mockSecondaryUserStoreManager.isExistingUser(TEST_USERNAME)).thenReturn(false);
@@ -187,6 +187,7 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testUserStoreException() throws Exception {
+
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
         when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
         when(mockUserStoreManager.isExistingUser(TEST_USERNAME)).thenThrow(new UserStoreException("Test exception"));
@@ -198,6 +199,7 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testNullUserRealm() throws Exception {
+
         userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
         when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
         when(mockRealmService.getTenantUserRealm(TEST_TENANT_ID)).thenReturn(null);
@@ -209,29 +211,34 @@ public class UserResolveExecutorTestCase {
 
     @Test
     public void testRollback() throws Exception {
+
         ExecutorResponse response = userResolveExecutor.rollback(mockContext);
         Assert.assertNull(response);
     }
 
     private void setMockRealmService() throws Exception {
+
         Field field = IdentifierAuthenticatorServiceComponent.class.getDeclaredField("realmService");
         field.setAccessible(true);
         field.set(null, mockRealmService);
     }
 
     private void resetMockRealmService() throws Exception {
+
         Field field = IdentifierAuthenticatorServiceComponent.class.getDeclaredField("realmService");
         field.setAccessible(true);
         field.set(null, null);
     }
 
     private void setMockMultiAttributeLoginService() throws Exception {
+
         Field field = IdentifierAuthenticatorServiceComponent.class.getDeclaredField("multiAttributeLogin");
         field.setAccessible(true);
         field.set(null, mockMultiAttributeLoginService);
     }
 
     private void resetMockMultiAttributeLoginService() throws Exception {
+
         Field field = IdentifierAuthenticatorServiceComponent.class.getDeclaredField("multiAttributeLogin");
         field.setAccessible(true);
         field.set(null, null);

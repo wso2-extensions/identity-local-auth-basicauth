@@ -20,6 +20,7 @@ package org.wso2.carbon.identity.application.authentication.handler.identifier;
 
 import java.util.Arrays;
 import java.util.Map;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -78,7 +79,7 @@ public class UserResolveExecutor implements Executor {
 
         List<String> initiationData = new ArrayList<>();
         String tenantDomain = PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantDomain();
-        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(tenantDomain)){
+        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(tenantDomain)) {
             initiationData.add(USER_IDENTIFIER);
         }
         initiationData.add(USERNAME_CLAIM_URI);
@@ -189,8 +190,8 @@ public class UserResolveExecutor implements Executor {
     /**
      * Resolves the fully qualified username by checking all user stores.
      *
-     * @param username           Username to resolve.
-     * @param userStoreManager   User store manager.
+     * @param username         Username to resolve.
+     * @param userStoreManager User store manager.
      * @return Fully qualified username if found, otherwise the original username.
      * @throws UserStoreException If an error occurs while accessing the user store.
      */
@@ -228,9 +229,10 @@ public class UserResolveExecutor implements Executor {
      * @return Username claim if resolved, otherwise null.
      */
     private String resolveUsernameClaim(FlowExecutionContext context) {
+
         String usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
 
-        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())){
+        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
             usernameClaim = resolveUsernameFromUserIdentifier(context);
         }
 
