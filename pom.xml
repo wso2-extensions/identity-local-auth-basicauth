@@ -397,8 +397,8 @@
         <commons-lang.wso2.osgi.version.range>[2.6.0,3.0.0)</commons-lang.wso2.osgi.version.range>
         <commons-collections.wso2.osgi.version.range>[3.2.0,4.0.0)</commons-collections.wso2.osgi.version.range>
 
-        <nimbusds.version>7.3.0.wso2v1</nimbusds.version>
-        <nimbusds.imp.pkg.version.range>[7.3.0,8.0.0)</nimbusds.imp.pkg.version.range>
+        <nimbusds.version>10.3.0.wso2v1</nimbusds.version>
+        <nimbusds.imp.pkg.version.range>[10.0.0,11.0.0)</nimbusds.imp.pkg.version.range>
         <json-simple.version>1.1.wso2v1</json-simple.version>
         <json-smart.version>2.4.9</json-smart.version>
         <apache.felix.scr.ds.annotations.version>1.2.4</apache.felix.scr.ds.annotations.version>
