@@ -19,7 +19,6 @@
 package org.wso2.carbon.identity.application.authenticator.basicauth;
 
 import org.apache.commons.lang.StringUtils;
-import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineException;
 import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
