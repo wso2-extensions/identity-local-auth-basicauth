@@ -44,7 +44,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_ERROR;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_CLAIM_URI;
@@ -100,8 +102,7 @@ public class UserResolveExecutor implements Executor {
         if (usernameClaim == null) {
             return new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
         }
-        String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(usernameClaim);
-        return resolveUser(tenantAwareUsername, context.getTenantDomain(), context);
+        return resolveUser(usernameClaim, context.getTenantDomain(), context);
     }
 
     /**
@@ -146,9 +147,15 @@ public class UserResolveExecutor implements Executor {
             executorResponse = new ExecutorResponse(STATUS_COMPLETE);
 
         } catch (UserStoreException e) {
-            executorResponse = new ExecutorResponse(STATUS_ERROR);
-            executorResponse.setErrorMessage("Error while resolving user '" +
-                    LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
+            if (e.getMessage().startsWith(String.valueOf(30007))) {
+                executorResponse = new ExecutorResponse(STATUS_USER_ERROR);
+                executorResponse.setErrorMessage("Error while resolving user '" +
+                        LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
+            } else {
+                executorResponse = new ExecutorResponse(STATUS_ERROR);
+                executorResponse.setErrorMessage("Error while resolving user '" +
+                        LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
+            }
         }
         return executorResponse;
     }
