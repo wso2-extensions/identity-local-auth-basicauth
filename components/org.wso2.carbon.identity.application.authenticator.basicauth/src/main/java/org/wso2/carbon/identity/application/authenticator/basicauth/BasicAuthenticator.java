@@ -384,6 +384,18 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants
                             .AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
                     setAuthenticatorErrorMessage(getErrorMessage(errorCode, ACCOUNT_CONFIRMATION_PENDING), context);
+                } else if (errorCode.equals(IdentityCoreConstants.USER_EMAIL_NOT_VERIFIED_ERROR_CODE)) {
+                    retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                            BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "email.verification.pending";
+                    String username = request.getParameter(USER_NAME);
+                    Object domain = IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN);
+                    if (domain != null) {
+                        username = IdentityUtil.addDomainToName(username, domain.toString());
+                    }
+                    redirectURL = loginPage + ("?" + queryParams) + BasicAuthenticatorConstants.FAILED_USERNAME
+                            + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
+                            BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants
+                            .AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
                 } else if (errorCode.equals(
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE)) {
                     retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
