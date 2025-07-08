@@ -1331,6 +1331,17 @@ public class BasicAuthenticatorTestCase {
                                 + "&authFailure=true&authFailureMsg=account.confirmation.pending", "1", "1"
                 },
                 {
+                        IdentityCoreConstants.USER_EMAIL_NOT_VERIFIED_ERROR_CODE,
+                        DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + BasicAuthenticatorConstants.FAILED_USERNAME
+                                + URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8)
+                                + BasicAuthenticatorConstants.ERROR_CODE
+                                + IdentityCoreConstants.USER_EMAIL_NOT_VERIFIED_ERROR_CODE
+                                + BasicAuthenticatorConstants.AUTHENTICATORS
+                                + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":"
+                                + BasicAuthenticatorConstants.LOCAL
+                                + "&authFailure=true&authFailureMsg=email.verification.pending", "1", "1"
+                },
+                {
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_EMAIL_LINK_ERROR_CODE,
                         DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
                                 + BasicAuthenticatorConstants.FAILED_USERNAME
