@@ -722,8 +722,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
              * login page does not match. If the username submitted by login page is null, then the
              * username from the context will be considered as the username submitted from the login page.
              */
-             if (request.getParameter(USER_NAME) != null && usernameFromContext != null &&
-                    !usernameFromContext.equals(request.getParameter(USER_NAME))) {
+            String requestUsername = request.getParameter(USER_NAME);
+            String requestUsernameWithTenant =
+                    UserCoreUtil.addTenantDomainToEntry(requestUsername, requestTenantDomain);
+            if (requestUsername != null && usernameFromContext != null &&
+                    !usernameFromContext.equals(requestUsername) &&
+                    !usernameFromContext.equals(requestUsernameWithTenant)) {
                 if (log.isDebugEnabled()) {
                     log.debug("Username set for identifier first login: " + usernameFromContext + " and username " +
                             "submitted from login page" + username + " does not match.");
