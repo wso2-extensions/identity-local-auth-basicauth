@@ -28,6 +28,7 @@ import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.internal.IdentifierAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
+import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
@@ -38,13 +39,11 @@ import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.claim.Claim;
 import org.wso2.carbon.user.core.service.RealmService;
-import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.wso2.carbon.identity.flow.execution.engine.Constants.ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
@@ -59,6 +58,7 @@ public class UserResolveExecutor implements Executor {
     public static final String USER_RESOLVE_EXECUTOR = "UserResolveExecutor";
     public static final String USER_IDENTIFIER = "userIdentifier";
     private static final Log log = LogFactory.getLog(UserResolveExecutor.class);
+    public static final String FLOW_EXECUTION_USER_STORE_DOMAIN = "FlowExecution.ExcludedUserstores.Userstore";
 
     /**
      * Returns the name of the executor.
@@ -136,7 +136,7 @@ public class UserResolveExecutor implements Executor {
             }
 
             UserStoreManager userStoreManager = userRealm.getUserStoreManager();
-            String resolvedUsername = resolveQualifiedUsername(username, userStoreManager);
+            String resolvedUsername = resolveQualifiedUsername(username, userStoreManager, context);
             Claim[] claims = userStoreManager.getUserClaimValues(resolvedUsername, null);
             if (claims != null && claims.length > 0) {
                 Map<String, String> claimMap = Arrays.stream(claims)
@@ -202,29 +202,31 @@ public class UserResolveExecutor implements Executor {
      * @return Fully qualified username if found, otherwise the original username.
      * @throws UserStoreException If an error occurs while accessing the user store.
      */
-    private String resolveQualifiedUsername(String username, UserStoreManager userStoreManager)
+    private String resolveQualifiedUsername(String username, UserStoreManager userStoreManager,
+                                            FlowExecutionContext context)
             throws UserStoreException {
 
-        // If user exists or username already contains domain, return as is.
-        if (userStoreManager.isExistingUser(username) || username.contains(UserCoreConstants.DOMAIN_SEPARATOR)) {
-            return username;
-        }
+        List<String> excludedUserstores = IdentityUtil.getPropertyAsList(FLOW_EXECUTION_USER_STORE_DOMAIN);
 
-        // Iterate through secondary user stores to find the user.
-        UserStoreManager secondaryUserStoreManager = userStoreManager.getSecondaryUserStoreManager();
-        while (secondaryUserStoreManager != null) {
-            String domain = secondaryUserStoreManager.getRealmConfiguration()
+        while (userStoreManager != null) {
+            String domain = userStoreManager.getRealmConfiguration()
                     .getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME);
 
             if (StringUtils.isNotBlank(domain)) {
+                // Skip this user store if it's in the excluded list
+                if (excludedUserstores != null && excludedUserstores.contains(domain)) {
+                    userStoreManager = userStoreManager.getSecondaryUserStoreManager();
+                    continue;
+                }
+
                 String domainQualifiedUsername = domain + UserCoreConstants.DOMAIN_SEPARATOR + username;
-                if (secondaryUserStoreManager.isExistingUser(domainQualifiedUsername)) {
+                if (userStoreManager.isExistingUser(domainQualifiedUsername)) {
+                    context.getFlowUser().setUserStoreDomain(domain);
                     return domainQualifiedUsername;
                 }
             }
-            secondaryUserStoreManager = secondaryUserStoreManager.getSecondaryUserStoreManager();
+            userStoreManager = userStoreManager.getSecondaryUserStoreManager();
         }
-
         // If no user found in any user store, return the original username.
         return username;
     }
