@@ -81,6 +81,7 @@ public abstract class BasicAuthenticatorConstants {
             " password via OTP.";
     public static final String FORCED_PASSWORD_RESET_VIA_EMAIL = "The admin has forced user to " +
             "reset password via Email.";
+    public static final String ASK_PASSWORD_VIA_OTP = "User is requested to set the password via OTP.";
 
     /**
      * Constants related to log management.

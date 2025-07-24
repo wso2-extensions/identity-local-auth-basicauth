@@ -94,6 +94,7 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.Basic
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_LOCKED;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_LOCKED_REASON;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_PENDING_APPROVAL;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ASK_PASSWORD_VIA_OTP;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_BASIC;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_MESSAGE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_PASSWORD;
@@ -448,6 +449,33 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             URLEncoder.encode(reason, BasicAuthenticatorConstants.UTF_8);
                     setAuthenticatorErrorMessage(getErrorMessage(errorCode, FORCED_PASSWORD_RESET_VIA_OTP),
                             context);
+                } else if (errorCode.equals(IdentityCoreConstants.ASK_PASSWORD_SET_PASSWORD_VIA_OTP_ERROR_CODE)) {
+                    String username = request.getParameter(USER_NAME);
+                    String tenantDomain = getTenantDomainFromUserName(context, username);
+
+                    // Setting callback so that the user is prompted to login after setting password.
+                    String callback;
+                    try {
+                        callback = ServiceURLBuilder.create().addPath(loginPage).build().getAbsolutePublicURL();
+                    } catch (URLBuilderException e) {
+                        throw new IdentityRuntimeException(
+                                "Error while building callback url for context: " + loginPage, e);
+                    }
+                    callback = callback + ("?" + queryParams)
+                            + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
+                            BasicAuthenticatorConstants.LOCAL;
+                    String reason = RecoveryScenarios.ASK_PASSWORD_VIA_EMAIL_OTP.name();
+
+                    redirectURL = recoveryPage + CONFIRM_RECOVERY_DO +
+                            BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username,
+                            BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
+                            URLEncoder.encode(tenantDomain, BasicAuthenticatorConstants.UTF_8) +
+                            BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(password,
+                            BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
+                            URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
+                            BasicAuthenticatorConstants.REASON_PARAM +
+                            URLEncoder.encode(reason, BasicAuthenticatorConstants.UTF_8);
+                    setAuthenticatorErrorMessage(getErrorMessage(errorCode, ASK_PASSWORD_VIA_OTP), context);
                 } else if (errorCode.equals(
                         IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE)) {
                     retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
