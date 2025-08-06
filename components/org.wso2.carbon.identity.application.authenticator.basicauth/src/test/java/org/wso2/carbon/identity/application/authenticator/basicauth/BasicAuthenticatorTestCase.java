@@ -1473,6 +1473,20 @@ public class BasicAuthenticatorTestCase {
                                         BasicAuthenticatorConstants.UTF_8), "1", "1"
                 },
                 {
+                        IdentityCoreConstants.ASK_PASSWORD_SET_PASSWORD_VIA_OTP_ERROR_CODE,
+                        DUMMY_RECOVERY_URL + "/confirmrecovery.do?" +
+                                BasicAuthenticatorConstants.USER_NAME_PARAM +
+                                URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
+                                URLEncoder.encode(super_tenant, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(DUMMY_PASSWORD,
+                                BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
+                                URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.REASON_PARAM +
+                                URLEncoder.encode(RecoveryScenarios.ASK_PASSWORD_VIA_EMAIL_OTP.name(),
+                                        BasicAuthenticatorConstants.UTF_8), "1", "1"
+                },
+                {
                         IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE,
                         DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + BasicAuthenticatorConstants.FAILED_USERNAME
                                 + URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8) +
