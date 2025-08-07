@@ -62,7 +62,9 @@ import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.configuration.mgt.core.exception.ConfigurationManagementException;
 import org.wso2.carbon.identity.configuration.mgt.core.model.Attribute;
-import org.wso2.carbon.identity.core.internal.IdentityCoreServiceComponent;
+import org.wso2.carbon.identity.core.ServiceURL;
+import org.wso2.carbon.identity.core.ServiceURLBuilder;
+import org.wso2.carbon.identity.core.URLBuilderException;
 import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
@@ -1471,6 +1473,20 @@ public class BasicAuthenticatorTestCase {
                                         BasicAuthenticatorConstants.UTF_8), "1", "1"
                 },
                 {
+                        IdentityCoreConstants.ASK_PASSWORD_SET_PASSWORD_VIA_OTP_ERROR_CODE,
+                        DUMMY_RECOVERY_URL + "/confirmrecovery.do?" +
+                                BasicAuthenticatorConstants.USER_NAME_PARAM +
+                                URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
+                                URLEncoder.encode(super_tenant, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(DUMMY_PASSWORD,
+                                BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
+                                URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.REASON_PARAM +
+                                URLEncoder.encode(RecoveryScenarios.ASK_PASSWORD_VIA_EMAIL_OTP.name(),
+                                        BasicAuthenticatorConstants.UTF_8), "1", "1"
+                },
+                {
                         IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE,
                         DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + BasicAuthenticatorConstants.FAILED_USERNAME
                                 + URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8) +
@@ -1492,12 +1508,11 @@ public class BasicAuthenticatorTestCase {
                 FileBasedConfigurationBuilder.class);
              MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
              MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);
-             MockedStatic<IdentityCoreServiceComponent> identityCoreServiceComponent = Mockito.mockStatic(
-                     IdentityCoreServiceComponent.class);
              MockedStatic<CarbonUtils> carbonUtils = Mockito.mockStatic(CarbonUtils.class);
              MockedStatic<PrivilegedCarbonContext> privilegedCarbonContext = Mockito.mockStatic(
                      PrivilegedCarbonContext.class);
-             MockedStatic<ServerConfiguration> serverConfiguration = Mockito.mockStatic(ServerConfiguration.class)) {
+             MockedStatic<ServerConfiguration> serverConfiguration = Mockito.mockStatic(ServerConfiguration.class);
+             MockedStatic<ServiceURLBuilder> serviceURLBuilder = Mockito.mockStatic(ServiceURLBuilder.class)) {
 
             carbonUtils.when(CarbonUtils::getManagementTransport).thenReturn(DUMMY_PROTOCOL);
             serverConfiguration.when(ServerConfiguration::getInstance).thenReturn(mockServerConfiguration);
@@ -1507,8 +1522,6 @@ public class BasicAuthenticatorTestCase {
             privilegedCarbonContext.when(PrivilegedCarbonContext::getThreadLocalCarbonContext)
                     .thenReturn(mockPrivilegedCarbonContext);
             when(mockPrivilegedCarbonContext.getTenantDomain()).thenReturn("carbon.super");
-            identityCoreServiceComponent.when(IdentityCoreServiceComponent::getConfigurationContextService)
-                    .thenReturn(mockConfigurationContextService);
             when(mockConfigurationContextService.getServerConfigContext()).thenReturn(mockConfigurationContext);
             carbonUtils.when(() -> CarbonUtils.getTransportProxyPort(eq(mockAxisConfiguration), anyString()))
                     .thenReturn(DUMMY_PORT);
@@ -1516,6 +1529,19 @@ public class BasicAuthenticatorTestCase {
             when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
             when(mockResponse.encodeRedirectURL(DUMMY_RETRY_URL + "?" + DUMMY_QUERY_PARAMS))
                     .thenReturn(DUMMY_RETRY_URL_WITH_QUERY);
+
+            // Mock ServiceURLBuilder for password reset scenarios
+            ServiceURLBuilder mockServiceURLBuilderInstance = mock(ServiceURLBuilder.class);
+            ServiceURL mockServiceURL = mock(ServiceURL.class);
+            serviceURLBuilder.when(ServiceURLBuilder::create).thenReturn(mockServiceURLBuilderInstance);
+            String callbackUrl = String.format("%s://%s:%s/%s", DUMMY_PROTOCOL, DUMMY_HOSTNAME, DUMMY_PORT, DUMMY_LOGIN_PAGEURL);
+            when(mockServiceURLBuilderInstance.addPath(anyString())).thenReturn(mockServiceURLBuilderInstance);
+            try {
+                when(mockServiceURLBuilderInstance.build()).thenReturn(mockServiceURL);
+            } catch (URLBuilderException e) {
+                // This should not happen in the test
+            }
+            when(mockServiceURL.getAbsolutePublicURL()).thenReturn(callbackUrl);
 
             fileBasedConfigurationBuilder
                     .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
