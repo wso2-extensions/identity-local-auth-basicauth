@@ -49,6 +49,8 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAu
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
+import org.wso2.carbon.identity.branding.preference.management.core.exception.BrandingPreferenceMgtException;
+import org.wso2.carbon.identity.branding.preference.management.core.util.BrandingPreferenceMgtUtils;
 import org.wso2.carbon.identity.captcha.connector.recaptcha.SSOLoginReCaptchaConfig;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
@@ -60,6 +62,9 @@ import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
+import org.wso2.carbon.identity.flow.mgt.Constants;
+import org.wso2.carbon.identity.flow.mgt.exception.FlowMgtServerException;
+import org.wso2.carbon.identity.flow.mgt.utils.FlowMgtConfigUtils;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
@@ -466,7 +471,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             BasicAuthenticatorConstants.LOCAL;
                     String reason = RecoveryScenarios.ASK_PASSWORD_VIA_EMAIL_OTP.name();
 
-                    redirectURL = recoveryPage + CONFIRM_RECOVERY_DO +
+                    String recoveryPortalPath = getRecoveryPortalPath(tenantDomain,
+                            Constants.FlowTypes.INVITED_USER_REGISTRATION.getType());
+                    redirectURL = recoveryPortalPath +
                             BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username,
                             BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
                             URLEncoder.encode(tenantDomain, BasicAuthenticatorConstants.UTF_8) +
@@ -1367,4 +1374,23 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         return AUTHENTICATOR_BASIC;
     }
 
+    private String getRecoveryPortalPath(String tenantDomain, String flowType) {
+
+        try {
+            if (FlowMgtConfigUtils.getFlowConfig(flowType, tenantDomain).getIsEnabled()) {
+                try {
+                    String configuredPortalURL = BrandingPreferenceMgtUtils.buildConfiguredPortalURL(null,
+                            tenantDomain,
+                            BasicAuthenticatorDataHolder.getInstance().getBrandingPreferenceManager(), flowType);
+                    return String.format("%s?flowType=%s&", configuredPortalURL, flowType);
+                } catch (BrandingPreferenceMgtException | URLBuilderException e) {
+                    log.error("Error while retrieving the portal URL for the tenant: " + tenantDomain +
+                            ", flowtype: " + flowType, e);
+                }
+            }
+        } catch (FlowMgtServerException e) {
+            log.error("Error while retrieving the flow configuration for " + flowType +  " flow.", e);
+        }
+        return ConfigurationFacade.getInstance().getAccountRecoveryEndpointPath() + CONFIRM_RECOVERY_DO;
+    }
 }
