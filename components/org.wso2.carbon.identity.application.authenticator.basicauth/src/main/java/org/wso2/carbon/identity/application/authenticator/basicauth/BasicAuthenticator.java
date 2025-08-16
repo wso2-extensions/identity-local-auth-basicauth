@@ -1389,7 +1389,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 }
             }
         } catch (FlowMgtServerException e) {
-            log.error("Error while retrieving the flow configuration for " + flowType +  " flow.", e);
+            log.error("Error while retrieving the flow configuration for {} flow.", flowType, e);
         }
         return ConfigurationFacade.getInstance().getAccountRecoveryEndpointPath() + CONFIRM_RECOVERY_DO;
     }
