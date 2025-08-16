@@ -1385,7 +1385,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     return String.format("%s?flowType=%s&", configuredPortalURL, flowType);
                 } catch (BrandingPreferenceMgtException | URLBuilderException e) {
                     log.error("Error while retrieving the portal URL for the tenant: " + tenantDomain +
-                            ", flowtype: " + flowType, e);
+                    log.error("Error while retrieving the portal URL for tenant: {}, flowtype: {}", tenantDomain, flowType, e);
                 }
             }
         } catch (FlowMgtServerException e) {
