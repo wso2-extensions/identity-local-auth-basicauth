@@ -31,6 +31,7 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthent
 import org.wso2.carbon.identity.application.authenticator.basicauth.PasswordOnboardExecutor;
 import org.wso2.carbon.identity.application.authenticator.basicauth.attribute.handler.BasicAuthAuthAttributeHandler;
 import org.wso2.carbon.identity.auth.attribute.handler.AuthAttributeHandler;
+import org.wso2.carbon.identity.branding.preference.management.core.BrandingPreferenceManager;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
@@ -167,6 +168,21 @@ public class BasicAuthenticatorServiceComponent {
             log.debug("Unsetting the configuration manager in basic authenticator bundle.");
         }
         BasicAuthenticatorDataHolder.getInstance().setConfigurationManager(null);
+    }
+
+    @Reference(name = "identity.branding.preference.management",
+            service = BrandingPreferenceManager.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetBrandingPreferenceManager")
+    protected void setBrandingPreferenceManager(BrandingPreferenceManager brandingPreferenceManager) {
+
+        BasicAuthenticatorDataHolder.getInstance().setBrandingPreferenceManager(brandingPreferenceManager);
+    }
+
+    protected void unsetBrandingPreferenceManager(BrandingPreferenceManager brandingPreferenceManager) {
+
+        BasicAuthenticatorDataHolder.getInstance().setBrandingPreferenceManager(null);
     }
 
     /**

@@ -70,6 +70,8 @@ import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventException;
+import org.wso2.carbon.identity.flow.mgt.model.FlowConfigDTO;
+import org.wso2.carbon.identity.flow.mgt.utils.FlowMgtConfigUtils;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
@@ -1487,6 +1489,20 @@ public class BasicAuthenticatorTestCase {
                                         BasicAuthenticatorConstants.UTF_8), "1", "1"
                 },
                 {
+                        IdentityCoreConstants.ASK_PASSWORD_SET_PASSWORD_VIA_OTP_ERROR_CODE,
+                        DUMMY_LOGIN_PAGEURL + "?flowType=INVITED_USER_REGISTRATION&" +
+                                BasicAuthenticatorConstants.USER_NAME_PARAM +
+                                URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
+                                URLEncoder.encode(super_tenant, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.CONFIRMATION_PARAM + URLEncoder.encode(DUMMY_PASSWORD,
+                                BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
+                                URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
+                                BasicAuthenticatorConstants.REASON_PARAM +
+                                URLEncoder.encode(RecoveryScenarios.ASK_PASSWORD_VIA_EMAIL_OTP.name(),
+                                        BasicAuthenticatorConstants.UTF_8), "1", "1"
+                },
+                {
                         IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE,
                         DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + BasicAuthenticatorConstants.FAILED_USERNAME
                                 + URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8) +
@@ -1512,7 +1528,8 @@ public class BasicAuthenticatorTestCase {
              MockedStatic<PrivilegedCarbonContext> privilegedCarbonContext = Mockito.mockStatic(
                      PrivilegedCarbonContext.class);
              MockedStatic<ServerConfiguration> serverConfiguration = Mockito.mockStatic(ServerConfiguration.class);
-             MockedStatic<ServiceURLBuilder> serviceURLBuilder = Mockito.mockStatic(ServiceURLBuilder.class)) {
+             MockedStatic<ServiceURLBuilder> serviceURLBuilder = Mockito.mockStatic(ServiceURLBuilder.class);
+             MockedStatic<FlowMgtConfigUtils> flowMgtConfigUtils = Mockito.mockStatic(FlowMgtConfigUtils.class)) {
 
             carbonUtils.when(CarbonUtils::getManagementTransport).thenReturn(DUMMY_PROTOCOL);
             serverConfiguration.when(ServerConfiguration::getInstance).thenReturn(mockServerConfiguration);
@@ -1542,7 +1559,11 @@ public class BasicAuthenticatorTestCase {
                 // This should not happen in the test
             }
             when(mockServiceURL.getAbsolutePublicURL()).thenReturn(callbackUrl);
-
+            FlowConfigDTO mockFlowConfigDTO = new FlowConfigDTO();
+            boolean flowConfigEnabled = expected.startsWith(DUMMY_LOGIN_PAGEURL);
+            mockFlowConfigDTO.setIsEnabled(flowConfigEnabled);
+            flowMgtConfigUtils.when(() -> FlowMgtConfigUtils.getFlowConfig(anyString(), anyString()))
+                    .thenReturn(mockFlowConfigDTO);
             fileBasedConfigurationBuilder
                     .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
 

@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.application.authenticator.basicauth.internal;
 
+import org.wso2.carbon.identity.branding.preference.management.core.BrandingPreferenceManager;
 import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
@@ -35,6 +36,7 @@ public class BasicAuthenticatorDataHolder {
     private MultiAttributeLoginService multiAttributeLogin;
     private Properties recaptchaConfigs;
     private ConfigurationManager configurationManager = null;
+    private BrandingPreferenceManager brandingPreferenceManager;
 
     private BasicAuthenticatorDataHolder() {
 
@@ -78,5 +80,25 @@ public class BasicAuthenticatorDataHolder {
     public ConfigurationManager getConfigurationManager() {
 
         return configurationManager;
+    }
+
+    /**
+     * Get the BrandingPreferenceManager service.
+     *
+     * @return BrandingPreferenceManager service.
+     */
+    public BrandingPreferenceManager getBrandingPreferenceManager() {
+
+        return brandingPreferenceManager;
+    }
+
+    /**
+     * Set the BrandingPreferenceManager service.
+     *
+     * @param brandingPreferenceManager The BrandingPreferenceManager service.
+     */
+    public void setBrandingPreferenceManager(BrandingPreferenceManager brandingPreferenceManager) {
+
+        this.brandingPreferenceManager = brandingPreferenceManager;
     }
 }
