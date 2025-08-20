@@ -481,7 +481,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
                             URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.REASON_PARAM +
-                            URLEncoder.encode(reason, BasicAuthenticatorConstants.UTF_8);
+                            URLEncoder.encode(reason, BasicAuthenticatorConstants.UTF_8) +
+                            BasicAuthenticatorConstants.TYPE_PARAM + BasicAuthenticatorConstants.INVITE;
                     setAuthenticatorErrorMessage(getErrorMessage(errorCode, ASK_PASSWORD_VIA_OTP), context);
                 } else if (errorCode.equals(
                         IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE)) {
