@@ -54,6 +54,7 @@ public abstract class BasicAuthenticatorConstants {
     public static final String RECAPTCHA_API_PARAM = "&reCaptchaAPI=";
     public static final String CALLBACK_PARAM = "&callback=";
     public static final String REASON_PARAM = "&reason=";
+    public static final String TYPE_PARAM = "&type=";
 
     public static final String AUTHENTICATION_POLICY_CONFIG = "AuthenticationPolicy.CheckAccountExist";
 
@@ -82,6 +83,7 @@ public abstract class BasicAuthenticatorConstants {
     public static final String FORCED_PASSWORD_RESET_VIA_EMAIL = "The admin has forced user to " +
             "reset password via Email.";
     public static final String ASK_PASSWORD_VIA_OTP = "User is requested to set the password via OTP.";
+    public static final String INVITE = "invite";
 
     /**
      * Constants related to log management.
