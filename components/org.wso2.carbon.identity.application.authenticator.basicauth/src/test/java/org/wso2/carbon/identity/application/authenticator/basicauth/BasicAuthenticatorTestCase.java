@@ -1350,7 +1350,7 @@ public class BasicAuthenticatorTestCase {
                         DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS + BasicAuthenticatorConstants.FAILED_USERNAME
                                 + URLEncoder.encode(DUMMY_USER_NAME, BasicAuthenticatorConstants.UTF_8)
                                 + BasicAuthenticatorConstants.ERROR_CODE
-                                + IdentityCoreConstants.USER_EMAIL_NOT_VERIFIED_ERROR_CODE
+                                + IdentityCoreConstants.USER_EMAIL_OTP_NOT_VERIFIED_ERROR_CODE
                                 + BasicAuthenticatorConstants.AUTHENTICATORS
                                 + BasicAuthenticatorConstants.AUTHENTICATOR_NAME + ":"
                                 + BasicAuthenticatorConstants.LOCAL
