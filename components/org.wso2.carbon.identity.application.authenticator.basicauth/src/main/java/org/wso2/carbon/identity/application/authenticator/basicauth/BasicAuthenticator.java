@@ -1409,7 +1409,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
 
         log.warn("Tenant domain mismatch detected during authentication failure. User Tenant Domain: "
-                + userTenantDomain + ", Request Tenant Domain: " + contextTenantDomain + ", isSassApp: "
+                + userTenantDomain + ", Request Tenant Domain: " + contextTenantDomain + ", isSaasApp: "
                 + context.getSequenceConfig().getApplicationConfig().isSaaSApp());
     }
 }
