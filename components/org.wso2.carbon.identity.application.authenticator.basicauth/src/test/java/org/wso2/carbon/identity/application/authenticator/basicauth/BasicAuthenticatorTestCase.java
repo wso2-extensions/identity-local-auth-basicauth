@@ -560,6 +560,8 @@ public class BasicAuthenticatorTestCase {
 
             mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
                     .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+            PrivilegedCarbonContext.getThreadLocalCarbonContext()
+                    .setTenantDomain(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
 
             basicAuthenticatorService
                     .when(BasicAuthenticatorServiceComponent::getRealmService).thenReturn(mockRealmService);
