@@ -736,6 +736,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 userId = resolvedUserResult.getUser().getUserID();
             } else {
                 context.setProperty(IS_INVALID_USERNAME, true);
+                validateUserTenantDomain(context, requestTenantDomain);
                 throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
                         ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
             }
@@ -902,6 +903,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (StringUtils.isNotBlank(captchaParamString)) {
                 context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING, captchaParamString);
             }
+            validateUserTenantDomain(context, requestTenantDomain);
             throw new InvalidCredentialsException(ErrorMessages.INVALID_CREDENTIALS.getCode(),
                     ErrorMessages.INVALID_CREDENTIALS.getMessage(), User.getUserFromUserName(username));
         }
@@ -1397,5 +1399,17 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             log.error("Error while retrieving the flow configuration for " + flowType +  " flow.", e);
         }
         return ConfigurationFacade.getInstance().getAccountRecoveryEndpointPath() + CONFIRM_RECOVERY_DO;
+    }
+
+    private void validateUserTenantDomain(AuthenticationContext context, String userTenantDomain) {
+
+        String contextTenantDomain = PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantDomain();
+        if (StringUtils.equalsIgnoreCase(userTenantDomain, contextTenantDomain)) {
+            return;
+        }
+
+        log.warn("Tenant domain mismatch detected during authentication failure. User Tenant Domain: "
+                + userTenantDomain + ", Request Tenant Domain: " + contextTenantDomain + ", isSassApp: "
+                + context.getSequenceConfig().getApplicationConfig().isSaaSApp());
     }
 }
