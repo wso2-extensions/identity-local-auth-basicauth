@@ -227,6 +227,34 @@ public class UserResolveExecutorTestCase {
     }
 
     @Test
+    public void testUserNotFound() throws Exception {
+
+        userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
+        when(mockUserStoreManager.isExistingUser(anyString()))
+                .thenThrow(new UserStoreException("30007 - User does not exist"));
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+    }
+
+    @Test
+    public void testUserStoreExceptionWithErrorCode() throws Exception {
+
+        userClaims.put(FrameworkConstants.USERNAME_CLAIM, TEST_USERNAME);
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
+        when(mockUserStoreManager.isExistingUser(anyString()))
+                .thenThrow(new UserStoreException("40001 - Some other error"));
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_ERROR);
+        Assert.assertNotNull(response.getErrorMessage());
+        Assert.assertTrue(response.getErrorMessage().contains("Error while resolving user"));
+    }
+
+    @Test
     public void testRollback() {
 
         ExecutorResponse response = userResolveExecutor.rollback(mockContext);
