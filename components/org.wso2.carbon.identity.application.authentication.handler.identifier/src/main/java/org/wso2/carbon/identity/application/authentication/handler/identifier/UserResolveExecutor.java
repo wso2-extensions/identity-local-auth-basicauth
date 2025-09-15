@@ -49,6 +49,7 @@ import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorS
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_CLAIM_URI;
+import static org.wso2.carbon.identity.flow.mgt.Constants.FlowTypes.PASSWORD_RECOVERY;
 
 /**
  * This class is responsible for resolving user.
@@ -148,6 +149,9 @@ public class UserResolveExecutor implements Executor {
 
         } catch (UserStoreException e) {
             if (e.getMessage().startsWith(String.valueOf(30007))) {
+                if (StringUtils.equals(context.getFlowType(), String.valueOf(PASSWORD_RECOVERY))) {
+                    return new ExecutorResponse(STATUS_COMPLETE);
+                }
                 executorResponse = new ExecutorResponse(STATUS_USER_ERROR);
                 executorResponse.setErrorMessage("Error while resolving user '" +
                         LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
