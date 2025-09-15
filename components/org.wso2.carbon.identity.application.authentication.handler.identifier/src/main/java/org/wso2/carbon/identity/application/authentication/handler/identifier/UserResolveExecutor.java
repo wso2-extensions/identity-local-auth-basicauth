@@ -149,12 +149,11 @@ public class UserResolveExecutor implements Executor {
 
         } catch (UserStoreException e) {
             if (e.getMessage().startsWith(String.valueOf(30007))) {
-                if (StringUtils.equals(context.getFlowType(), String.valueOf(PASSWORD_RECOVERY))) {
-                    return new ExecutorResponse(STATUS_COMPLETE);
+                if (log.isDebugEnabled()) {
+                    log.debug("User '" + LoggerUtils.getMaskedContent(username) + "' does not exist in tenant '" +
+                            tenantDomain + "'.");
                 }
-                executorResponse = new ExecutorResponse(STATUS_USER_ERROR);
-                executorResponse.setErrorMessage("Error while resolving user '" +
-                        LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
+                executorResponse = new ExecutorResponse(STATUS_COMPLETE);
             } else {
                 executorResponse = new ExecutorResponse(STATUS_ERROR);
                 executorResponse.setErrorMessage("Error while resolving user '" +
