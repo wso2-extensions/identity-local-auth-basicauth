@@ -765,8 +765,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
              * username from the context will be considered as the username submitted from the login page.
              */
             String requestUsername = request.getParameter(USER_NAME);
-            String requestUsernameWithTenant =
-                    UserCoreUtil.addTenantDomainToEntry(requestUsername, requestTenantDomain);
+            String requestUsernameWithTenant = null;
+            if (StringUtils.isNotBlank(requestUsername)) {
+                requestUsernameWithTenant =
+                        UserCoreUtil.addTenantDomainToEntry(requestUsername, requestTenantDomain);
+            }
             if (requestUsername != null && usernameFromContext != null &&
                     !usernameFromContext.equals(requestUsername) &&
                     !usernameFromContext.equals(requestUsernameWithTenant)) {
