@@ -207,15 +207,18 @@ public class UserResolveExecutor implements Executor {
                                             FlowExecutionContext context)
             throws UserStoreException {
 
-        List<String> excludedUserstores = IdentityUtil.getPropertyAsList(FLOW_EXECUTION_USER_STORE_DOMAIN);
+        List<String> excludedUserStores = IdentityUtil.getPropertyAsList(FLOW_EXECUTION_USER_STORE_DOMAIN);
 
         while (userStoreManager != null) {
             String domain = userStoreManager.getRealmConfiguration()
                     .getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME);
 
+            boolean isReadOnly = Boolean.parseBoolean(userStoreManager.getRealmConfiguration()
+                    .getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_READ_ONLY));
+
             if (StringUtils.isNotBlank(domain)) {
-                // Skip this user store if it's in the excluded list
-                if (excludedUserstores != null && excludedUserstores.contains(domain)) {
+                // Skip this user store if it's read-only or included in the excluded user store list.
+                if (isReadOnly || excludedUserStores.contains(domain)) {
                     userStoreManager = userStoreManager.getSecondaryUserStoreManager();
                     continue;
                 }
@@ -240,12 +243,13 @@ public class UserResolveExecutor implements Executor {
      */
     private String resolveUsernameClaim(FlowExecutionContext context) {
 
-        String usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
-
+        String usernameClaim = null;
         if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
             usernameClaim = resolveUsernameFromUserIdentifier(context);
         }
-
+        if (StringUtils.isBlank(usernameClaim)) {
+            usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
+        }
         return usernameClaim;
     }
 }
