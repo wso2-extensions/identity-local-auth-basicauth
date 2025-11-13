@@ -125,11 +125,11 @@ public class UserResolveExecutor implements Executor {
      */
     private ExecutorResponse resolveUser(String username, String tenantDomain, FlowExecutionContext context) {
 
-        ExecutorResponse executorResponse;
+        ExecutorResponse executorResponse = new ExecutorResponse();
         try {
             UserRealm userRealm = getUserRealm(tenantDomain);
             if (userRealm == null) {
-                executorResponse = new ExecutorResponse(STATUS_ERROR);
+                executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("User realm is not available for tenant: " + tenantDomain);
                 return executorResponse;
             }
@@ -143,7 +143,7 @@ public class UserResolveExecutor implements Executor {
                         .collect(Collectors.toMap(Claim::getClaimUri, Claim::getValue));
                 context.getFlowUser().addClaims(claimMap);
             }
-            executorResponse = new ExecutorResponse(STATUS_COMPLETE);
+            executorResponse.setResult(STATUS_COMPLETE);
 
         } catch (UserStoreException e) {
             if (e.getMessage().startsWith(String.valueOf(30007))) {
@@ -151,9 +151,9 @@ public class UserResolveExecutor implements Executor {
                     log.debug("User '" + LoggerUtils.getMaskedContent(username) + "' does not exist in tenant '" +
                             tenantDomain + "'.");
                 }
-                executorResponse = new ExecutorResponse(STATUS_COMPLETE);
+                executorResponse.setResult(STATUS_COMPLETE);
             } else {
-                executorResponse = new ExecutorResponse(STATUS_ERROR);
+                executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("Error while resolving user '" +
                         LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
             }

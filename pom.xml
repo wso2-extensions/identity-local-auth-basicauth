@@ -385,7 +385,7 @@
         <carbon.base.imp.pkg.version.range>[1.0.0, 2.0.0)</carbon.base.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>7.8.466</carbon.identity.framework.version>
+        <carbon.identity.framework.version>7.8.610</carbon.identity.framework.version>
         <carbon.identity.framework.imp.pkg.version.range>[5.19.14, 8.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 
