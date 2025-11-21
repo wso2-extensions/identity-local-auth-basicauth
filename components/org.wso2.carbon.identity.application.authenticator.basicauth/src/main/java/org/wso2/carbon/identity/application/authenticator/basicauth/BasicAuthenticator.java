@@ -94,6 +94,8 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AUTH_ENTITY;
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AUTH_ENTITY_AGENT;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.REMAINING_ATTEMPTS;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_CONFIRMATION_PENDING;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_LOCKED;
@@ -121,6 +123,7 @@ import static org.wso2.carbon.identity.configuration.mgt.core.constant.Configura
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_FEATURE_NOT_ENABLED;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS;
+import static org.wso2.carbon.identity.core.util.IdentityCoreConstants.DEFAULT_AGENT_IDENTITY_USERSTORE_NAME;
 
 /**
  * Username Password based Authenticator.
@@ -723,6 +726,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         if (!IdentityUtil.isEmailUsernameValidationDisabled()) {
             FrameworkUtils.validateUsername(loginIdentifierFromRequest, context);
         }
+
+        username = handleAgentAuthentication(context, username);
+
         String requestTenantDomain = MultitenantUtils.getTenantDomain(username);
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
         String userId = null;
@@ -938,6 +944,31 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             getApplicationDetails(context, diagnosticLogBuilder);
             LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
         }
+    }
+
+    /**
+     * Handle agent authentication by appending the AGENT domain if not already present. Do not allow users from other
+     * domains to authenticate during agent authentication.
+     *
+     * @param context  Authentication context.
+     * @param username Username provided.
+     * @return Updated username.
+     */
+    private static String handleAgentAuthentication(AuthenticationContext context, String username) {
+
+        if (context.getProperties().containsKey(AUTH_ENTITY) &&
+                AUTH_ENTITY_AGENT.equals(context.getProperty(AUTH_ENTITY))) {
+            String[] names = username.split(UserCoreConstants.DOMAIN_SEPARATOR);
+            if (names.length == 1) {
+                username = DEFAULT_AGENT_IDENTITY_USERSTORE_NAME + UserCoreConstants.DOMAIN_SEPARATOR + names[0];
+                return username;
+            }
+            String domain = UserCoreUtil.extractDomainFromName(names[0]);
+            if (!DEFAULT_AGENT_IDENTITY_USERSTORE_NAME.equalsIgnoreCase(domain)) {
+                username = DEFAULT_AGENT_IDENTITY_USERSTORE_NAME + UserCoreConstants.DOMAIN_SEPARATOR + names[1];
+            }
+        }
+        return username;
     }
 
     @Override
