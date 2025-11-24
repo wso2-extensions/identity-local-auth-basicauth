@@ -129,7 +129,8 @@ public class UserResolveExecutor implements Executor {
         try {
             UserRealm userRealm = getUserRealm(tenantDomain);
             if (userRealm == null) {
-                executorResponse = new ExecutorResponse(STATUS_ERROR);
+                executorResponse = new ExecutorResponse();
+                executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("User realm is not available for tenant: " + tenantDomain);
                 return executorResponse;
             }
@@ -153,7 +154,8 @@ public class UserResolveExecutor implements Executor {
                 }
                 executorResponse = new ExecutorResponse(STATUS_COMPLETE);
             } else {
-                executorResponse = new ExecutorResponse(STATUS_ERROR);
+                executorResponse = new ExecutorResponse();
+                executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("Error while resolving user '" +
                         LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
             }
