@@ -1889,4 +1889,107 @@ public class BasicAuthenticatorTestCase {
                     "Parameter mandatory status should match.");
         }
     }
+
+    @DataProvider(name = "agentAuthenticationDataProvider")
+    public Object[][] agentAuthenticationDataProvider() {
+
+        return new Object[][]{
+                // Test case 1: Agent authentication with username without domain.
+                {"testuser", true, "AGENT/testuser"},
+                // Test case 2: Agent authentication with username having AGENT domain.
+                {"AGENT/testuser", true, "AGENT/testuser"},
+                // Test case 3: Agent authentication with username having different domain.
+                {"SECONDARY/testuser", true, "AGENT/testuser"},
+                // Test case 4: Non-agent authentication - username should remain unchanged.
+                {"testuser", false, "testuser"},
+                // Test case 5: Non-agent authentication with domain - username should remain unchanged.
+                {"SECONDARY/testuser", false, "SECONDARY/testuser"},
+                // Test case 6: Agent authentication with lowercase agent domain.
+                {"agent/testuser", true, "AGENT/testuser"},
+                // Test case 7: Agent authentication with AGENT domain injected.
+                {"AGENT/Primary/testuser", true, "AGENT/Primary"}
+        };
+    }
+
+    @Test(dataProvider = "agentAuthenticationDataProvider")
+    public void testHandleAgentAuthentication(String username, boolean isAgentAuth, String expectedUsername)
+            throws Exception {
+
+        AuthenticationContext context = new AuthenticationContext();
+        Map<String, Object> properties = new HashMap<>();
+
+        if (isAgentAuth) {
+            properties.put(FrameworkConstants.AUTH_ENTITY, FrameworkConstants.AUTH_ENTITY_AGENT);
+        }
+        context.setProperties(properties);
+
+        java.lang.reflect.Method method = BasicAuthenticator.class.getDeclaredMethod(
+                "handleAgentAuthentication", AuthenticationContext.class, String.class);
+        method.setAccessible(true);
+
+        String result = (String) method.invoke(null, context, username);
+
+        assertEquals(result, expectedUsername, "Username should be transformed correctly for agent authentication");
+    }
+
+    @Test
+    public void testHandleAgentAuthenticationWithNullContext() throws Exception {
+
+        String username = "testuser";
+
+        java.lang.reflect.Method method = BasicAuthenticator.class.getDeclaredMethod(
+                "handleAgentAuthentication", AuthenticationContext.class, String.class);
+        method.setAccessible(true);
+
+        String result = (String) method.invoke(null, null, username);
+
+        assertEquals(result, username, "Username should remain unchanged when context is null");
+    }
+
+    @Test
+    public void testHandleAgentAuthenticationWithNullProperties() throws Exception {
+
+        String username = "testuser";
+        AuthenticationContext context = new AuthenticationContext();
+        context.setProperties(null);
+
+        java.lang.reflect.Method method = BasicAuthenticator.class.getDeclaredMethod(
+                "handleAgentAuthentication", AuthenticationContext.class, String.class);
+        method.setAccessible(true);
+
+        String result = (String) method.invoke(null, context, username);
+        assertEquals(result, username, "Username should remain unchanged when properties are null");
+    }
+
+    @Test
+    public void testHandleAgentAuthenticationWithoutAuthEntity() throws Exception {
+
+        String username = "testuser";
+        AuthenticationContext context = new AuthenticationContext();
+        Map<String, Object> properties = new HashMap<>();
+        context.setProperties(properties);
+
+        java.lang.reflect.Method method = BasicAuthenticator.class.getDeclaredMethod(
+                "handleAgentAuthentication", AuthenticationContext.class, String.class);
+        method.setAccessible(true);
+
+        String result = (String) method.invoke(null, context, username);
+        assertEquals(result, username, "Username should remain unchanged when AUTH_ENTITY is not set");
+    }
+
+    @Test
+    public void testHandleAgentAuthenticationWithDifferentAuthEntity() throws Exception {
+
+        String username = "testuser";
+        AuthenticationContext context = new AuthenticationContext();
+        Map<String, Object> properties = new HashMap<>();
+        properties.put(FrameworkConstants.AUTH_ENTITY, "DIFFERENT_ENTITY");
+        context.setProperties(properties);
+        java.lang.reflect.Method method = BasicAuthenticator.class.getDeclaredMethod(
+                "handleAgentAuthentication", AuthenticationContext.class, String.class);
+        method.setAccessible(true);
+
+        String result = (String) method.invoke(null, context, username);
+        assertEquals(result, username, "Username should remain unchanged when AUTH_ENTITY is not AGENT");
+    }
 }
