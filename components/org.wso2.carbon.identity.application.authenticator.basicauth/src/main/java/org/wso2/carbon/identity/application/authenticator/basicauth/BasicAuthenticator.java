@@ -956,7 +956,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
      */
     private static String handleAgentAuthentication(AuthenticationContext context, String username) {
 
-        if (context.getProperties().containsKey(AUTH_ENTITY) &&
+        if (context != null && context.getProperties() != null && context.getProperties().containsKey(AUTH_ENTITY) &&
                 AUTH_ENTITY_AGENT.equals(context.getProperty(AUTH_ENTITY))) {
             String[] names = username.split(UserCoreConstants.DOMAIN_SEPARATOR);
             if (names.length == 1) {
