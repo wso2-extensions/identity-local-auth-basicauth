@@ -52,6 +52,7 @@ public abstract class BasicAuthenticatorConstants {
     public static final String REASON_PARAM = "&reason=";
 
     public static final String AUTHENTICATION_POLICY_CONFIG = "AuthenticationPolicy.CheckAccountExist";
+    public static final String ENABLE_LEGACY_AUTHENTICATION = "AuthenticationPolicy.EnableLegacyAuthentication";
 
     public static final String RESOURCE_TYPE_NAME_CONFIG = "basic-authenticator-config";
     public static final String RESOURCE_NAME_CONFIG = "user-information";
