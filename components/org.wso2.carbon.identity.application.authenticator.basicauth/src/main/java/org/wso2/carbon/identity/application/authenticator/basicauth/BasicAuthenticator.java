@@ -594,6 +594,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 authenticationResult = userStoreManager.authenticateWithID(userId, password);
             } else {
                 if (isLegacyAuthenticationEnabled()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Legacy authentication is enabled. Authenticating user: " + tenantAwareUsername);
+                    }
                     isAuthenticated = userStoreManager.authenticate(tenantAwareUsername, password);
                 } else {
                     authenticationResult = userStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
@@ -606,6 +609,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 isAuthenticated = true;
                 username = authenticationResult.getAuthenticatedUser().get().getFullQualifiedUsername();
                 context.removeProperty(FrameworkConstants.CAPTCHA_PARAM_STRING);
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("Authentication result: " + (isAuthenticated ? "SUCCESS" : "FAILED") +
+                        " for user: " + (username != null ? username : tenantAwareUsername));
             }
             if (isAuthPolicyAccountExistCheck()) {
                 checkUserExistence();
