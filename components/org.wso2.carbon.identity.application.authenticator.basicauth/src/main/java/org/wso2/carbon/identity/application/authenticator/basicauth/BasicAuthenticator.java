@@ -586,20 +586,33 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         // Reset RE_CAPTCHA_USER_DOMAIN thread local variable before the authentication
         IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
         // Check the authentication
-        AuthenticationResult authenticationResult;
+        AuthenticationResult authenticationResult = null;
         try {
             setUserExistThreadLocal();
 
             if (userId != null) {
                 authenticationResult = userStoreManager.authenticateWithID(userId, password);
             } else {
-                authenticationResult = userStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
-                        tenantAwareUsername, password, UserCoreConstants.DEFAULT_PROFILE);
+                if (isLegacyAuthenticationEnabled()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Legacy authentication is enabled. Authenticating user: " + tenantAwareUsername);
+                    }
+                    isAuthenticated = userStoreManager.authenticate(tenantAwareUsername, password);
+                } else {
+                    authenticationResult = userStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
+                            tenantAwareUsername, password, UserCoreConstants.DEFAULT_PROFILE);
+                }
             }
-            if (AuthenticationResult.AuthenticationStatus.SUCCESS == authenticationResult.getAuthenticationStatus()
+            if (authenticationResult != null
+                    && AuthenticationResult.AuthenticationStatus.SUCCESS == authenticationResult.getAuthenticationStatus()
                     && authenticationResult.getAuthenticatedUser().isPresent()) {
                 isAuthenticated = true;
+                username = authenticationResult.getAuthenticatedUser().get().getFullQualifiedUsername();
                 context.removeProperty(FrameworkConstants.CAPTCHA_PARAM_STRING);
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("Authentication result: " + (isAuthenticated ? "SUCCESS" : "FAILED") +
+                        " for user: " + (username != null ? username : tenantAwareUsername));
             }
             if (isAuthPolicyAccountExistCheck()) {
                 checkUserExistence();
@@ -710,7 +723,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         //TODO: user tenant domain has to be an attribute in the AuthenticationContext
         authProperties.put("user-tenant-domain", requestTenantDomain);
 
-        AuthenticatedUser authenticatedUser = new AuthenticatedUser(authenticationResult.getAuthenticatedUser().get());
+        // Since authenticationResult is null in legacy authentication, creating AuthenticatedUser accordingly
+        AuthenticatedUser authenticatedUser = null;
+        if (isLegacyAuthenticationEnabled()) {
+            authenticatedUser = AuthenticatedUser.createLocalAuthenticatedUserFromSubjectIdentifier(username);
+        } else {
+            authenticatedUser = new AuthenticatedUser(authenticationResult.getAuthenticatedUser().get());
+        }
 
         // Update the username from the deprecated multi attribute login feature.
         updateMultiAttributeUsername(authenticatedUser, userStoreManager);
@@ -1085,5 +1104,15 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         } else {
             return Boolean.parseBoolean(showPendingUserInformation);
         }
+    }
+
+    /**
+     * Check whether legacy authentication is enabled.
+     *
+     * @return true if legacy authentication is enabled.
+     */
+    private boolean isLegacyAuthenticationEnabled() {
+
+        return Boolean.parseBoolean(IdentityUtil.getProperty(BasicAuthenticatorConstants.ENABLE_LEGACY_AUTHENTICATION));
     }
 }
