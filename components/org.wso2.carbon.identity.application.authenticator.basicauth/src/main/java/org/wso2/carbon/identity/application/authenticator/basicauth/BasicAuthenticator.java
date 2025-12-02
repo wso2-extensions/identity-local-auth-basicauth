@@ -141,6 +141,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     public static final String ADDITIONAL_QUERY_PARAMS = "additionalParams";
     public static final String RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS = "RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS";
+    public static final String RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG = "ResolveTenantDomainFromUsername";
 
     /**
      * USER_EXIST_THREAD_LOCAL_PROPERTY is used to maintain the state of user existence
@@ -730,7 +731,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         username = handleAgentAuthentication(context, username);
 
         String requestTenantDomain = MultitenantUtils.getTenantDomain(username);
-        String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
+        if (!Boolean.parseBoolean(IdentityUtil.getProperty(RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
+            requestTenantDomain = getTenantDomainFromUserName(context,
+                    usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
+        }
+        String tenantAwareUsername = getTenantAwareUsername(context,
+                usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
         String userId = null;
         if (BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().isEnabled(requestTenantDomain)) {
             ResolvedUserResult resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
@@ -1281,6 +1287,29 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             return IdentityTenantUtil.getTenantDomainFromContext();
         }
         return MultitenantUtils.getTenantDomain(username);
+    }
+
+    private String getTenantAwareUsername(AuthenticationContext context, String username) {
+
+        if (Boolean.parseBoolean(IdentityUtil.getProperty(RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
+            return  MultitenantUtils.getTenantAwareUsername(username);
+        }
+
+        boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
+        if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled() && !isSaaSApp) {
+            return username;
+        }
+        return MultitenantUtils.getTenantAwareUsername(username);
+    }
+
+    private boolean usePreprocessedUsername(AuthenticationContext context) {
+
+        if (Boolean.parseBoolean(IdentityUtil.getProperty(RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
+            return true;
+        }
+
+        return context.getSequenceConfig().getApplicationConfig().isSaaSApp() ||
+                !IdentityTenantUtil.isTenantQualifiedUrlsEnabled();
     }
 
     private boolean isURLContainSensitiveData(HttpServletRequest request, HttpServletResponse response,

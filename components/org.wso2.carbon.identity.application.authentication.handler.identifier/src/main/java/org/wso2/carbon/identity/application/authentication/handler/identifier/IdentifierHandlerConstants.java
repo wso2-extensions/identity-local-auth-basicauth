@@ -34,6 +34,7 @@ public abstract class IdentifierHandlerConstants {
     public static final String IS_INVALID_USERNAME = "isInvalidUsername";
     public static final String USERNAME_USER_INPUT = "usernameUserInput";
     public static final String IS_USER_RESOLVED = "isUserResolved";
+    public static final String RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG = "ResolveTenantDomainFromUsername";
 
     private IdentifierHandlerConstants() {
     }

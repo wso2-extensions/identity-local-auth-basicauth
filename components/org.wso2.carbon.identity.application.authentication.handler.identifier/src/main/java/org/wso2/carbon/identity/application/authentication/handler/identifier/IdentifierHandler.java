@@ -537,8 +537,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             username = FrameworkUtils.preprocessUsername(identifierFromRequest, context);
         }
 
-        String tenantDomain = MultitenantUtils.getTenantDomain(username);
-        String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
+        String tenantDomain = getTenantDomainFromUserName(context,
+                usePreprocessedUsername(context) ? username : identifierFromRequest);
+        String tenantAwareUsername = getTenantAwareUsername(context,
+                usePreprocessedUsername(context) ? username : identifierFromRequest);
         String userId = null;
         String userStoreDomain = null;
 
@@ -654,6 +656,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         if (Boolean.parseBoolean(IdentityUtil.getProperty(IdentityConstants.ServerConfig.IDENTIFIER_AS_USERNAME))) {
             persistUsername(context, identifierFromRequest);
+        } else if (!usePreprocessedUsername(context)){
+            persistUsername(context, tenantAwareUsername);
         } else {
             persistUsername(context, username);
         }
@@ -939,5 +943,44 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     public String getI18nKey() {
 
         return AUTHENTICATOR_IDENTIFIER;
+    }
+
+    private String getTenantDomainFromUserName(AuthenticationContext context, String username) {
+
+        if (Boolean.parseBoolean(IdentityUtil.getProperty(
+                IdentifierHandlerConstants.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
+            return  MultitenantUtils.getTenantDomain(username);
+        }
+
+        boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
+        if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled() && !isSaaSApp) {
+            return IdentityTenantUtil.getTenantDomainFromContext();
+        }
+        return MultitenantUtils.getTenantDomain(username);
+    }
+
+    private String getTenantAwareUsername(AuthenticationContext context, String username) {
+
+        if (Boolean.parseBoolean(IdentityUtil.getProperty(
+                IdentifierHandlerConstants.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
+            return  MultitenantUtils.getTenantAwareUsername(username);
+        }
+
+        boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
+        if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled() && !isSaaSApp) {
+            return username;
+        }
+        return MultitenantUtils.getTenantAwareUsername(username);
+    }
+
+    private boolean usePreprocessedUsername(AuthenticationContext context) {
+
+        if (Boolean.parseBoolean(IdentityUtil.getProperty(
+                IdentifierHandlerConstants.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
+            return true;
+        }
+
+        return context.getSequenceConfig().getApplicationConfig().isSaaSApp() ||
+                !IdentityTenantUtil.isTenantQualifiedUrlsEnabled();
     }
 }
