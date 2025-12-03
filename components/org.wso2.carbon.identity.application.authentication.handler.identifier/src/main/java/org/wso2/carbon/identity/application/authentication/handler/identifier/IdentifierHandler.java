@@ -172,7 +172,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             }
         } else {
             if (context.getPreviousAuthenticatedIdPs().get(BasicAuthenticatorConstants.LOCAL) != null) {
-                AuthenticatedIdPData local = context.getPreviousAuthenticatedIdPs().get(BasicAuthenticatorConstants.LOCAL);
+                AuthenticatedIdPData local =
+                        context.getPreviousAuthenticatedIdPs().get(BasicAuthenticatorConstants.LOCAL);
                 if (local.getAuthenticators().size() > 0) {
                     for (AuthenticatorConfig authenticatorConfig : local.getAuthenticators()) {
                         if (authenticatorConfig.getApplicationAuthenticator() instanceof BasicAuthenticator) {
@@ -191,7 +192,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                     processAuthenticationResponse(request, response, context);
                                     return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
                                 } else {
-                                    String identifierFirstConfirmationURL = ConfigurationFacade.getInstance().getIdentifierFirstConfirmationURL();
+                                    String identifierFirstConfirmationURL =
+                                            ConfigurationFacade.getInstance().getIdentifierFirstConfirmationURL();
                                     String queryParams = context.getContextIdIncludedQueryParams();
                                     try {
                                         queryParams = queryParams + "&username=" + local.getUser()
@@ -358,8 +360,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         if (remainingAttempts == 0) {
                             if (StringUtils.isBlank(reason)) {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
-                                        IdentifierHandlerConstants.ERROR_CODE + errorCode + IdentifierHandlerConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(USER_NAME), IdentifierHandlerConstants.UTF_8) +
+                                        IdentifierHandlerConstants.ERROR_CODE + errorCode +
+                                        IdentifierHandlerConstants.FAILED_USERNAME +
+                                        URLEncoder.encode(request.getParameter(USER_NAME),
+                                                IdentifierHandlerConstants.UTF_8) +
                                         "&remainingAttempts=0";
                             } else {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
@@ -371,8 +375,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         } else {
                             if (StringUtils.isBlank(reason)) {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
-                                        IdentifierHandlerConstants.ERROR_CODE + errorCode + IdentifierHandlerConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(USER_NAME), IdentifierHandlerConstants.UTF_8);
+                                        IdentifierHandlerConstants.ERROR_CODE + errorCode +
+                                        IdentifierHandlerConstants.FAILED_USERNAME +
+                                        URLEncoder.encode(request.getParameter(USER_NAME),
+                                                IdentifierHandlerConstants.UTF_8);
                             } else {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
                                         IdentifierHandlerConstants.ERROR_CODE + errorCode + "&lockedReason="
@@ -395,8 +401,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         Map<String, String> messageContext = getMessageContext(ACCOUNT_LOCKED_REASON,
                                 String.valueOf(reason));
                         setAuthenticatorMessage(new AuthenticatorMessage
-                                        (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
-                                                ACCOUNT_IS_LOCKED, messageContext), context);
+                                (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
+                                        ACCOUNT_IS_LOCKED, messageContext), context);
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST)) {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
@@ -656,7 +662,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         if (Boolean.parseBoolean(IdentityUtil.getProperty(IdentityConstants.ServerConfig.IDENTIFIER_AS_USERNAME))) {
             persistUsername(context, identifierFromRequest);
-        } else if (!usePreprocessedUsername(context)){
+        } else if (!usePreprocessedUsername(context)) {
             persistUsername(context, tenantAwareUsername);
         } else {
             persistUsername(context, username);
@@ -696,7 +702,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
     private static Map<String, String> getMessageContext(String key, String value) {
 
-        Map <String,String> messageContext = new HashMap<>();
+        Map<String, String> messageContext = new HashMap<>();
         messageContext.put(key, value);
         return messageContext;
     }
@@ -713,6 +719,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
     @Override
     protected boolean retryAuthenticationEnabled() {
+
         return true;
     }
 
@@ -752,16 +759,19 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
     @Override
     public String getContextIdentifier(HttpServletRequest request) {
+
         return request.getParameter("sessionDataKey");
     }
 
     @Override
     public String getFriendlyName() {
+
         return IdentifierHandlerConstants.HANDLER_FRIENDLY_NAME;
     }
 
     @Override
     public String getName() {
+
         return IdentifierHandlerConstants.HANDLER_NAME;
     }
 
@@ -902,8 +912,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
      *
      * @param context The authentication context containing information about the current authentication attempt.
      * @return An {@code Optional} containing an {@code AuthenticatorData} object representing the initiation data.
-     *         If the initiation data is available, it is encapsulated within the {@code Optional}; otherwise,
-     *         an empty {@code Optional} is returned.
+     * If the initiation data is available, it is encapsulated within the {@code Optional}; otherwise,
+     * an empty {@code Optional} is returned.
      */
     @Override
     public Optional<AuthenticatorData> getAuthInitiationData(AuthenticationContext context) {
@@ -945,11 +955,24 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         return AUTHENTICATOR_IDENTIFIER;
     }
 
+    /**
+     * Resolves the tenant domain from the username based on the server configuration.
+     * <p>
+     * If the "ResolveTenantDomainFromUsername" configuration is enabled, the tenant domain is
+     * extracted from the username. For non-SaaS applications with tenant qualified URLs enabled,
+     * the tenant domain is extracted from the context. Otherwise, the tenant domain is extracted
+     * from the username.
+     * </p>
+     *
+     * @param context  The authentication context containing application configuration.
+     * @param username The username from which to extract the tenant domain.
+     * @return The resolved tenant domain.
+     */
     private String getTenantDomainFromUserName(AuthenticationContext context, String username) {
 
         if (Boolean.parseBoolean(IdentityUtil.getProperty(
                 IdentifierHandlerConstants.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
-            return  MultitenantUtils.getTenantDomain(username);
+            return MultitenantUtils.getTenantDomain(username);
         }
 
         boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
@@ -959,11 +982,24 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         return MultitenantUtils.getTenantDomain(username);
     }
 
+    /**
+     * Removes the tenant domain from the username based on the server configuration.
+     * <p>
+     * If the "ResolveTenantDomainFromUsername" configuration is enabled, tenant domain is removed from the username.
+     * When the configuration is disabled, for non-SaaS applications with tenant qualified URLs
+     * enabled, the username is returned as-is. Otherwise, extract the tenant domain
+     * from the username.
+     * </p>
+     *
+     * @param context  The authentication context containing application configuration.
+     * @param username The username from which to extract the tenant-aware username.
+     * @return The tenant-aware username.
+     */
     private String getTenantAwareUsername(AuthenticationContext context, String username) {
 
         if (Boolean.parseBoolean(IdentityUtil.getProperty(
                 IdentifierHandlerConstants.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
-            return  MultitenantUtils.getTenantAwareUsername(username);
+            return MultitenantUtils.getTenantAwareUsername(username);
         }
 
         boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
@@ -973,6 +1009,17 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         return MultitenantUtils.getTenantAwareUsername(username);
     }
 
+    /**
+     * Determines whether the preprocessed username should be used for authentication.
+     * <p>
+     * Returns {@code true} if the "ResolveTenantDomainFromUsername" configuration is enabled,
+     * or if the application is a SaaS application, or if tenant qualified URLs are not enabled.
+     * Otherwise, returns {@code false}.
+     * </p>
+     *
+     * @param context The authentication context containing application configuration.
+     * @return {@code true} if the preprocessed username should be used, {@code false} otherwise.
+     */
     private boolean usePreprocessedUsername(AuthenticationContext context) {
 
         if (Boolean.parseBoolean(IdentityUtil.getProperty(
