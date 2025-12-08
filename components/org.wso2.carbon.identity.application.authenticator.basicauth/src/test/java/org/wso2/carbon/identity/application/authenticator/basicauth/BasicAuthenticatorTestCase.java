@@ -54,6 +54,7 @@ import org.wso2.carbon.identity.application.authentication.framework.util.Framew
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorDataHolder;
 import org.wso2.carbon.identity.application.authenticator.basicauth.internal.BasicAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthUtil;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
@@ -662,7 +663,7 @@ public class BasicAuthenticatorTestCase {
                     frameworkUtils, userObj);
 
             identityUtil.when(() -> IdentityUtil.getProperty(
-                    BasicAuthenticator.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG)).thenReturn("false");
+                    BasicAuthUtil.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG)).thenReturn("false");
 
             when(mockRequest.getParameter("chkRemember")).thenReturn(chkRemember);
 
@@ -2044,7 +2045,7 @@ public class BasicAuthenticatorTestCase {
             when(mockApplicationConfig.isSaaSApp()).thenReturn(false);
             identityUtil.when(() ->
                     IdentityUtil.getProperty(
-                            BasicAuthenticator.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG)).thenReturn("true");
+                            BasicAuthUtil.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG)).thenReturn("true");
 
             mockIdentityTenantUtil.when(IdentityTenantUtil::isTenantQualifiedUrlsEnabled)
                     .thenReturn(true);

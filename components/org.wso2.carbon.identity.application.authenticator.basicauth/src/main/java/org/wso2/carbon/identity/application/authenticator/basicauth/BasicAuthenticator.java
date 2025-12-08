@@ -46,6 +46,7 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.internal.Bas
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthUtil;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
@@ -119,6 +120,7 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.Basic
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USERNAME_USER_INPUT;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USER_NAME;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthUtil.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_FEATURE_NOT_ENABLED;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
@@ -141,7 +143,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
     public static final String ADDITIONAL_QUERY_PARAMS = "additionalParams";
     public static final String RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS = "RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS";
-    public static final String RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG = "ResolveTenantDomainFromUsername";
 
     /**
      * USER_EXIST_THREAD_LOCAL_PROPERTY is used to maintain the state of user existence
@@ -737,10 +738,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String requestTenantDomain = MultitenantUtils.getTenantDomain(username);
         if (!Boolean.parseBoolean(IdentityUtil.getProperty(RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
             requestTenantDomain = getTenantDomainFromUserName(context,
-                    usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
+                    BasicAuthUtil.usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
         }
-        String tenantAwareUsername = getTenantAwareUsername(context,
-                usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
+        String tenantAwareUsername = BasicAuthUtil.getTenantAwareUsername(context,
+                BasicAuthUtil.usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
         String userId = null;
         if (BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().isEnabled(requestTenantDomain)) {
             ResolvedUserResult resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
@@ -1295,53 +1296,6 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             return IdentityTenantUtil.getTenantDomainFromContext();
         }
         return MultitenantUtils.getTenantDomain(username);
-    }
-
-    /**
-     * Removes the tenant domain from the username based on the server configuration.
-     * <p>
-     * If the "ResolveTenantDomainFromUsername" configuration is enabled, tenant domain is removed from the username.
-     * When the configuration is disabled, for non-SaaS applications with tenant qualified URLs
-     * enabled, the username is returned as-is. Otherwise, extract the tenant domain
-     * from the username.
-     * </p>
-     *
-     * @param context  The authentication context containing application configuration.
-     * @param username The username from which to extract the tenant-aware username.
-     * @return The tenant-aware username.
-     */
-    private String getTenantAwareUsername(AuthenticationContext context, String username) {
-
-        if (Boolean.parseBoolean(IdentityUtil.getProperty(RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
-            return MultitenantUtils.getTenantAwareUsername(username);
-        }
-
-        boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
-        if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled() && !isSaaSApp) {
-            return username;
-        }
-        return MultitenantUtils.getTenantAwareUsername(username);
-    }
-
-    /**
-     * Determines whether the preprocessed username should be used for authentication.
-     * <p>
-     * Returns {@code true} if the "ResolveTenantDomainFromUsername" property is enabled,
-     * or if the application is a SaaS application, or if tenant qualified URLs are not enabled.
-     * Otherwise, returns {@code false}.
-     * </p>
-     *
-     * @param context The authentication context containing application configuration.
-     * @return {@code true} if the preprocessed username should be used, {@code false} otherwise.
-     */
-    private boolean usePreprocessedUsername(AuthenticationContext context) {
-
-        if (Boolean.parseBoolean(IdentityUtil.getProperty(RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
-            return true;
-        }
-
-        return context.getSequenceConfig().getApplicationConfig().isSaaSApp() ||
-                !IdentityTenantUtil.isTenantQualifiedUrlsEnabled();
     }
 
     private boolean isURLContainSensitiveData(HttpServletRequest request, HttpServletResponse response,

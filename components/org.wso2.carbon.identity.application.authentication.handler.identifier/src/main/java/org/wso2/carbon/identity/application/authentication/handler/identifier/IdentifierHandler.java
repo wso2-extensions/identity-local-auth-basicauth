@@ -44,6 +44,7 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthent
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthUtil;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityConstants;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
@@ -544,9 +545,9 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         }
 
         String tenantDomain = getTenantDomainFromUserName(context,
-                usePreprocessedUsername(context) ? username : identifierFromRequest);
-        String tenantAwareUsername = getTenantAwareUsername(context,
-                usePreprocessedUsername(context) ? username : identifierFromRequest);
+                BasicAuthUtil.usePreprocessedUsername(context) ? username : identifierFromRequest);
+        String tenantAwareUsername = BasicAuthUtil.getTenantAwareUsername(context,
+                BasicAuthUtil.usePreprocessedUsername(context) ? username : identifierFromRequest);
         String userId = null;
         String userStoreDomain = null;
 
@@ -662,7 +663,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         if (Boolean.parseBoolean(IdentityUtil.getProperty(IdentityConstants.ServerConfig.IDENTIFIER_AS_USERNAME))) {
             persistUsername(context, identifierFromRequest);
-        } else if (!usePreprocessedUsername(context)) {
+        } else if (!BasicAuthUtil.usePreprocessedUsername(context)) {
             persistUsername(context, tenantAwareUsername);
         } else {
             persistUsername(context, username);
@@ -971,7 +972,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     private String getTenantDomainFromUserName(AuthenticationContext context, String username) {
 
         if (Boolean.parseBoolean(IdentityUtil.getProperty(
-                IdentifierHandlerConstants.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
+                BasicAuthUtil.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
             return MultitenantUtils.getTenantDomain(username);
         }
 
@@ -980,54 +981,5 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             return IdentityTenantUtil.getTenantDomainFromContext();
         }
         return MultitenantUtils.getTenantDomain(username);
-    }
-
-    /**
-     * Removes the tenant domain from the username based on the server configuration.
-     * <p>
-     * If the "ResolveTenantDomainFromUsername" configuration is enabled, tenant domain is removed from the username.
-     * When the configuration is disabled, for non-SaaS applications with tenant qualified URLs
-     * enabled, the username is returned as-is. Otherwise, extract the tenant domain
-     * from the username.
-     * </p>
-     *
-     * @param context  The authentication context containing application configuration.
-     * @param username The username from which to extract the tenant-aware username.
-     * @return The tenant-aware username.
-     */
-    private String getTenantAwareUsername(AuthenticationContext context, String username) {
-
-        if (Boolean.parseBoolean(IdentityUtil.getProperty(
-                IdentifierHandlerConstants.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
-            return MultitenantUtils.getTenantAwareUsername(username);
-        }
-
-        boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
-        if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled() && !isSaaSApp) {
-            return username;
-        }
-        return MultitenantUtils.getTenantAwareUsername(username);
-    }
-
-    /**
-     * Determines whether the preprocessed username should be used for authentication.
-     * <p>
-     * Returns {@code true} if the "ResolveTenantDomainFromUsername" configuration is enabled,
-     * or if the application is a SaaS application, or if tenant qualified URLs are not enabled.
-     * Otherwise, returns {@code false}.
-     * </p>
-     *
-     * @param context The authentication context containing application configuration.
-     * @return {@code true} if the preprocessed username should be used, {@code false} otherwise.
-     */
-    private boolean usePreprocessedUsername(AuthenticationContext context) {
-
-        if (Boolean.parseBoolean(IdentityUtil.getProperty(
-                IdentifierHandlerConstants.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
-            return true;
-        }
-
-        return context.getSequenceConfig().getApplicationConfig().isSaaSApp() ||
-                !IdentityTenantUtil.isTenantQualifiedUrlsEnabled();
     }
 }
