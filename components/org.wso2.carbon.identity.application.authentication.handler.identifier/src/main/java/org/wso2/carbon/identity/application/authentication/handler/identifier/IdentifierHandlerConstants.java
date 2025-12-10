@@ -26,6 +26,7 @@ public abstract class IdentifierHandlerConstants {
     public static final String HANDLER_NAME = "IdentifierExecutor";
     public static final String HANDLER_FRIENDLY_NAME = "Identifier First";
     public static final String USER_NAME = "username";
+    public static final String LOGIN_HINT = "login_hint";
     public static final String FAILED_USERNAME = "&failedUsername=";
     public static final String ERROR_CODE = "&errorCode=";
     public static final String AUTHENTICATORS = "&authenticators=";

@@ -82,6 +82,7 @@ import javax.servlet.http.HttpServletResponse;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.REMAINING_ATTEMPTS;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.IDENTIFIER_CONSENT;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.RequestParams.RESTART_FLOW;
+import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LOGIN_HINT;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.AUTHENTICATOR_IDENTIFIER;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.INITIATE_IDENTIFIER_AUTH_REQUEST;
 import static org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
@@ -93,7 +94,6 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.Basic
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_DISABLED;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_LOCKED;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_LOCKED_REASON;
-import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_BASIC;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.AUTHENTICATOR_MESSAGE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_USER_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.INVALID_CREDENTIALS_ARE_PROVIDED;
@@ -120,10 +120,12 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     public boolean canHandle(HttpServletRequest request) {
 
         String userName = request.getParameter(USER_NAME);
+        String loginHint = request.getParameter(LOGIN_HINT);
         String identifierConsent = request.getParameter(IDENTIFIER_CONSENT);
         String restart = request.getParameter(RESTART_FLOW);
         Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
-        boolean canHandle = userName != null || identifierConsent != null || restart != null || autoLoginCookie != null;
+        boolean canHandle = userName != null || identifierConsent != null || restart != null
+                || autoLoginCookie != null || loginHint != null;
         if (LoggerUtils.isDiagnosticLogsEnabled() && canHandle) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
                     IDENTIFIER_AUTH_SERVICE, FrameworkConstants.LogConstants.ActionIDs.HANDLE_AUTH_STEP);
@@ -219,6 +221,9 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 // Restart the flow from identifier first.
                 initiateAuthenticationRequest(request, response, context);
                 return AuthenticatorFlowStatus.INCOMPLETE;
+            } else if (request.getParameter(LOGIN_HINT) != null) {
+                processAuthenticationResponse(request, response, context);
+                return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
             }
             return super.process(request, response, context);
         }
@@ -504,6 +509,9 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         }
         Map<String, String> runtimeParams = getRuntimeParams(context);
         String identifierFromRequest = request.getParameter(USER_NAME);
+        if (StringUtils.isBlank(identifierFromRequest)) {
+            identifierFromRequest = request.getParameter(LOGIN_HINT);
+        }
         String validateUsernameAdaptiveParam = null;
         if (StringUtils.isBlank(identifierFromRequest)) {
             throw new InvalidCredentialsException(ErrorMessages.EMPTY_USERNAME.getCode(),
