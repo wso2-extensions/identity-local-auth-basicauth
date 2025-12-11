@@ -44,6 +44,7 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthent
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthUtil;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityConstants;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
@@ -172,7 +173,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             }
         } else {
             if (context.getPreviousAuthenticatedIdPs().get(BasicAuthenticatorConstants.LOCAL) != null) {
-                AuthenticatedIdPData local = context.getPreviousAuthenticatedIdPs().get(BasicAuthenticatorConstants.LOCAL);
+                AuthenticatedIdPData local =
+                        context.getPreviousAuthenticatedIdPs().get(BasicAuthenticatorConstants.LOCAL);
                 if (local.getAuthenticators().size() > 0) {
                     for (AuthenticatorConfig authenticatorConfig : local.getAuthenticators()) {
                         if (authenticatorConfig.getApplicationAuthenticator() instanceof BasicAuthenticator) {
@@ -191,7 +193,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                     processAuthenticationResponse(request, response, context);
                                     return AuthenticatorFlowStatus.SUCCESS_COMPLETED;
                                 } else {
-                                    String identifierFirstConfirmationURL = ConfigurationFacade.getInstance().getIdentifierFirstConfirmationURL();
+                                    String identifierFirstConfirmationURL =
+                                            ConfigurationFacade.getInstance().getIdentifierFirstConfirmationURL();
                                     String queryParams = context.getContextIdIncludedQueryParams();
                                     try {
                                         queryParams = queryParams + "&username=" + local.getUser()
@@ -358,8 +361,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         if (remainingAttempts == 0) {
                             if (StringUtils.isBlank(reason)) {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
-                                        IdentifierHandlerConstants.ERROR_CODE + errorCode + IdentifierHandlerConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(USER_NAME), IdentifierHandlerConstants.UTF_8) +
+                                        IdentifierHandlerConstants.ERROR_CODE + errorCode +
+                                        IdentifierHandlerConstants.FAILED_USERNAME +
+                                        URLEncoder.encode(request.getParameter(USER_NAME),
+                                                IdentifierHandlerConstants.UTF_8) +
                                         "&remainingAttempts=0";
                             } else {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
@@ -371,8 +376,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         } else {
                             if (StringUtils.isBlank(reason)) {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
-                                        IdentifierHandlerConstants.ERROR_CODE + errorCode + IdentifierHandlerConstants.FAILED_USERNAME +
-                                        URLEncoder.encode(request.getParameter(USER_NAME), IdentifierHandlerConstants.UTF_8);
+                                        IdentifierHandlerConstants.ERROR_CODE + errorCode +
+                                        IdentifierHandlerConstants.FAILED_USERNAME +
+                                        URLEncoder.encode(request.getParameter(USER_NAME),
+                                                IdentifierHandlerConstants.UTF_8);
                             } else {
                                 redirectURL = response.encodeRedirectURL(redirectURL + ("?" + queryParams)) +
                                         IdentifierHandlerConstants.ERROR_CODE + errorCode + "&lockedReason="
@@ -395,8 +402,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                         Map<String, String> messageContext = getMessageContext(ACCOUNT_LOCKED_REASON,
                                 String.valueOf(reason));
                         setAuthenticatorMessage(new AuthenticatorMessage
-                                        (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
-                                                ACCOUNT_IS_LOCKED, messageContext), context);
+                                (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
+                                        ACCOUNT_IS_LOCKED, messageContext), context);
                     } else if (errorCode.equals(UserCoreConstants.ErrorCode.USER_DOES_NOT_EXIST)) {
                         retryParam = retryParam + IdentifierHandlerConstants.ERROR_CODE + errorCode
                                 + IdentifierHandlerConstants.FAILED_USERNAME + URLEncoder
@@ -537,8 +544,10 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             username = FrameworkUtils.preprocessUsername(identifierFromRequest, context);
         }
 
-        String tenantDomain = MultitenantUtils.getTenantDomain(username);
-        String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
+        String tenantDomain = getTenantDomainFromUserName(context,
+                BasicAuthUtil.usePreprocessedUsername(context) ? username : identifierFromRequest);
+        String tenantAwareUsername = BasicAuthUtil.getTenantAwareUsername(context,
+                BasicAuthUtil.usePreprocessedUsername(context) ? username : identifierFromRequest);
         String userId = null;
         String userStoreDomain = null;
 
@@ -654,6 +663,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         if (Boolean.parseBoolean(IdentityUtil.getProperty(IdentityConstants.ServerConfig.IDENTIFIER_AS_USERNAME))) {
             persistUsername(context, identifierFromRequest);
+        } else if (!BasicAuthUtil.usePreprocessedUsername(context)) {
+            persistUsername(context, tenantAwareUsername);
         } else {
             persistUsername(context, username);
         }
@@ -692,7 +703,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
     private static Map<String, String> getMessageContext(String key, String value) {
 
-        Map <String,String> messageContext = new HashMap<>();
+        Map<String, String> messageContext = new HashMap<>();
         messageContext.put(key, value);
         return messageContext;
     }
@@ -709,6 +720,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
     @Override
     protected boolean retryAuthenticationEnabled() {
+
         return true;
     }
 
@@ -748,16 +760,19 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
     @Override
     public String getContextIdentifier(HttpServletRequest request) {
+
         return request.getParameter("sessionDataKey");
     }
 
     @Override
     public String getFriendlyName() {
+
         return IdentifierHandlerConstants.HANDLER_FRIENDLY_NAME;
     }
 
     @Override
     public String getName() {
+
         return IdentifierHandlerConstants.HANDLER_NAME;
     }
 
@@ -898,8 +913,8 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
      *
      * @param context The authentication context containing information about the current authentication attempt.
      * @return An {@code Optional} containing an {@code AuthenticatorData} object representing the initiation data.
-     *         If the initiation data is available, it is encapsulated within the {@code Optional}; otherwise,
-     *         an empty {@code Optional} is returned.
+     * If the initiation data is available, it is encapsulated within the {@code Optional}; otherwise,
+     * an empty {@code Optional} is returned.
      */
     @Override
     public Optional<AuthenticatorData> getAuthInitiationData(AuthenticationContext context) {
@@ -939,5 +954,32 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
     public String getI18nKey() {
 
         return AUTHENTICATOR_IDENTIFIER;
+    }
+
+    /**
+     * Resolves the tenant domain from the username based on the server configuration.
+     * <p>
+     * If the "ResolveTenantDomainFromUsername" configuration is enabled, the tenant domain is
+     * extracted from the username. For non-SaaS applications with tenant qualified URLs enabled,
+     * the tenant domain is extracted from the context. Otherwise, the tenant domain is extracted
+     * from the username.
+     * </p>
+     *
+     * @param context  The authentication context containing application configuration.
+     * @param username The username from which to extract the tenant domain.
+     * @return The resolved tenant domain.
+     */
+    private String getTenantDomainFromUserName(AuthenticationContext context, String username) {
+
+        if (Boolean.parseBoolean(IdentityUtil.getProperty(
+                BasicAuthUtil.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
+            return MultitenantUtils.getTenantDomain(username);
+        }
+
+        boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
+        if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled() && !isSaaSApp) {
+            return IdentityTenantUtil.getTenantDomainFromContext();
+        }
+        return MultitenantUtils.getTenantDomain(username);
     }
 }
