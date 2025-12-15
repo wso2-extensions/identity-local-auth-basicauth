@@ -46,9 +46,12 @@ import org.wso2.carbon.identity.application.authenticator.basicauth.internal.Bas
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginConstant;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.AutoLoginUtilities;
 import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthErrorConstants.ErrorMessages;
+import org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthUtil;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.base.IdentityRuntimeException;
+import org.wso2.carbon.identity.branding.preference.management.core.exception.BrandingPreferenceMgtException;
+import org.wso2.carbon.identity.branding.preference.management.core.util.BrandingPreferenceMgtUtils;
 import org.wso2.carbon.identity.captcha.connector.recaptcha.SSOLoginReCaptchaConfig;
 import org.wso2.carbon.identity.captcha.util.CaptchaConstants;
 import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
@@ -60,6 +63,9 @@ import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityCoreConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
+import org.wso2.carbon.identity.flow.mgt.Constants;
+import org.wso2.carbon.identity.flow.mgt.exception.FlowMgtServerException;
+import org.wso2.carbon.identity.flow.mgt.utils.FlowMgtConfigUtils;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.identity.recovery.RecoveryScenarios;
@@ -89,6 +95,8 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AUTH_ENTITY;
+import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AUTH_ENTITY_AGENT;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.REMAINING_ATTEMPTS;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_CONFIRMATION_PENDING;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.ACCOUNT_IS_LOCKED;
@@ -112,10 +120,12 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.Basic
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USERNAME_USER_INPUT;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USER_NAME;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthUtil.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_FEATURE_NOT_ENABLED;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_DOES_NOT_EXISTS;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_RESOURCE_TYPE_DOES_NOT_EXISTS;
+import static org.wso2.carbon.identity.core.util.IdentityCoreConstants.DEFAULT_AGENT_IDENTITY_USERSTORE_NAME;
 
 /**
  * Username Password based Authenticator.
@@ -140,9 +150,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
      */
     private static final String USER_EXIST_THREAD_LOCAL_PROPERTY = "userExistThreadLocalProperty";
 
-
     @Override
     public boolean canHandle(HttpServletRequest request) {
+
         String userName = request.getParameter(USER_NAME);
         String password = request.getParameter(PASSWORD);
         Cookie autoLoginCookie = AutoLoginUtilities.getAutoLoginCookie(request.getCookies());
@@ -249,7 +259,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     @Override
     protected void initiateAuthenticationRequest(HttpServletRequest request,
                                                  HttpServletResponse response, AuthenticationContext context)
-            throws AuthenticationFailedException {if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            throws AuthenticationFailedException {
+
+        if (LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
                     BasicAuthenticatorConstants.LogConstants.BASIC_AUTH_SERVICE,
                     BasicAuthenticatorConstants.LogConstants.ActionIDs.VALIDATE_BASIC_AUTH_REQUEST);
@@ -321,6 +333,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST.equalsIgnoreCase(inputType)) {
                 queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE + "=" + inputType;
                 context.addEndpointParam(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, usernameFromContext);
+                context.addEndpointParam(FrameworkConstants.JSAttributes.JS_IDENTIFIER_FIRST_USER_INPUT,
+                        request.getParameter(USER_NAME));
             }
             String additionalParams = runtimeParams.get(ADDITIONAL_QUERY_PARAMS);
             if (StringUtils.isNotBlank(additionalParams)) {
@@ -385,9 +399,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             BasicAuthenticatorConstants.ERROR_CODE + errorCode + BasicAuthenticatorConstants
                             .AUTHENTICATORS + getName() + ":" + BasicAuthenticatorConstants.LOCAL + retryParam;
                     setAuthenticatorErrorMessage(getErrorMessage(errorCode, ACCOUNT_CONFIRMATION_PENDING), context);
-                } else if (errorCode.equals(IdentityCoreConstants.USER_EMAIL_NOT_VERIFIED_ERROR_CODE)) {
+                } else if (errorCode.equals(IdentityCoreConstants.USER_EMAIL_NOT_VERIFIED_ERROR_CODE)
+                        || errorCode.equals(IdentityCoreConstants.USER_EMAIL_OTP_NOT_VERIFIED_ERROR_CODE)) {
                     retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
                             BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "email.verification.pending";
+                    if (errorCode.equals(IdentityCoreConstants.USER_EMAIL_OTP_NOT_VERIFIED_ERROR_CODE)) {
+                        retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                                BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "email.otp.verification.pending";
+                    }
                     String username = request.getParameter(USER_NAME);
                     Object domain = IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN);
                     if (domain != null) {
@@ -466,7 +485,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             BasicAuthenticatorConstants.LOCAL;
                     String reason = RecoveryScenarios.ASK_PASSWORD_VIA_EMAIL_OTP.name();
 
-                    redirectURL = recoveryPage + CONFIRM_RECOVERY_DO +
+                    String recoveryPortalPath = getRecoveryPortalPath(tenantDomain,
+                            Constants.FlowTypes.INVITED_USER_REGISTRATION.getType());
+                    redirectURL = recoveryPortalPath +
                             BasicAuthenticatorConstants.USER_NAME_PARAM + URLEncoder.encode(username,
                             BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.TENANT_DOMAIN_PARAM +
                             URLEncoder.encode(tenantDomain, BasicAuthenticatorConstants.UTF_8) +
@@ -474,7 +495,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             BasicAuthenticatorConstants.UTF_8) + BasicAuthenticatorConstants.CALLBACK_PARAM +
                             URLEncoder.encode(callback, BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.REASON_PARAM +
-                            URLEncoder.encode(reason, BasicAuthenticatorConstants.UTF_8);
+                            URLEncoder.encode(reason, BasicAuthenticatorConstants.UTF_8) +
+                            BasicAuthenticatorConstants.TYPE_PARAM + BasicAuthenticatorConstants.INVITE;
                     setAuthenticatorErrorMessage(getErrorMessage(errorCode, ASK_PASSWORD_VIA_OTP), context);
                 } else if (errorCode.equals(
                         IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE)) {
@@ -553,7 +575,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         if (Boolean.parseBoolean(showAuthFailureReasonOnLoginPage)) {
                             redirectURL = loginPage + ("?" + queryParams)
                                     + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
-                                    BasicAuthenticatorConstants.LOCAL + buildErrorParamString(paramMap, omittingErrorParams);
+                                    BasicAuthenticatorConstants.LOCAL +
+                                    buildErrorParamString(paramMap, omittingErrorParams);
                         } else {
                             redirectURL = response.encodeRedirectURL(retryPage + ("?" + queryParams))
                                     + buildErrorParamString(paramMap, omittingErrorParams);
@@ -561,8 +584,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         Map<String, String> messageContext = getMessageContext(ACCOUNT_LOCKED_REASON,
                                 String.valueOf(reason));
                         setAuthenticatorErrorMessage(new AuthenticatorMessage
-                                (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
-                                        ACCOUNT_IS_LOCKED, messageContext),
+                                        (FrameworkConstants.AuthenticatorMessageType.ERROR, errorCode,
+                                                ACCOUNT_IS_LOCKED, messageContext),
                                 context);
                     } else if (errorCode.equals(
                             IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_MISMATCHED_ERROR_CODE)) {
@@ -577,7 +600,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                 + buildErrorParamString(paramMap, omittingErrorParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                                 BasicAuthenticatorConstants.LOCAL + retryParam;
-                        setAuthenticatorErrorMessage(getErrorMessage(errorCode, OTP_MISMATCH_IN_ADMIN_FORCED_PASSWORD_RESET),
+                        setAuthenticatorErrorMessage(
+                                getErrorMessage(errorCode, OTP_MISMATCH_IN_ADMIN_FORCED_PASSWORD_RESET),
                                 context);
                     } else {
                         Map<String, String> paramMap = new HashMap<>();
@@ -637,7 +661,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
     private static Map<String, String> getMessageContext(String key, String value) {
 
-        Map <String,String> messageContext = new HashMap<>();
+        Map<String, String> messageContext = new HashMap<>();
         messageContext.put(key, value);
         return messageContext;
     }
@@ -710,8 +734,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         if (!IdentityUtil.isEmailUsernameValidationDisabled()) {
             FrameworkUtils.validateUsername(loginIdentifierFromRequest, context);
         }
+
+        username = handleAgentAuthentication(context, username);
+
         String requestTenantDomain = MultitenantUtils.getTenantDomain(username);
-        String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
+        if (!Boolean.parseBoolean(IdentityUtil.getProperty(RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG))) {
+            requestTenantDomain = getTenantDomainFromUserName(context,
+                    BasicAuthUtil.usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
+        }
+        String tenantAwareUsername = BasicAuthUtil.getTenantAwareUsername(context,
+                BasicAuthUtil.usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
         String userId = null;
         if (BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().isEnabled(requestTenantDomain)) {
             ResolvedUserResult resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
@@ -723,6 +755,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 userId = resolvedUserResult.getUser().getUserID();
             } else {
                 context.setProperty(IS_INVALID_USERNAME, true);
+                validateUserTenantDomain(context, requestTenantDomain);
                 throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
                         ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
             }
@@ -751,8 +784,11 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
              * username from the context will be considered as the username submitted from the login page.
              */
             String requestUsername = request.getParameter(USER_NAME);
-            String requestUsernameWithTenant =
-                    UserCoreUtil.addTenantDomainToEntry(requestUsername, requestTenantDomain);
+            String requestUsernameWithTenant = null;
+            if (StringUtils.isNotBlank(requestUsername)) {
+                requestUsernameWithTenant =
+                        UserCoreUtil.addTenantDomainToEntry(requestUsername, requestTenantDomain);
+            }
             if (requestUsername != null && usernameFromContext != null &&
                     !usernameFromContext.equals(requestUsername) &&
                     !usernameFromContext.equals(requestUsernameWithTenant)) {
@@ -889,6 +925,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (StringUtils.isNotBlank(captchaParamString)) {
                 context.setProperty(FrameworkConstants.CAPTCHA_PARAM_STRING, captchaParamString);
             }
+            validateUserTenantDomain(context, requestTenantDomain);
             throw new InvalidCredentialsException(ErrorMessages.INVALID_CREDENTIALS.getCode(),
                     ErrorMessages.INVALID_CREDENTIALS.getMessage(), User.getUserFromUserName(username));
         }
@@ -896,12 +933,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         //TODO: user tenant domain has to be an attribute in the AuthenticationContext
         authProperties.put("user-tenant-domain", requestTenantDomain);
 
-
         AuthenticatedUser authenticatedUser = new AuthenticatedUser(authenticationResult.getAuthenticatedUser().get());
 
         // Update the username from the deprecated multi attribute login feature.
         updateMultiAttributeUsername(authenticatedUser, userStoreManager);
-        authenticatedUser.setAuthenticatedSubjectIdentifier(authenticatedUser.getUsernameAsSubjectIdentifier(true, true));
+        authenticatedUser.setAuthenticatedSubjectIdentifier(
+                authenticatedUser.getUsernameAsSubjectIdentifier(true, true));
         context.setSubject(authenticatedUser);
 
         String rememberMe = request.getParameter("chkRemember");
@@ -922,23 +959,52 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
+    /**
+     * Handle agent authentication by appending the AGENT domain if not already present. Do not allow users from other
+     * domains to authenticate during agent authentication.
+     *
+     * @param context  Authentication context.
+     * @param username Username provided.
+     * @return Updated username.
+     */
+    private static String handleAgentAuthentication(AuthenticationContext context, String username) {
+
+        if (context != null && context.getProperties() != null && context.getProperties().containsKey(AUTH_ENTITY) &&
+                AUTH_ENTITY_AGENT.equals(context.getProperty(AUTH_ENTITY))) {
+            String[] names = username.split(UserCoreConstants.DOMAIN_SEPARATOR);
+            if (names.length == 1) {
+                username = DEFAULT_AGENT_IDENTITY_USERSTORE_NAME + UserCoreConstants.DOMAIN_SEPARATOR + names[0];
+                return username;
+            }
+            String domain = UserCoreUtil.extractDomainFromName(names[0]);
+            if (!DEFAULT_AGENT_IDENTITY_USERSTORE_NAME.equalsIgnoreCase(domain)) {
+                username = DEFAULT_AGENT_IDENTITY_USERSTORE_NAME + UserCoreConstants.DOMAIN_SEPARATOR + names[1];
+            }
+        }
+        return username;
+    }
+
     @Override
     protected boolean retryAuthenticationEnabled() {
+
         return true;
     }
 
     @Override
     public String getContextIdentifier(HttpServletRequest request) {
+
         return request.getParameter("sessionDataKey");
     }
 
     @Override
     public String getFriendlyName() {
+
         return BasicAuthenticatorConstants.AUTHENTICATOR_FRIENDLY_NAME;
     }
 
     @Override
     public String getName() {
+
         return BasicAuthenticatorConstants.AUTHENTICATOR_NAME;
     }
 
@@ -1282,8 +1348,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
      *
      * @param context The authentication context containing information about the current authentication attempt.
      * @return An {@code Optional} containing an {@code AuthenticatorData} object representing the initiation data.
-     *         If the initiation data is available, it is encapsulated within the {@code Optional}; otherwise,
-     *         an empty {@code Optional} is returned.
+     * If the initiation data is available, it is encapsulated within the {@code Optional}; otherwise,
+     * an empty {@code Optional} is returned.
      */
     @Override
     public Optional<AuthenticatorData> getAuthInitiationData(AuthenticationContext context) {
@@ -1340,13 +1406,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         return true;
     }
 
-    /** Add application details to diagnosticLogBuilder.
+    /**
+     * Add application details to diagnosticLogBuilder.
      *
-     * @param context AuthenticationContext.
+     * @param context              AuthenticationContext.
      * @param diagnosticLogBuilder DiagnosticLogBuilder.
      */
     private void getApplicationDetails(AuthenticationContext context,
-                                                      DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder) {
+                                       DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder) {
 
         FrameworkUtils.getApplicationResourceId(context).ifPresent(applicationId ->
                 diagnosticLogBuilder.inputParam(LogConstants.InputKeys.APPLICATION_ID, applicationId));
@@ -1367,4 +1434,34 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         return AUTHENTICATOR_BASIC;
     }
 
+    private String getRecoveryPortalPath(String tenantDomain, String flowType) {
+
+        try {
+            if (FlowMgtConfigUtils.getFlowConfig(flowType, tenantDomain).getIsEnabled()) {
+                try {
+                    String configuredPortalURL = BrandingPreferenceMgtUtils.buildConfiguredPortalURL(null,
+                            tenantDomain,
+                            BasicAuthenticatorDataHolder.getInstance().getBrandingPreferenceManager(), flowType);
+                    return String.format("%s?flowType=%s&", configuredPortalURL, flowType);
+                } catch (BrandingPreferenceMgtException | URLBuilderException e) {
+                    log.error("Error while retrieving the portal URL for flowtype: " + flowType, e);
+                }
+            }
+        } catch (FlowMgtServerException e) {
+            log.error("Error while retrieving the flow configuration for " + flowType + " flow.", e);
+        }
+        return ConfigurationFacade.getInstance().getAccountRecoveryEndpointPath() + CONFIRM_RECOVERY_DO;
+    }
+
+    private void validateUserTenantDomain(AuthenticationContext context, String userTenantDomain) {
+
+        String contextTenantDomain = PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantDomain();
+        if (StringUtils.equalsIgnoreCase(userTenantDomain, contextTenantDomain)) {
+            return;
+        }
+
+        log.warn("Tenant domain mismatch detected during authentication failure. User Tenant Domain: "
+                + userTenantDomain + ", Request Tenant Domain: " + contextTenantDomain + ", isSaasApp: "
+                + context.getSequenceConfig().getApplicationConfig().isSaaSApp());
+    }
 }

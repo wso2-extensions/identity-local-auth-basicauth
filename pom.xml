@@ -26,7 +26,7 @@
 
     <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
     <modelVersion>4.0.0</modelVersion>
-    <version>6.8.43-SNAPSHOT</version>
+    <version>6.8.53-SNAPSHOT</version>
     <artifactId>identity-application-auth-basicauth</artifactId>
     <packaging>pom</packaging>
     <name>WSO2 Carbon - BasicAuth Identity Application Authenticator Module</name>
@@ -207,6 +207,11 @@
                 <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.wso2.carbon.identity.branding.preference.management</groupId>
+                <artifactId>org.wso2.carbon.identity.branding.preference.management.core</artifactId>
+                <version>${identity.branding.preference.management.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.wso2.carbon.identity.organization.management.core</groupId>
                 <artifactId>org.wso2.carbon.identity.organization.management.service</artifactId>
                 <version>${org.wso2.carbon.identity.organization.management.core.version}</version>
@@ -380,9 +385,13 @@
         <carbon.base.imp.pkg.version.range>[1.0.0, 2.0.0)</carbon.base.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>7.8.376</carbon.identity.framework.version>
+        <carbon.identity.framework.version>7.8.625</carbon.identity.framework.version>
         <carbon.identity.framework.imp.pkg.version.range>[5.19.14, 8.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
+
+        <identity.branding.preference.management.version>1.1.29</identity.branding.preference.management.version>
+        <identity.branding.preference.management.imp.pkg.version.range>[1.0.0, 2.0.0)
+        </identity.branding.preference.management.imp.pkg.version.range>
 
         <identity.governance.version>1.11.111</identity.governance.version>
         <identity.governance.imp.pkg.version.range>[1.5.89, 3.0.0)</identity.governance.imp.pkg.version.range>

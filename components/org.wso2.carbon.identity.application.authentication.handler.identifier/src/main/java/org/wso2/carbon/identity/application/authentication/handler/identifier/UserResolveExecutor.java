@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_ERROR;
-import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_CLAIM_URI;
@@ -130,7 +129,8 @@ public class UserResolveExecutor implements Executor {
         try {
             UserRealm userRealm = getUserRealm(tenantDomain);
             if (userRealm == null) {
-                executorResponse = new ExecutorResponse(STATUS_ERROR);
+                executorResponse = new ExecutorResponse();
+                executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("User realm is not available for tenant: " + tenantDomain);
                 return executorResponse;
             }
@@ -148,11 +148,14 @@ public class UserResolveExecutor implements Executor {
 
         } catch (UserStoreException e) {
             if (e.getMessage().startsWith(String.valueOf(30007))) {
-                executorResponse = new ExecutorResponse(STATUS_USER_ERROR);
-                executorResponse.setErrorMessage("Error while resolving user '" +
-                        LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
+                if (log.isDebugEnabled()) {
+                    log.debug("User '" + LoggerUtils.getMaskedContent(username) + "' does not exist in tenant '" +
+                            tenantDomain + "'.");
+                }
+                executorResponse = new ExecutorResponse(STATUS_COMPLETE);
             } else {
-                executorResponse = new ExecutorResponse(STATUS_ERROR);
+                executorResponse = new ExecutorResponse();
+                executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("Error while resolving user '" +
                         LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
             }
@@ -206,15 +209,18 @@ public class UserResolveExecutor implements Executor {
                                             FlowExecutionContext context)
             throws UserStoreException {
 
-        List<String> excludedUserstores = IdentityUtil.getPropertyAsList(FLOW_EXECUTION_USER_STORE_DOMAIN);
+        List<String> excludedUserStores = IdentityUtil.getPropertyAsList(FLOW_EXECUTION_USER_STORE_DOMAIN);
 
         while (userStoreManager != null) {
             String domain = userStoreManager.getRealmConfiguration()
                     .getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME);
 
+            boolean isReadOnly = Boolean.parseBoolean(userStoreManager.getRealmConfiguration()
+                    .getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_READ_ONLY));
+
             if (StringUtils.isNotBlank(domain)) {
-                // Skip this user store if it's in the excluded list
-                if (excludedUserstores != null && excludedUserstores.contains(domain)) {
+                // Skip this user store if it's read-only or included in the excluded user store list.
+                if (isReadOnly || excludedUserStores.contains(domain)) {
                     userStoreManager = userStoreManager.getSecondaryUserStoreManager();
                     continue;
                 }
@@ -239,12 +245,13 @@ public class UserResolveExecutor implements Executor {
      */
     private String resolveUsernameClaim(FlowExecutionContext context) {
 
-        String usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
-
+        String usernameClaim = null;
         if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
             usernameClaim = resolveUsernameFromUserIdentifier(context);
         }
-
+        if (StringUtils.isBlank(usernameClaim)) {
+            usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
+        }
         return usernameClaim;
     }
 }
