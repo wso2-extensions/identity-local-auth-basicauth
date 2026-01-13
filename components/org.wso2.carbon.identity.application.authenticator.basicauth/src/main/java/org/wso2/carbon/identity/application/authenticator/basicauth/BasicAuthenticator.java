@@ -24,6 +24,7 @@ import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.json.simple.JSONObject;
+import org.osgi.annotation.bundle.Capability;
 import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
@@ -94,6 +95,14 @@ import static org.wso2.carbon.identity.configuration.mgt.core.constant.Configura
 /**
  * Username Password based Authenticator.
  */
+//TODO add this for the other services that provide ApplicationAuthenticator
+@Capability(
+        namespace = "osgi.service",
+        attribute = {
+                "objectClass=org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator",
+                "service.scope=singleton"
+        }
+)
 public class BasicAuthenticator extends AbstractApplicationAuthenticator
         implements LocalApplicationAuthenticator {
 
