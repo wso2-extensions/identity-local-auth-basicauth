@@ -55,9 +55,9 @@
         <dependencies>
             <!-- Carbon Kernel dependencies -->
             <dependency>
-                <groupId>org.wso2.eclipse.osgi</groupId>
+                <groupId>org.eclipse.platform</groupId>
                 <artifactId>org.eclipse.osgi.services</artifactId>
-                <version>${eclipse.osgi.version}</version>
+                <version>${equinox.osgi.services.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
@@ -254,7 +254,7 @@
                 <plugin>
                     <groupId>org.apache.felix</groupId>
                     <artifactId>maven-bundle-plugin</artifactId>
-                    <version>3.2.0</version>
+                    <version>5.1.9</version>
                     <extensions>true</extensions>
                     <configuration>
                         <obrRepository>NONE</obrRepository>
@@ -355,7 +355,7 @@
 
         <osgi.framework.imp.pkg.version.range>[1.7.0, 2.0.0)</osgi.framework.imp.pkg.version.range>
         <osgi.service.component.imp.pkg.version.range>[1.2.0, 2.0.0)</osgi.service.component.imp.pkg.version.range>
-        <imp.pkg.version.javax.servlet>[2.6.0, 3.0.0)</imp.pkg.version.javax.servlet>
+        <imp.pkg.version.javax.servlet>[3.1.0, 4.0.0)</imp.pkg.version.javax.servlet>
 
         <!-- Commons version-->
         <commons-logging.osgi.version.range>[1.2,2.0)</commons-logging.osgi.version.range>
@@ -368,7 +368,7 @@
         <json-simple.version>1.1.wso2v1</json-simple.version>
         <json-smart.version>2.4.7</json-smart.version>
         <apache.felix.scr.ds.annotations.version>1.2.4</apache.felix.scr.ds.annotations.version>
-        <eclipse.osgi.version>3.5.100.v20160504-1419</eclipse.osgi.version>
+        <equinox.osgi.services.version>3.12.0</equinox.osgi.services.version>
 
         <!-- Maven plugin version -->
         <carbon.p2.plugin.version>1.5.3</carbon.p2.plugin.version>
