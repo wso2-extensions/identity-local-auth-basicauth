@@ -25,8 +25,8 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
@@ -119,7 +119,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -214,33 +214,30 @@ public class BasicAuthenticatorTestCase {
         System.setProperty("carbon.config.dir.path", "carbon.home");
     }
 
-    @BeforeClass
-    public void test() {
+        @BeforeMethod
+        public void setupStaticMocks() {
 
-        // Initiate mock static objects.
-        if (mockIdentityTenantUtil != null) {
-            mockIdentityTenantUtil.reset();
-        } else {
-            mockIdentityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+                // Initiate mock static objects per test method.
+                mockIdentityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+                mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantId(anyString())).thenReturn(-1234);
+
+                mockLoggerUtils = Mockito.mockStatic(LoggerUtils.class);
+                mockLoggerUtils.when(LoggerUtils::isDiagnosticLogsEnabled).thenReturn(false);
         }
-        mockIdentityTenantUtil.when(() -> IdentityTenantUtil.getTenantId(anyString())).thenReturn(-1234);
-        if (mockLoggerUtils != null) {
-            mockLoggerUtils.reset();
-        } else {
-            mockLoggerUtils = Mockito.mockStatic(LoggerUtils.class);
+
+        @AfterMethod
+        public void teardownStaticMocks() {
+
+                // Clear up the mock static objects.
+                if (mockIdentityTenantUtil != null) {
+                        mockIdentityTenantUtil.close();
+                        mockIdentityTenantUtil = null;
+                }
+                if (mockLoggerUtils != null) {
+                        mockLoggerUtils.close();
+                        mockLoggerUtils = null;
+                }
         }
-        mockLoggerUtils.when(LoggerUtils::isDiagnosticLogsEnabled).thenReturn(false);
-    }
-
-    @AfterClass
-    public void afterClass() {
-
-        // Clear up the mock static objects.
-        mockIdentityTenantUtil.close();
-        mockLoggerUtils.close();
-        mockIdentityTenantUtil = null;
-        mockLoggerUtils = null;
-    }
 
     @BeforeMethod
     public void init() throws IdentityGovernanceException {
@@ -1196,7 +1193,6 @@ public class BasicAuthenticatorTestCase {
             when(mockRequest.getParameter("login_hint")).thenReturn(contextInvalidEmailUsername);
 
             basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
-
             if (Boolean.parseBoolean(statusProvider) && !Boolean.parseBoolean(constexprUserTenantDomainMismatch)
                     && !Boolean.parseBoolean(contextInvalidEmailUsername)) {
                 assertEquals(redirect, DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
