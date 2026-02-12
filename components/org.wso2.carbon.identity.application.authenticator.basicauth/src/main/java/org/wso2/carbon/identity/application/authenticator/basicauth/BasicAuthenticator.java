@@ -131,7 +131,6 @@ import static org.wso2.carbon.identity.core.util.IdentityCoreConstants.DEFAULT_A
 /**
  * Username Password based Authenticator.
  */
-//TODO add this for the other services that provide ApplicationAuthenticator
 @Capability(
         namespace = "osgi.service",
         attribute = {
