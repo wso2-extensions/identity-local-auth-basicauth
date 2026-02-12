@@ -106,7 +106,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -1646,11 +1646,17 @@ public class BasicAuthenticatorTestCase {
     public void testProcessWithSensitiveDataInURLWhenNotAllowed() throws AuthenticationFailedException,
             LogoutFailedException {
 
-        try (MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);) {
+        try (MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);
+             MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class)) {
             mockAuthnCtxt = mock(AuthenticationContext.class);
             mockRequest = mock(HttpServletRequest.class);
             mockResponse = mock(HttpServletResponse.class);
             identityUtil.when(IdentityUtil::shouldAllowSensitiveDataInURL).thenReturn(false);
+            
+            fileBasedConfigurationBuilder.when(FileBasedConfigurationBuilder::getInstance)
+                    .thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(null);
 
             String queryString = BasicAuthenticatorConstants.USER_NAME + "=" + DUMMY_USER_NAME + "&" +
                     BasicAuthenticatorConstants.PASSWORD + "=" + DUMMY_PASSWORD;
@@ -1664,12 +1670,18 @@ public class BasicAuthenticatorTestCase {
     public void testProcessWithSensitiveDataInURLWhenAllowed() throws AuthenticationFailedException,
             LogoutFailedException {
 
-        try (MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);) {
+        try (MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);
+             MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class)) {
             mockAuthnCtxt = mock(AuthenticationContext.class);
             mockRequest = mock(HttpServletRequest.class);
             mockResponse = mock(HttpServletResponse.class);
 
             identityUtil.when(IdentityUtil::shouldAllowSensitiveDataInURL).thenReturn(true);
+            
+            fileBasedConfigurationBuilder.when(FileBasedConfigurationBuilder::getInstance)
+                    .thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(null);
 
             String queryString = BasicAuthenticatorConstants.USER_NAME + "=" + DUMMY_USER_NAME + "&" +
                     BasicAuthenticatorConstants.PASSWORD + "=" + DUMMY_PASSWORD;
