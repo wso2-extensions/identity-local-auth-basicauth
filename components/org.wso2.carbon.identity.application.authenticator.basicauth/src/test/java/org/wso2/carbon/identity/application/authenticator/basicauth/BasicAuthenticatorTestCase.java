@@ -2081,4 +2081,277 @@ public class BasicAuthenticatorTestCase {
             assertEquals(authenticatedUser.getUserName(), DUMMY_USER_NAME);
         }
     }
+
+    /**
+     * Test that the INVALID_CREDENTIALS thread local property is set when authentication fails
+     * due to invalid credentials in processAuthenticationResponse.
+     */
+    @Test
+    public void testInvalidCredentialsThreadLocalIsSetOnAuthFailure() throws Exception {
+
+        try (MockedStatic<MultitenantUtils> multitenantUtils = Mockito.mockStatic(MultitenantUtils.class);
+             MockedStatic<FrameworkUtils> frameworkUtils = Mockito.mockStatic(FrameworkUtils.class);
+             MockedStatic<IdentityTenantUtil> identityTenantUtil = Mockito.mockStatic(IdentityTenantUtil.class);
+             MockedStatic<User> user = Mockito.mockStatic(User.class);
+             MockedStatic<BasicAuthenticatorServiceComponent> basicAuthenticatorService =
+                     Mockito.mockStatic(BasicAuthenticatorServiceComponent.class)) {
+
+            when(mockAuthnCtxt.getProperties()).thenReturn(new HashMap<>());
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.PASSWORD)).thenReturn(DUMMY_PASSWORD);
+
+            identityTenantUtil.when(() -> IdentityTenantUtil.getTenantIdOfUser(DUMMY_USER_NAME))
+                    .thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+            basicAuthenticatorService
+                    .when(BasicAuthenticatorServiceComponent::getRealmService).thenReturn(mockRealmService);
+            when(mockRealmService.getTenantUserRealm(MultitenantConstants.SUPER_TENANT_ID)).thenReturn(mockRealm);
+            when(mockRealmService.getTenantManager()).thenReturn(mockTenantManager);
+            when(mockTenantManager.getTenantId(anyString())).thenReturn(MultitenantConstants.SUPER_TENANT_ID);
+            when(mockRealm.getUserStoreManager()).thenReturn(mockUserStoreManager);
+            multitenantUtils.when(() -> MultitenantUtils.getTenantAwareUsername(DUMMY_USER_NAME))
+                    .thenReturn(DUMMY_USER_NAME);
+            multitenantUtils.when(() -> MultitenantUtils.getTenantDomain(DUMMY_USER_NAME))
+                    .thenReturn(MultitenantConstants.SUPER_TENANT_DOMAIN_NAME);
+            frameworkUtils.when(() -> FrameworkUtils.preprocessUsername(DUMMY_USER_NAME, mockAuthnCtxt))
+                    .thenReturn(DUMMY_USER_NAME);
+            when(mockUserStoreManager.authenticateWithID(UserCoreClaimConstants.USERNAME_CLAIM_URI,
+                    DUMMY_USER_NAME, DUMMY_PASSWORD, UserCoreConstants.DEFAULT_PROFILE))
+                    .thenReturn(new AuthenticationResult(AuthenticationResult.AuthenticationStatus.FAIL));
+
+            User userFromUsername = new User();
+            userFromUsername.setUserName(DUMMY_USER_NAME);
+            user.when(() -> User.getUserFromUserName(anyString())).thenReturn(userFromUsername);
+
+            Map<String, Object> threadLocalMap = new HashMap<>();
+            IdentityUtil.threadLocalProperties.set(threadLocalMap);
+
+            try {
+                basicAuthenticator.processAuthenticationResponse(mockRequest, mockResponse, mockAuthnCtxt);
+                Assert.fail("Expected InvalidCredentialsException was not thrown");
+            } catch (Exception e) {
+                // The INVALID_CREDENTIALS flag must be set before the exception is thrown.
+                Assert.assertTrue(threadLocalMap.containsKey("invalid-credentials"),
+                        "INVALID_CREDENTIALS thread local property must be set on auth failure");
+                Assert.assertEquals(threadLocalMap.get("invalid-credentials"), Boolean.TRUE);
+            }
+        }
+    }
+
+    /**
+     * Test that the INVALID_CREDENTIALS thread local property is consumed and removed during
+     * initiateAuthenticationRequest so it does not leak across requests.
+     */
+    @Test
+    public void testInvalidCredentialsThreadLocalIsConsumedInInitiateAuth()
+            throws AuthenticationFailedException, IOException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("BasicAuthenticator", true,
+                    new HashMap<>());
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+
+            // Pre-populate the thread-local with the INVALID_CREDENTIALS flag.
+            Map<String, Object> threadLocalMap = new HashMap<>();
+            threadLocalMap.put("invalid-credentials", Boolean.TRUE);
+            IdentityUtil.threadLocalProperties.set(threadLocalMap);
+
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(null);
+
+            doAnswer((Answer<Object>) invocation -> {
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }).when(mockResponse).sendRedirect(anyString());
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+
+            // The flag must have been removed by initiateAuthenticationRequest.
+            Assert.assertFalse(threadLocalMap.containsKey("invalid-credentials"),
+                    "INVALID_CREDENTIALS thread local property must be removed in initiateAuthenticationRequest");
+        }
+    }
+
+    /**
+     * Test that when skipAccountLockCheckInInitAuthentication=true and the previous attempt had
+     * invalid credentials, the error code is overridden to INVALID_CREDENTIAL even if the account
+     * is currently reported as locked.
+     */
+    @Test
+    public void testErrorCodeOverriddenToInvalidCredentialWhenSkipEnabled()
+            throws AuthenticationFailedException, IOException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockResponse.encodeRedirectURL(DUMMY_RETRY_URL + "?" + DUMMY_QUERY_PARAMS))
+                    .thenReturn(DUMMY_RETRY_URL_WITH_QUERY);
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+            Map<String, String> paramMap = new HashMap<>();
+            paramMap.put(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON, "true");
+            paramMap.put(BasicAuthenticatorConstants.CONF_SKIP_ACCOUNT_LOCK_CHECK_IN_INIT_AUTHENTICATION, "true");
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("BasicAuthenticator", true, paramMap);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+
+            // Simulate a previously-set INVALID_CREDENTIALS flag.
+            Map<String, Object> threadLocalMap = new HashMap<>();
+            threadLocalMap.put("invalid-credentials", Boolean.TRUE);
+            IdentityUtil.threadLocalProperties.set(threadLocalMap);
+
+            IdentityErrorMsgContext lockedCtx =
+                    new IdentityErrorMsgContext(UserCoreConstants.ErrorCode.USER_IS_LOCKED);
+            lockedCtx.setMaximumLoginAttempts(5);
+            lockedCtx.setFailedLoginAttempts(5);
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(lockedCtx);
+
+            doAnswer((Answer<Object>) invocation -> {
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }).when(mockResponse).sendRedirect(anyString());
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+
+            Assert.assertNotNull(redirect, "Redirect URL must not be null");
+            Assert.assertTrue(redirect.contains(UserCoreConstants.ErrorCode.INVALID_CREDENTIAL),
+                    "Redirect must contain INVALID_CREDENTIAL error code when skipAccountLockCheck is enabled "
+                            + "and credentials were invalid. Actual redirect: " + redirect);
+            Assert.assertFalse(redirect.contains(UserCoreConstants.ErrorCode.USER_IS_LOCKED),
+                    "Redirect must NOT contain USER_IS_LOCKED when skipAccountLockCheck overrides the error code. "
+                            + "Actual redirect: " + redirect);
+        }
+    }
+
+    /**
+     * Test that when skipAccountLockCheckInInitAuthentication=false the USER_IS_LOCKED error code
+     * is preserved even when the INVALID_CREDENTIALS flag is set.
+     */
+    @Test
+    public void testErrorCodePreservedAsLockedWhenSkipDisabled()
+            throws AuthenticationFailedException, IOException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockResponse.encodeRedirectURL(DUMMY_RETRY_URL + "?" + DUMMY_QUERY_PARAMS))
+                    .thenReturn(DUMMY_RETRY_URL_WITH_QUERY);
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+            Map<String, String> paramMap = new HashMap<>();
+            paramMap.put(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON, "true");
+            paramMap.put(BasicAuthenticatorConstants.CONF_SKIP_ACCOUNT_LOCK_CHECK_IN_INIT_AUTHENTICATION, "false");
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("BasicAuthenticator", true, paramMap);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+
+            // INVALID_CREDENTIALS flag is set but skip is false, so it must not change the error code.
+            Map<String, Object> threadLocalMap = new HashMap<>();
+            threadLocalMap.put("invalid-credentials", Boolean.TRUE);
+            IdentityUtil.threadLocalProperties.set(threadLocalMap);
+
+            IdentityErrorMsgContext lockedCtx =
+                    new IdentityErrorMsgContext(UserCoreConstants.ErrorCode.USER_IS_LOCKED);
+            lockedCtx.setMaximumLoginAttempts(5);
+            lockedCtx.setFailedLoginAttempts(5);
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(lockedCtx);
+
+            doAnswer((Answer<Object>) invocation -> {
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }).when(mockResponse).sendRedirect(anyString());
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+
+            Assert.assertNotNull(redirect, "Redirect URL must not be null");
+            Assert.assertTrue(redirect.contains(UserCoreConstants.ErrorCode.USER_IS_LOCKED),
+                    "Redirect must contain USER_IS_LOCKED when skipAccountLockCheck is disabled. "
+                            + "Actual redirect: " + redirect);
+        }
+    }
+
+    /**
+     * Test that when the INVALID_CREDENTIALS flag is absent the error code is never overridden,
+     * even when skipAccountLockCheckInInitAuthentication=true.
+     */
+    @Test
+    public void testErrorCodeNotOverriddenWhenInvalidCredentialsFlagAbsent()
+            throws AuthenticationFailedException, IOException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder =
+                     Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            when(mockResponse.encodeRedirectURL(DUMMY_RETRY_URL + "?" + DUMMY_QUERY_PARAMS))
+                    .thenReturn(DUMMY_RETRY_URL_WITH_QUERY);
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+            Map<String, String> paramMap = new HashMap<>();
+            paramMap.put(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON, "true");
+            paramMap.put(BasicAuthenticatorConstants.CONF_SKIP_ACCOUNT_LOCK_CHECK_IN_INIT_AUTHENTICATION, "true");
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("BasicAuthenticator", true, paramMap);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+
+            // No INVALID_CREDENTIALS flag in thread-local.
+            Map<String, Object> threadLocalMap = new HashMap<>();
+            IdentityUtil.threadLocalProperties.set(threadLocalMap);
+
+            IdentityErrorMsgContext lockedCtx =
+                    new IdentityErrorMsgContext(UserCoreConstants.ErrorCode.USER_IS_LOCKED);
+            lockedCtx.setMaximumLoginAttempts(5);
+            lockedCtx.setFailedLoginAttempts(5);
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(lockedCtx);
+
+            doAnswer((Answer<Object>) invocation -> {
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }).when(mockResponse).sendRedirect(anyString());
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+
+            Assert.assertNotNull(redirect, "Redirect URL must not be null");
+            Assert.assertTrue(redirect.contains(UserCoreConstants.ErrorCode.USER_IS_LOCKED),
+                    "Redirect must contain USER_IS_LOCKED when INVALID_CREDENTIALS flag is not set. "
+                            + "Actual redirect: " + redirect);
+        }
+    }
 }
