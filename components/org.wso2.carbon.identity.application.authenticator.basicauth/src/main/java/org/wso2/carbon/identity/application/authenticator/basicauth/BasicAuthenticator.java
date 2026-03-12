@@ -755,7 +755,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         String userId = null;
         if (BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().isEnabled(requestTenantDomain)) {
             ResolvedUserResult resolvedUserResult = BasicAuthenticatorDataHolder.getInstance().getMultiAttributeLogin().
-                    resolveUser(tenantAwareUsername, requestTenantDomain);
+                    resolveUser(tenantAwareUsername, requestTenantDomain, true);
             if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
                     equals(resolvedUserResult.getResolvedStatus())) {
                 tenantAwareUsername = resolvedUserResult.getUser().getUsername();
