@@ -149,6 +149,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     private static final String APPEND_USER_TENANT_TO_USERNAME = "appendUserTenantToUsername";
     private static final String APPEND_APP_TENANT_TO_USERNAME = "appendAppTenantToUsername";
     private static final String RE_CAPTCHA_USER_DOMAIN = "user-domain-recaptcha";
+    private static final String INVALID_CREDENTIALS = "invalid-credentials";
     public static final String ADDITIONAL_QUERY_PARAMS = "additionalParams";
     public static final String RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS = "RESOLVE_CREDENTIALS_FROM_RUNTIME_PARAMS";
 
@@ -280,6 +281,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             getApplicationDetails(context, diagnosticLogBuilder);
             LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
         }
+        Boolean areCredentialsInvalid = null;
+        if (IdentityUtil.threadLocalProperties.get().containsKey(INVALID_CREDENTIALS)) {
+            areCredentialsInvalid = (Boolean) IdentityUtil.threadLocalProperties.get().get(INVALID_CREDENTIALS);
+            IdentityUtil.threadLocalProperties.get().remove(INVALID_CREDENTIALS);
+        }
+
         Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
         String showAuthFailureReason = null;
         String showAuthFailureReasonOnLoginPage = null;
@@ -531,6 +538,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         }
                         setAuthenticatorErrorMessage(getErrorMessage(errorCode, INVALID_CREDENTIALS_ARE_PROVIDED),
                                 context);
+                    }
+
+                    // If the authentication for locked accounts has failed due to invalid credentials
+                    if (areCredentialsInvalid != null && Boolean.TRUE.equals(areCredentialsInvalid)
+                            && isSkipAccountLockCheckInInitAuthentication()) {
+                        errorCode = UserCoreConstants.ErrorCode.INVALID_CREDENTIAL;
                     }
 
                     String reason = null;
@@ -926,6 +939,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         username, IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN).toString());
             }
             IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
+            IdentityUtil.threadLocalProperties.get().put(INVALID_CREDENTIALS, true);
 
             IdentityErrorMsgContext errorContext = IdentityUtil.getIdentityErrorMsg();
             int failedLoginAttempts = errorContext == null ? 0 : errorContext.getFailedLoginAttempts();
@@ -1474,5 +1488,19 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         log.warn("Tenant domain mismatch detected during authentication failure. User Tenant Domain: "
                 + userTenantDomain + ", Request Tenant Domain: " + contextTenantDomain + ", isSaasApp: "
                 + context.getSequenceConfig().getApplicationConfig().isSaaSApp());
+    }
+
+    private boolean isSkipAccountLockCheckInInitAuthentication() {
+
+        Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
+
+        String skipAccountLockCheckInInitAuthentication = "false";
+
+        if (parameterMap != null) {
+            skipAccountLockCheckInInitAuthentication = parameterMap.get(
+                    BasicAuthenticatorConstants.CONF_SKIP_ACCOUNT_LOCK_CHECK_IN_INIT_AUTHENTICATION);
+        }
+
+        return Boolean.parseBoolean(skipAccountLockCheckInInitAuthentication);
     }
 }
