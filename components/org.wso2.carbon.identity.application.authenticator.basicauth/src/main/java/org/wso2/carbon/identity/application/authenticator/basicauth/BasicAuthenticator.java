@@ -1295,7 +1295,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
         boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
         if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled() && !isSaaSApp) {
-            return IdentityTenantUtil.getTenantDomainFromContext();
+            return context.getTenantDomain();
         }
         return MultitenantUtils.getTenantDomain(username);
     }

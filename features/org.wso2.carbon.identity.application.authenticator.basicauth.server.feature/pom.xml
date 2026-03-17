@@ -39,6 +39,10 @@
             <artifactId>org.wso2.carbon.identity.application.authenticator.basicauth</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
+            <artifactId>org.wso2.carbon.identity.application.authentication.handler.shared.user.identifier</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.wso2.carbon.identity.framework</groupId>
             <artifactId>org.wso2.carbon.identity.application.authentication.framework</artifactId>
         </dependency>
@@ -63,6 +67,9 @@
                             <bundles>
                                 <bundleDef>
                                     org.wso2.carbon.identity.application.auth.basic:org.wso2.carbon.identity.application.authenticator.basicauth
+                                </bundleDef>
+                                <bundleDef>
+                                    org.wso2.carbon.identity.application.auth.basic:org.wso2.carbon.identity.application.authentication.handler.shared.user.identifier
                                 </bundleDef>
                             </bundles>
                             <importFeatures>

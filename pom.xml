@@ -47,6 +47,7 @@
         <module>components/org.wso2.carbon.identity.application.authenticator.basicauth</module>
         <module>components/org.wso2.carbon.identity.application.authentication.handler.identifier</module>
         <module>components/org.wso2.carbon.identity.application.authentication.handler.session</module>
+        <module>components/org.wso2.carbon.identity.application.authentication.handler.shared.user.identifier</module>
         <module>features/org.wso2.carbon.identity.application.authenticator.basicauth.server.feature</module>
         <module>components/org.wso2.carbon.identity.application.authenticator.basicauth.jwt</module>
     </modules>
@@ -151,6 +152,11 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
+                <artifactId>org.wso2.carbon.identity.application.authentication.handler.shared.user.identifier</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>commons-lang.wso2</groupId>
                 <artifactId>commons-lang</artifactId>
                 <version>${commons-lang.wso2.version}</version>
@@ -215,6 +221,11 @@
                 <groupId>org.wso2.carbon.identity.organization.management.core</groupId>
                 <artifactId>org.wso2.carbon.identity.organization.management.service</artifactId>
                 <version>${org.wso2.carbon.identity.organization.management.core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.wso2.carbon.identity.organization.management</groupId>
+                <artifactId>org.wso2.carbon.identity.organization.management.organization.user.sharing</artifactId>
+                <version>${org.wso2.carbon.identity.organization.management.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jacoco</groupId>
@@ -385,7 +396,7 @@
         <carbon.base.imp.pkg.version.range>[1.0.0, 2.0.0)</carbon.base.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>7.8.625</carbon.identity.framework.version>
+        <carbon.identity.framework.version>7.8.677</carbon.identity.framework.version>
         <carbon.identity.framework.imp.pkg.version.range>[5.19.14, 8.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 
@@ -435,6 +446,12 @@
         </org.wso2.carbon.identity.organization.management.core.version>
         <org.wso2.carbon.identity.organization.management.core.version.range>[1.0.0, 2.0.0)
         </org.wso2.carbon.identity.organization.management.core.version.range>
-    </properties>  
+
+        <!-- Organization User Sharing Version -->
+        <org.wso2.carbon.identity.organization.management.version>2.4.4
+        </org.wso2.carbon.identity.organization.management.version>
+        <org.wso2.carbon.identity.organization.management.version.range>[2.0.0, 3.0.0)
+        </org.wso2.carbon.identity.organization.management.version.range>
+    </properties>
   
 </project>
