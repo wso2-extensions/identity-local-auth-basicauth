@@ -1208,6 +1208,7 @@ public class BasicAuthenticatorTestCase {
             } else if (Boolean.parseBoolean(statusProvider) && Boolean.parseBoolean(contextInvalidEmailUsername)) {
                 assertEquals(redirect, DUMMY_LOGIN_PAGEURL + "?" + DUMMY_QUERY_PARAMS
                         + "&inputType=login_hint"
+                        + "&login_hint=" + contextInvalidEmailUsername
                         + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME
                         + ":" + BasicAuthenticatorConstants.LOCAL
                         + "&authFailure=true&authFailureMsg=emailusername.fail.message");
@@ -2005,6 +2006,84 @@ public class BasicAuthenticatorTestCase {
 
         String result = (String) method.invoke(null, context, username);
         assertEquals(result, username, "Username should remain unchanged when AUTH_ENTITY is not set");
+    }
+
+    @Test
+    public void testInitiateAuthRequestWithLoginHintNotInQueryParams()
+            throws AuthenticationFailedException, IOException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class)) {
+
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(null);
+
+            // Query params from initial request do not contain login_hint (mid-flow scenario).
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(false);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(false);
+
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.LOGIN_HINT)).thenReturn(DUMMY_USER_NAME);
+
+            doAnswer((Answer<Object>) invocation -> {
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }).when(mockResponse).sendRedirect(anyString());
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+
+            // login_hint value must be appended to the redirect URL.
+            assertTrue(redirect.contains("&" + BasicAuthenticatorConstants.LOGIN_HINT + "="),
+                    "login_hint should be appended to query params when not already present.");
+            assertTrue(redirect.contains("&inputType=" + FrameworkConstants.INPUT_TYPE_LOGIN_HINT),
+                    "inputType=login_hint should be present in the redirect URL.");
+        }
+    }
+
+    @Test
+    public void testInitiateAuthRequestWithLoginHintAlreadyInQueryParams()
+            throws AuthenticationFailedException, IOException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class)) {
+
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(null);
+
+            // Query params from initial request already contain login_hint.
+            String queryParamsWithLoginHint = DUMMY_QUERY_PARAMS + "&login_hint=" + DUMMY_USER_NAME;
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(queryParamsWithLoginHint);
+            when(mockAuthnCtxt.getProperty("UserTenantDomainMismatch")).thenReturn(false);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(false);
+
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.LOGIN_HINT)).thenReturn(DUMMY_USER_NAME);
+
+            doAnswer((Answer<Object>) invocation -> {
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }).when(mockResponse).sendRedirect(anyString());
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+
+            // login_hint must appear exactly once in the redirect URL.
+            int count = 0;
+            int idx = 0;
+            while ((idx = redirect.indexOf("login_hint=", idx)) != -1) {
+                count++;
+                idx++;
+            }
+            assertEquals(count, 1, "login_hint should not be duplicated in query params.");
+        }
     }
 
     @Test
