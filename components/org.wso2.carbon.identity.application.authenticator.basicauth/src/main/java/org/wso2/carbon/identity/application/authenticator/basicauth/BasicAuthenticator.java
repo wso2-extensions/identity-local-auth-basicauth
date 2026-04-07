@@ -83,6 +83,7 @@ import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -355,6 +356,14 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         if (StringUtils.isNotBlank(loginHint) && StringUtils.isBlank(inputType)) {
             inputType = FrameworkConstants.INPUT_TYPE_LOGIN_HINT;
             queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE + "=" + inputType;
+            boolean isLoginHintAvailableInQueryParams =
+                    queryParams.contains("&" + BasicAuthenticatorConstants.LOGIN_HINT + "=") ||
+                    queryParams.startsWith(BasicAuthenticatorConstants.LOGIN_HINT + "=");
+            if (!isLoginHintAvailableInQueryParams) {
+                // If login hint is not present in query params, add it to the query params to be used in login page.
+                queryParams += "&" + BasicAuthenticatorConstants.LOGIN_HINT + "=" +
+                        URLEncoder.encode(loginHint, StandardCharsets.UTF_8);
+            }
             context.addEndpointParam(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, loginHint);
             String additionalParams = runtimeParams.get(ADDITIONAL_QUERY_PARAMS);
             if (StringUtils.isNotBlank(additionalParams)) {
