@@ -978,6 +978,9 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
         boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
         if (IdentityTenantUtil.isTenantQualifiedUrlsEnabled() && !isSaaSApp) {
+            if (context.getTenantDomain() != null) {
+                return context.getTenantDomain();
+            }
             return IdentityTenantUtil.getTenantDomainFromContext();
         }
         return MultitenantUtils.getTenantDomain(username);
