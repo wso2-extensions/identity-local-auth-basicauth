@@ -750,6 +750,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             requestTenantDomain = getTenantDomainFromUserName(context,
                     BasicAuthUtil.usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
         }
+        /*
+         * userTenantDomain is the tenant where the user resides and must be used for user-specific
+         * operations (e.g., resolving the user store). In B2B shared user direct login flows, this may differ from
+         * requestTenantDomain, which reflects the application's tenant and must be used for
+         * application-specific operations.
+         */
         String userTenantDomain = resolveUserTenantDomain(requestTenantDomain, context);
         String tenantAwareUsername = BasicAuthUtil.getTenantAwareUsername(context,
                 BasicAuthUtil.usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
