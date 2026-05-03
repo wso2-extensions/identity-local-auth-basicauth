@@ -759,6 +759,13 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             requestTenantDomain = getTenantDomainFromUserName(context,
                     BasicAuthUtil.usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
         }
+        /*
+         * userTenantDomain is the tenant where the user resides and must be used for user-specific
+         * operations (e.g., resolving the user store). In B2B shared user direct login flows, this may differ from
+         * requestTenantDomain, which reflects the application's tenant and must be used for
+         * application-specific operations.
+         */
+        String userTenantDomain = resolveUserTenantDomain(requestTenantDomain, context);
         String tenantAwareUsername = BasicAuthUtil.getTenantAwareUsername(context,
                 BasicAuthUtil.usePreprocessedUsername(context) ? username : loginIdentifierFromRequest);
         String userId = null;
@@ -821,7 +828,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         authProperties.put(PASSWORD_PROPERTY, password);
 
         boolean isAuthenticated = false;
-        AbstractUserStoreManager userStoreManager = getUserStoreManager(username, requestTenantDomain);
+        AbstractUserStoreManager userStoreManager = getUserStoreManager(username, userTenantDomain);
         // Reset RE_CAPTCHA_USER_DOMAIN thread local variable before the authentication
         IdentityUtil.threadLocalProperties.get().remove(RE_CAPTCHA_USER_DOMAIN);
         // Check the authentication
@@ -1483,5 +1490,16 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         log.warn("Tenant domain mismatch detected during authentication failure. User Tenant Domain: "
                 + userTenantDomain + ", Request Tenant Domain: " + contextTenantDomain + ", isSaasApp: "
                 + context.getSequenceConfig().getApplicationConfig().isSaaSApp());
+    }
+
+    private String resolveUserTenantDomain(String requestTenantDomain, AuthenticationContext context) {
+
+        if (Boolean.parseBoolean(IdentityUtil.getProperty(RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG)) ||
+                !IdentityTenantUtil.isTenantQualifiedUrlsEnabled() ||
+                context.getSequenceConfig().getApplicationConfig().isSaaSApp()) {
+            return requestTenantDomain;
+        }
+
+        return context.getUserResidentTenantDomain();
     }
 }
