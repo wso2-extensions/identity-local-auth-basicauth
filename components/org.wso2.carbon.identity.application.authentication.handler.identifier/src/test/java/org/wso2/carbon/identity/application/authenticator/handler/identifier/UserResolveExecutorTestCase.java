@@ -14,6 +14,8 @@ import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowUser;
+import org.wso2.carbon.identity.flow.mgt.model.ExecutorDTO;
+import org.wso2.carbon.identity.flow.mgt.model.NodeConfig;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
@@ -37,6 +39,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_ERROR;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_RETRY;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 
 public class UserResolveExecutorTestCase {
@@ -73,6 +76,12 @@ public class UserResolveExecutorTestCase {
 
     @Mock
     private MultiAttributeLoginService mockMultiAttributeLoginService;
+
+    @Mock
+    private NodeConfig mockNodeConfig;
+
+    @Mock
+    private ExecutorDTO mockExecutorDTO;
 
     private UserResolveExecutor userResolveExecutor;
     private final Map<String, Object> userClaims = new HashMap<>();
@@ -287,5 +296,153 @@ public class UserResolveExecutorTestCase {
         Field field = IdentifierAuthenticatorServiceComponent.class.getDeclaredField("multiAttributeLogin");
         field.setAccessible(true);
         field.set(null, null);
+    }
+
+    // ---- notifyUserExistence tests ----
+
+    @Test
+    public void testUserNotFound_withNotifyUserExistenceEnabled() throws Exception {
+
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
+        when(mockUserStoreManager.isExistingUser(anyString()))
+                .thenThrow(new UserStoreException("30007 - User does not exist"));
+        setupExecutorMetadata("notifyUserExistence", "true");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        Assert.assertEquals(response.getErrorMessage(), "{{password.reset.user.resolver.invalid.identifier}}");
+    }
+
+    @Test
+    public void testUserNotFound_withNotifyUserExistenceDisabled() throws Exception {
+
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
+        when(mockUserStoreManager.isExistingUser(anyString()))
+                .thenThrow(new UserStoreException("30007 - User does not exist"));
+        setupExecutorMetadata("notifyUserExistence", "false");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+    }
+
+    @Test
+    public void testUserNotFound_withNullCurrentNode() throws Exception {
+
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
+        when(mockUserStoreManager.isExistingUser(anyString()))
+                .thenThrow(new UserStoreException("30007 - User does not exist"));
+        when(mockContext.getCurrentNode()).thenReturn(null);
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+    }
+
+    // ---- notifyUserAccountStatus tests ----
+
+    @Test
+    public void testAccountLocked_withNotifyAccountStatusEnabled() throws Exception {
+
+        setupUserWithClaims();
+        setupExecutorMetadata("notifyUserAccountStatus", "true");
+        when(mockFlowUser.isAccountLocked()).thenReturn(true);
+        when(mockFlowUser.getAccountLockedReason()).thenReturn(null);
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        Assert.assertEquals(response.getErrorMessage(), "{{password.reset.user.resolver.account.locked}}");
+    }
+
+    @Test
+    public void testAccountLocked_withMaxAttemptsExceededReason() throws Exception {
+
+        setupUserWithClaims();
+        setupExecutorMetadata("notifyUserAccountStatus", "true");
+        when(mockFlowUser.isAccountLocked()).thenReturn(true);
+        when(mockFlowUser.getAccountLockedReason()).thenReturn("MAX_ATTEMPTS_EXCEEDED");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        Assert.assertEquals(response.getErrorMessage(),
+                "{{password.reset.user.resolver.account.locked.max.attempts}}");
+    }
+
+    @Test
+    public void testAccountLocked_withAdminInitiatedReason() throws Exception {
+
+        setupUserWithClaims();
+        setupExecutorMetadata("notifyUserAccountStatus", "true");
+        when(mockFlowUser.isAccountLocked()).thenReturn(true);
+        when(mockFlowUser.getAccountLockedReason()).thenReturn("ADMIN_INITIATED");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        Assert.assertEquals(response.getErrorMessage(), "{{password.reset.user.resolver.account.locked}}");
+    }
+
+    @Test
+    public void testAccountDisabled_withNotifyAccountStatusEnabled() throws Exception {
+
+        setupUserWithClaims();
+        setupExecutorMetadata("notifyUserAccountStatus", "true");
+        when(mockFlowUser.isAccountLocked()).thenReturn(false);
+        when(mockFlowUser.isAccountDisabled()).thenReturn(true);
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        Assert.assertEquals(response.getErrorMessage(),
+                "{{password.reset.user.resolver.account.disabled}}");
+    }
+
+    @Test
+    public void testAccountLocked_withNotifyAccountStatusDisabled() throws Exception {
+
+        setupUserWithClaims();
+        setupExecutorMetadata("notifyUserAccountStatus", "false");
+        when(mockFlowUser.isAccountLocked()).thenReturn(true);
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+    }
+
+    @Test
+    public void testAccountStatus_withNullCurrentNode() throws Exception {
+
+        setupUserWithClaims();
+        when(mockContext.getCurrentNode()).thenReturn(null);
+        when(mockFlowUser.isAccountLocked()).thenReturn(true);
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+    }
+
+    // ---- Helpers ----
+
+    private void setupExecutorMetadata(String key, String value) {
+
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put(key, value);
+        when(mockContext.getCurrentNode()).thenReturn(mockNodeConfig);
+        when(mockNodeConfig.getExecutorConfig()).thenReturn(mockExecutorDTO);
+        when(mockExecutorDTO.getMetadata()).thenReturn(metadata);
+    }
+
+    private void setupUserWithClaims() throws Exception {
+
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
+        when(mockUserStoreManager.isExistingUser(TEST_DOMAIN_QUALIFIED_USERNAME)).thenReturn(true);
+        Claim emailClaim = new Claim();
+        emailClaim.setClaimUri("http://wso2.org/claims/emailaddress");
+        emailClaim.setValue("test@example.com");
+        when(mockUserStoreManager.getUserClaimValues(TEST_DOMAIN_QUALIFIED_USERNAME, null))
+                .thenReturn(new Claim[]{emailClaim});
     }
 }
