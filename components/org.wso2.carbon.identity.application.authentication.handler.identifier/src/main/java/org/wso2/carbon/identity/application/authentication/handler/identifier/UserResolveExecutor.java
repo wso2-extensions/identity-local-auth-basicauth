@@ -280,6 +280,13 @@ public class UserResolveExecutor implements Executor {
         return usernameClaim;
     }
 
+    /**
+     * Returns the i18n message key corresponding to the account lock reason.
+     * If the reason is blank or unrecognized, the generic locked message key is returned.
+     *
+     * @param reason Account locked reason string stored in the user's identity claims.
+     * @return i18n message key to surface to the user.
+     */
     private String getAccountLockedReason(String reason) {
         if (StringUtils.isBlank(reason)) {
             return "{{password.reset.user.resolver.account.locked}}";
@@ -303,21 +310,43 @@ public class UserResolveExecutor implements Executor {
         }
     }
 
+    /**
+     * Checks whether the notifyUserExistence flag is enabled in the executor metadata.
+     *
+     * @param context Flow execution context.
+     * @return True if the flag is enabled, false otherwise.
+     */
     private boolean isNotifyUserExistenceEnabled(FlowExecutionContext context) {
-        NodeConfig currentNode = context.getCurrentNode();
-        ExecutorDTO executorConfig = currentNode.getExecutorConfig();
-        if (executorConfig == null || executorConfig.getMetadata() == null) {
-            return false;
-        }
-        return Boolean.parseBoolean(executorConfig.getMetadata().get(NOTIFY_USER_EXISTENCE));
+        return isExecutorMetadataFlagEnabled(context, NOTIFY_USER_EXISTENCE);
     }
 
+    /**
+     * Checks whether the notifyUserAccountStatus flag is enabled in the executor metadata.
+     *
+     * @param context Flow execution context.
+     * @return True if the flag is enabled, false otherwise.
+     */
     private boolean isNotifyUserAccountStatusEnabled(FlowExecutionContext context) {
+        return isExecutorMetadataFlagEnabled(context, NOTIFY_USER_ACCOUNT_STATUS);
+    }
+
+    /**
+     * Reads a boolean flag from the current node's executor metadata.
+     * Returns false safely if the node, executor config, or metadata map is absent.
+     *
+     * @param context     Flow execution context.
+     * @param metadataKey Metadata key to look up.
+     * @return True if the metadata value parses to true, false if absent or unparseable.
+     */
+    private boolean isExecutorMetadataFlagEnabled(FlowExecutionContext context, String metadataKey) {
         NodeConfig currentNode = context.getCurrentNode();
+        if (currentNode == null) {
+            return false;
+        }
         ExecutorDTO executorConfig = currentNode.getExecutorConfig();
         if (executorConfig == null || executorConfig.getMetadata() == null) {
             return false;
         }
-        return Boolean.parseBoolean(executorConfig.getMetadata().get(NOTIFY_USER_ACCOUNT_STATUS));
+        return Boolean.parseBoolean(executorConfig.getMetadata().get(metadataKey));
     }
 }
