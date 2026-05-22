@@ -152,7 +152,7 @@ public class UserResolveExecutor implements Executor {
                         String reason = context.getFlowUser().getAccountLockedReason();
                         executorResponse = new ExecutorResponse();
                         executorResponse.setResult(STATUS_RETRY);
-                        executorResponse.setErrorMessage(getAccountLockedMessageFromReason(reason));
+                        executorResponse.setErrorMessage(getAccountLockedReason(reason));
                         return executorResponse;
                     } else if (context.getFlowUser().isAccountDisabled()) {
                         executorResponse = new ExecutorResponse();
@@ -280,7 +280,7 @@ public class UserResolveExecutor implements Executor {
         return usernameClaim;
     }
 
-    private String getAccountLockedMessageFromReason(String reason) {
+    private String getAccountLockedReason(String reason) {
         if (StringUtils.isBlank(reason)) {
             return "{{password.reset.user.resolver.account.locked}}";
         }
