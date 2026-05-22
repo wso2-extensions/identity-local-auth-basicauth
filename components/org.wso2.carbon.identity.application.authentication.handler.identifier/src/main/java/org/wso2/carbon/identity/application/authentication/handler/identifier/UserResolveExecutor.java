@@ -18,9 +18,6 @@
 
 package org.wso2.carbon.identity.application.authentication.handler.identifier;
 
-import java.util.Arrays;
-import java.util.Map;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -32,21 +29,26 @@ import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
+import org.wso2.carbon.identity.flow.mgt.model.ExecutorDTO;
+import org.wso2.carbon.identity.flow.mgt.model.NodeConfig;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
+import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
-import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.claim.Claim;
 import org.wso2.carbon.user.core.service.RealmService;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_RETRY;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_CLAIM_URI;
 
 /**
@@ -58,6 +60,8 @@ public class UserResolveExecutor implements Executor {
     public static final String USER_IDENTIFIER = "userIdentifier";
     private static final Log log = LogFactory.getLog(UserResolveExecutor.class);
     public static final String FLOW_EXECUTION_USER_STORE_DOMAIN = "FlowExecution.ExcludedUserstores.Userstore";
+    private static final String NOTIFY_USER_EXISTENCE = "notifyUserExistence";
+    private static final String NOTIFY_USER_ACCOUNT_STATUS = "notifyUserAccountStatus";
 
     /**
      * Returns the name of the executor.
@@ -143,6 +147,20 @@ public class UserResolveExecutor implements Executor {
                         .filter(c -> c != null && c.getClaimUri() != null)
                         .collect(Collectors.toMap(Claim::getClaimUri, Claim::getValue));
                 context.getFlowUser().addClaims(claimMap);
+                if (isNotifyUserAccountStatusEnabled(context)) {
+                    if (context.getFlowUser().isAccountLocked()) {
+                        String reason = context.getFlowUser().getAccountLockedReason();
+                        executorResponse = new ExecutorResponse();
+                        executorResponse.setResult(STATUS_RETRY);
+                        executorResponse.setErrorMessage(getAccountLockedMessageFromReason(reason));
+                        return executorResponse;
+                    } else if (context.getFlowUser().isAccountDisabled()) {
+                        executorResponse = new ExecutorResponse();
+                        executorResponse.setResult(STATUS_RETRY);
+                        executorResponse.setErrorMessage("{{password.reset.user.resolver.account.disabled}}");
+                        return executorResponse;
+                    }
+                }
             }
             executorResponse = new ExecutorResponse(STATUS_COMPLETE);
 
@@ -152,12 +170,19 @@ public class UserResolveExecutor implements Executor {
                     log.debug("User '" + LoggerUtils.getMaskedContent(username) + "' does not exist in tenant '" +
                             tenantDomain + "'.");
                 }
-                executorResponse = new ExecutorResponse(STATUS_COMPLETE);
+                if (isNotifyUserExistenceEnabled(context)) {
+                    executorResponse = new ExecutorResponse();
+                    executorResponse.setResult(STATUS_RETRY);
+                    executorResponse.setErrorMessage("{{password.reset.user.resolver.invalid.identifier}}");
+                } else {
+                    executorResponse = new ExecutorResponse(STATUS_COMPLETE);
+                }
             } else {
                 executorResponse = new ExecutorResponse();
                 executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("Error while resolving user '" +
-                        LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
+                        LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " +
+                        e.getMessage());
             }
         }
         return executorResponse;
@@ -253,5 +278,46 @@ public class UserResolveExecutor implements Executor {
             usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
         }
         return usernameClaim;
+    }
+
+    private String getAccountLockedMessageFromReason(String reason) {
+        if (StringUtils.isBlank(reason)) {
+            return "{{password.reset.user.resolver.account.locked}}";
+        }
+        switch (reason) {
+            case "MAX_ATTEMPTS_EXCEEDED":
+                return "{{password.reset.user.resolver.account.locked.max.attempts}}";
+            case "IDLE_ACCOUNT":
+                return "{{password.reset.user.resolver.account.locked.idle}}";
+            case "PENDING_SELF_REGISTRATION":
+                return "{{password.reset.user.resolver.account.locked.pending.self.registration}}";
+            case "PENDING_EMAIL_VERIFICATION":
+                return "{{password.reset.user.resolver.account.locked.pending.email.verification}}";
+            case "PENDING_ASK_PASSWORD":
+                return "{{password.reset.user.resolver.account.locked.pending.ask.password}}";
+            case "PENDING_ADMIN_FORCED_USER_PASSWORD_RESET":
+                return "{{password.reset.user.resolver.account.locked.pending.admin.forced.password.reset}}";
+            case "ADMIN_INITIATED":
+            default:
+                return "{{password.reset.user.resolver.account.locked}}";
+        }
+    }
+
+    private boolean isNotifyUserExistenceEnabled(FlowExecutionContext context) {
+        NodeConfig currentNode = context.getCurrentNode();
+        ExecutorDTO executorConfig = currentNode.getExecutorConfig();
+        if (executorConfig == null || executorConfig.getMetadata() == null) {
+            return false;
+        }
+        return Boolean.parseBoolean(executorConfig.getMetadata().get(NOTIFY_USER_EXISTENCE));
+    }
+
+    private boolean isNotifyUserAccountStatusEnabled(FlowExecutionContext context) {
+        NodeConfig currentNode = context.getCurrentNode();
+        ExecutorDTO executorConfig = currentNode.getExecutorConfig();
+        if (executorConfig == null || executorConfig.getMetadata() == null) {
+            return false;
+        }
+        return Boolean.parseBoolean(executorConfig.getMetadata().get(NOTIFY_USER_ACCOUNT_STATUS));
     }
 }
