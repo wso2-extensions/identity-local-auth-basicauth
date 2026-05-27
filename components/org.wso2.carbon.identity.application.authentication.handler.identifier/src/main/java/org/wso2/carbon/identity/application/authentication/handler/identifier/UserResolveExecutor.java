@@ -129,11 +129,10 @@ public class UserResolveExecutor implements Executor {
      */
     private ExecutorResponse resolveUser(String username, String tenantDomain, FlowExecutionContext context) {
 
-        ExecutorResponse executorResponse;
+        ExecutorResponse executorResponse = new ExecutorResponse();
         try {
             UserRealm userRealm = getUserRealm(tenantDomain);
             if (userRealm == null) {
-                executorResponse = new ExecutorResponse();
                 executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("User realm is not available for tenant: " + tenantDomain);
                 return executorResponse;
@@ -143,27 +142,29 @@ public class UserResolveExecutor implements Executor {
             String resolvedUsername = resolveQualifiedUsername(username, userStoreManager, context);
             Claim[] claims = userStoreManager.getUserClaimValues(resolvedUsername, null);
             if (claims != null && claims.length > 0) {
-                Map<String, String> claimMap = Arrays.stream(claims)
+                Map<String, Object> claimMap = Arrays.stream(claims)
                         .filter(c -> c != null && c.getClaimUri() != null)
-                        .collect(Collectors.toMap(Claim::getClaimUri, Claim::getValue));
-                context.getFlowUser().addClaims(claimMap);
+                        .collect(Collectors.<Claim, String, Object>toMap(Claim::getClaimUri, Claim::getValue));
                 if (isNotifyUserAccountStatusEnabled(context)) {
-                    if (context.getFlowUser().isAccountLocked()) {
-                        String reason = context.getFlowUser().getAccountLockedReason();
-                        executorResponse = new ExecutorResponse();
+                    if (Boolean.parseBoolean((String) claimMap.get(FrameworkConstants.ACCOUNT_LOCKED_CLAIM_URI))) {
+                        String reason = (String) claimMap.get(FrameworkConstants.ACCOUNT_LOCKED_REASON_CLAIM_URI);
+                        IdentifierHandlerConstants.AccountLockedReason lockedReason =
+                                IdentifierHandlerConstants.AccountLockedReason.fromReason(reason);
                         executorResponse.setResult(STATUS_RETRY);
-                        executorResponse.setErrorMessage(getAccountLockedReason(reason));
+                        executorResponse.setI18nKey(lockedReason.getI18nKey());
+                        executorResponse.setErrorMessage(lockedReason.getMessage());
                         return executorResponse;
-                    } else if (context.getFlowUser().isAccountDisabled()) {
-                        executorResponse = new ExecutorResponse();
+                    }
+                    if (Boolean.parseBoolean((String) claimMap.get(FrameworkConstants.ACCOUNT_DISABLED_CLAIM_URI))) {
                         executorResponse.setResult(STATUS_RETRY);
-                        executorResponse.setErrorMessage("{{password.reset.user.resolver.account.disabled}}");
+                        executorResponse.setI18nKey("{{account.disabled}}");
+                        executorResponse.setErrorMessage(IdentifierHandlerConstants.ACCOUNT_DISABLED);
                         return executorResponse;
                     }
                 }
+                executorResponse.setUpdatedUserClaims(claimMap);
             }
-            executorResponse = new ExecutorResponse(STATUS_COMPLETE);
-
+            executorResponse.setResult(STATUS_COMPLETE);
         } catch (UserStoreException e) {
             if (e.getMessage().startsWith(String.valueOf(30007))) {
                 if (log.isDebugEnabled()) {
@@ -171,14 +172,14 @@ public class UserResolveExecutor implements Executor {
                             tenantDomain + "'.");
                 }
                 if (isNotifyUserExistenceEnabled(context)) {
-                    executorResponse = new ExecutorResponse();
                     executorResponse.setResult(STATUS_RETRY);
-                    executorResponse.setErrorMessage("{{password.reset.user.resolver.invalid.identifier}}");
+                    executorResponse.setI18nKey("{{invalid.identifier}}");
+                    executorResponse.setErrorMessage(IdentifierHandlerConstants.INVALID_IDENTIFIER);
+                    return executorResponse;
                 } else {
-                    executorResponse = new ExecutorResponse(STATUS_COMPLETE);
+                    executorResponse.setResult(STATUS_COMPLETE);
                 }
             } else {
-                executorResponse = new ExecutorResponse();
                 executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("Error while resolving user '" +
                         LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " +
@@ -278,36 +279,6 @@ public class UserResolveExecutor implements Executor {
             usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
         }
         return usernameClaim;
-    }
-
-    /**
-     * Returns the i18n message key corresponding to the account lock reason.
-     * If the reason is blank or unrecognized, the generic locked message key is returned.
-     *
-     * @param reason Account locked reason string stored in the user's identity claims.
-     * @return i18n message key to surface to the user.
-     */
-    private String getAccountLockedReason(String reason) {
-        if (StringUtils.isBlank(reason)) {
-            return "{{password.reset.user.resolver.account.locked}}";
-        }
-        switch (reason) {
-            case "MAX_ATTEMPTS_EXCEEDED":
-                return "{{password.reset.user.resolver.account.locked.max.attempts}}";
-            case "IDLE_ACCOUNT":
-                return "{{password.reset.user.resolver.account.locked.idle}}";
-            case "PENDING_SELF_REGISTRATION":
-                return "{{password.reset.user.resolver.account.locked.pending.self.registration}}";
-            case "PENDING_EMAIL_VERIFICATION":
-                return "{{password.reset.user.resolver.account.locked.pending.email.verification}}";
-            case "PENDING_ASK_PASSWORD":
-                return "{{password.reset.user.resolver.account.locked.pending.ask.password}}";
-            case "PENDING_ADMIN_FORCED_USER_PASSWORD_RESET":
-                return "{{password.reset.user.resolver.account.locked.pending.admin.forced.password.reset}}";
-            case "ADMIN_INITIATED":
-            default:
-                return "{{password.reset.user.resolver.account.locked}}";
-        }
     }
 
     /**

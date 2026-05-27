@@ -19,7 +19,7 @@
 package org.wso2.carbon.identity.application.authentication.handler.identifier;
 
 /**
- * Constants used by the IdentifierHandler
+ * Constants used by the IdentifierHandler.
  */
 public abstract class IdentifierHandlerConstants {
 
@@ -35,7 +35,72 @@ public abstract class IdentifierHandlerConstants {
     public static final String USERNAME_USER_INPUT = "usernameUserInput";
     public static final String IS_USER_RESOLVED = "isUserResolved";
 
+    public static final String ACCOUNT_DISABLED = "The account is disabled.";
+    public static final String INVALID_IDENTIFIER = "The provided identifier is invalid.";
+
     private IdentifierHandlerConstants() {
+    }
+
+    /**
+     * Known account lock reasons with their associated i18n key and error message.
+     */
+    public enum AccountLockedReason {
+
+        DEFAULT("{{account.locked}}",
+                "The account is locked."),
+        MAX_ATTEMPTS_EXCEEDED("{{account.locked.max.attempts}}",
+                "The account is locked due to maximum failed login attempts."),
+        IDLE_ACCOUNT("{{account.locked.idle}}",
+                "The account is locked due to inactivity."),
+        PENDING_SELF_REGISTRATION("{{account.locked.pending.self.registration}}",
+                "The account is pending self-registration."),
+        PENDING_EMAIL_VERIFICATION("{{account.locked.pending.email.verification}}",
+                "The account is pending email verification."),
+        PENDING_ASK_PASSWORD("{{account.locked.pending.ask.password}}",
+                "The account is pending password setup."),
+        PENDING_ADMIN_FORCED_USER_PASSWORD_RESET("{{account.locked.pending.admin.forced.password.reset}}",
+                "The account is pending admin-forced password reset."),
+        ADMIN_INITIATED("{{account.locked.admin.initiated}}",
+                "The account has been locked by an administrator.");
+
+        private final String i18nKey;
+        private final String message;
+
+        AccountLockedReason(String i18nKey, String message) {
+
+            this.i18nKey = i18nKey;
+            this.message = message;
+        }
+
+        public String getI18nKey() {
+
+            return i18nKey;
+        }
+
+        public String getMessage() {
+
+            return message;
+        }
+
+        /**
+         * Returns the AccountLockedReason for the given reason string,
+         * or DEFAULT if the reason is null, blank, or unrecognized.
+         *
+         * @param reason Account locked reason string stored in the user's identity claims.
+         * @return Matching AccountLockedReason, or DEFAULT.
+         */
+        public static AccountLockedReason fromReason(String reason) {
+
+            if (reason == null || reason.trim().isEmpty()) {
+                return DEFAULT;
+            }
+            for (AccountLockedReason r : values()) {
+                if (r.name().equals(reason)) {
+                    return r;
+                }
+            }
+            return DEFAULT;
+        }
     }
 
     /**
