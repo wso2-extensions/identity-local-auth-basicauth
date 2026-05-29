@@ -182,8 +182,7 @@ public class UserResolveExecutor implements Executor {
             } else {
                 executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("Error while resolving user '" +
-                        LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " +
-                        e.getMessage());
+                        LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
             }
         }
         return executorResponse;
@@ -288,6 +287,7 @@ public class UserResolveExecutor implements Executor {
      * @return True if the flag is enabled, false otherwise.
      */
     private boolean isNotifyUserExistenceEnabled(FlowExecutionContext context) {
+
         return isExecutorMetadataFlagEnabled(context, NOTIFY_USER_EXISTENCE);
     }
 
@@ -298,6 +298,7 @@ public class UserResolveExecutor implements Executor {
      * @return True if the flag is enabled, false otherwise.
      */
     private boolean isNotifyUserAccountStatusEnabled(FlowExecutionContext context) {
+
         return isExecutorMetadataFlagEnabled(context, NOTIFY_USER_ACCOUNT_STATUS);
     }
 
@@ -310,6 +311,7 @@ public class UserResolveExecutor implements Executor {
      * @return True if the metadata value parses to true, false if absent or unparseable.
      */
     private boolean isExecutorMetadataFlagEnabled(FlowExecutionContext context, String metadataKey) {
+
         NodeConfig currentNode = context.getCurrentNode();
         if (currentNode == null) {
             return false;

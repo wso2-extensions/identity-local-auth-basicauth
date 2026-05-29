@@ -18,8 +18,10 @@
 
 package org.wso2.carbon.identity.application.authentication.handler.identifier;
 
+import org.apache.commons.lang.StringUtils;
+
 /**
- * Constants used by the IdentifierHandler.
+ * Constants used by the IdentifierHandler
  */
 public abstract class IdentifierHandlerConstants {
 
@@ -91,7 +93,7 @@ public abstract class IdentifierHandlerConstants {
          */
         public static AccountLockedReason fromReason(String reason) {
 
-            if (reason == null || reason.trim().isEmpty()) {
+            if (reason == null || StringUtils.isBlank(reason)) {
                 return DEFAULT;
             }
             for (AccountLockedReason r : values()) {

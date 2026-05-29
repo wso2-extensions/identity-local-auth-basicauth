@@ -300,7 +300,7 @@ public class UserResolveExecutorTestCase {
         field.set(null, null);
     }
 
-    // ---- notifyUserExistence tests ----
+    // Tests for notifying user existence.
 
     @Test
     public void testUserNotFound_withNotifyUserExistenceEnabled() throws Exception {
@@ -343,7 +343,7 @@ public class UserResolveExecutorTestCase {
         Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
     }
 
-    // ---- notifyUserAccountStatus tests ----
+    // Tests for notifying user account status.
 
     @Test
     public void testAccountLocked_withNotifyAccountStatusEnabled() throws Exception {
@@ -424,7 +424,7 @@ public class UserResolveExecutorTestCase {
         Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
     }
 
-    // ---- Helpers ----
+    // Helper methods.
 
     private void setupExecutorMetadata(String key, String value) {
 
