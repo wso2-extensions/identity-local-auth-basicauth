@@ -394,9 +394,6 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                 username = UserCoreUtil.addTenantDomainToEntry(resolvedUserResult.getUser().getUsername(),
                         context.getTenantDomain());
                 userId = resolvedUserResult.getUser().getUserID();
-            } else {
-                throw new InvalidCredentialsException(ErrorMessages.USER_DOES_NOT_EXISTS.getCode(),
-                        ErrorMessages.USER_DOES_NOT_EXISTS.getMessage(), User.getUserFromUserName(username));
             }
         }
 
