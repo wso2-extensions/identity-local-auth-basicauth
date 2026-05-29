@@ -176,9 +176,8 @@ public class UserResolveExecutor implements Executor {
                     executorResponse.setI18nKey("{{invalid.identifier}}");
                     executorResponse.setErrorMessage(IdentifierHandlerConstants.INVALID_IDENTIFIER);
                     return executorResponse;
-                } else {
-                    executorResponse.setResult(STATUS_COMPLETE);
                 }
+                executorResponse.setResult(STATUS_COMPLETE);
             } else {
                 executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("Error while resolving user '" +
