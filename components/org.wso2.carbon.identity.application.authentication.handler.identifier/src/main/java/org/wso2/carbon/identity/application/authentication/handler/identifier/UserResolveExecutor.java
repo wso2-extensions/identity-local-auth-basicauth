@@ -30,6 +30,7 @@ import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.flow.mgt.model.ExecutorDTO;
+import org.wso2.carbon.identity.flow.mgt.model.Message.MessageType;
 import org.wso2.carbon.identity.flow.mgt.model.NodeConfig;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.user.api.UserStoreException;
@@ -151,14 +152,16 @@ public class UserResolveExecutor implements Executor {
                         IdentifierHandlerConstants.AccountLockedReason lockedReason =
                                 IdentifierHandlerConstants.AccountLockedReason.fromReason(reason);
                         executorResponse.setResult(STATUS_RETRY);
-                        executorResponse.setI18nKey(lockedReason.getI18nKey());
                         executorResponse.setErrorMessage(lockedReason.getMessage());
+                        executorResponse.addMessage(MessageType.ERROR, lockedReason.getMessage(),
+                                lockedReason.getI18nKey());
                         return executorResponse;
                     }
                     if (Boolean.parseBoolean((String) claimMap.get(FrameworkConstants.ACCOUNT_DISABLED_CLAIM_URI))) {
                         executorResponse.setResult(STATUS_RETRY);
-                        executorResponse.setI18nKey("{{account.disabled}}");
                         executorResponse.setErrorMessage(IdentifierHandlerConstants.ACCOUNT_DISABLED);
+                        executorResponse.addMessage(MessageType.ERROR, IdentifierHandlerConstants.ACCOUNT_DISABLED,
+                                IdentifierHandlerConstants.ACCOUNT_DISABLED_I18N_KEY);
                         return executorResponse;
                     }
                 }
@@ -173,8 +176,9 @@ public class UserResolveExecutor implements Executor {
                 }
                 if (isNotifyUserExistenceEnabled(context)) {
                     executorResponse.setResult(STATUS_RETRY);
-                    executorResponse.setI18nKey("{{invalid.identifier}}");
                     executorResponse.setErrorMessage(IdentifierHandlerConstants.INVALID_IDENTIFIER);
+                    executorResponse.addMessage(MessageType.ERROR, IdentifierHandlerConstants.INVALID_IDENTIFIER,
+                            IdentifierHandlerConstants.INVALID_IDENTIFIER_I18N_KEY);
                     return executorResponse;
                 }
                 executorResponse.setResult(STATUS_COMPLETE);
