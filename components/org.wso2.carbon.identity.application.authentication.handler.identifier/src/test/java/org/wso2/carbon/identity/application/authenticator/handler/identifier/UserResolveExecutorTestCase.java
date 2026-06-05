@@ -15,8 +15,8 @@ import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowUser;
 import org.wso2.carbon.identity.flow.mgt.model.ExecutorDTO;
-import org.wso2.carbon.identity.flow.mgt.model.Message;
-import org.wso2.carbon.identity.flow.mgt.model.Message.MessageType;
+import org.wso2.carbon.identity.flow.mgt.model.MessageDTO;
+import org.wso2.carbon.identity.flow.mgt.model.MessageDTO.MessageType;
 import org.wso2.carbon.identity.flow.mgt.model.NodeConfig;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.user.core.UserCoreConstants;
@@ -315,7 +315,6 @@ public class UserResolveExecutorTestCase {
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
         Assert.assertEquals(response.getResult(), STATUS_RETRY);
-        Assert.assertEquals(response.getErrorMessage(), "The provided identifier is invalid.");
         assertSingleErrorMessage(response, "The provided identifier is invalid.", "{{invalid.identifier}}");
     }
 
@@ -356,7 +355,6 @@ public class UserResolveExecutorTestCase {
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
         Assert.assertEquals(response.getResult(), STATUS_RETRY);
-        Assert.assertEquals(response.getErrorMessage(), "The account is locked.");
         assertSingleErrorMessage(response, "The account is locked.", "{{account.locked}}");
     }
 
@@ -371,8 +369,6 @@ public class UserResolveExecutorTestCase {
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
         Assert.assertEquals(response.getResult(), STATUS_RETRY);
-        Assert.assertEquals(response.getErrorMessage(),
-                "The account is locked due to maximum failed login attempts.");
         assertSingleErrorMessage(response, "The account is locked due to maximum failed login attempts.",
                 "{{account.locked.max.attempts}}");
     }
@@ -388,7 +384,6 @@ public class UserResolveExecutorTestCase {
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
         Assert.assertEquals(response.getResult(), STATUS_RETRY);
-        Assert.assertEquals(response.getErrorMessage(), "The account has been locked by an administrator.");
         assertSingleErrorMessage(response, "The account has been locked by an administrator.",
                 "{{account.locked.admin.initiated}}");
     }
@@ -402,7 +397,6 @@ public class UserResolveExecutorTestCase {
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
         Assert.assertEquals(response.getResult(), STATUS_RETRY);
-        Assert.assertEquals(response.getErrorMessage(), "The account is disabled.");
         assertSingleErrorMessage(response, "The account is disabled.", "{{account.disabled}}");
     }
 
@@ -455,7 +449,7 @@ public class UserResolveExecutorTestCase {
 
         Assert.assertNotNull(response.getMessages());
         Assert.assertEquals(response.getMessages().size(), 1);
-        Message message = response.getMessages().get(0);
+        MessageDTO message = response.getMessages().get(0);
         Assert.assertEquals(message.getType(), MessageType.ERROR);
         Assert.assertEquals(message.getMessage(), expectedMessage);
         Assert.assertEquals(message.getI18nKey(), expectedI18nKey);
