@@ -18,9 +18,6 @@
 
 package org.wso2.carbon.identity.application.authentication.handler.identifier;
 
-import java.util.Arrays;
-import java.util.Map;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -32,21 +29,27 @@ import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
+import org.wso2.carbon.identity.flow.mgt.model.ExecutorDTO;
+import org.wso2.carbon.identity.flow.mgt.model.MessageDTO.MessageType;
+import org.wso2.carbon.identity.flow.mgt.model.NodeConfig;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
+import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
-import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.claim.Claim;
 import org.wso2.carbon.user.core.service.RealmService;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_RETRY;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_CLAIM_URI;
 
 /**
@@ -58,6 +61,8 @@ public class UserResolveExecutor implements Executor {
     public static final String USER_IDENTIFIER = "userIdentifier";
     private static final Log log = LogFactory.getLog(UserResolveExecutor.class);
     public static final String FLOW_EXECUTION_USER_STORE_DOMAIN = "FlowExecution.ExcludedUserstores.Userstore";
+    private static final String NOTIFY_USER_EXISTENCE = "notifyUserExistence";
+    private static final String NOTIFY_USER_ACCOUNT_STATUS = "notifyUserAccountStatus";
 
     /**
      * Returns the name of the executor.
@@ -125,11 +130,10 @@ public class UserResolveExecutor implements Executor {
      */
     private ExecutorResponse resolveUser(String username, String tenantDomain, FlowExecutionContext context) {
 
-        ExecutorResponse executorResponse;
+        ExecutorResponse executorResponse = new ExecutorResponse();
         try {
             UserRealm userRealm = getUserRealm(tenantDomain);
             if (userRealm == null) {
-                executorResponse = new ExecutorResponse();
                 executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("User realm is not available for tenant: " + tenantDomain);
                 return executorResponse;
@@ -139,22 +143,43 @@ public class UserResolveExecutor implements Executor {
             String resolvedUsername = resolveQualifiedUsername(username, userStoreManager, context);
             Claim[] claims = userStoreManager.getUserClaimValues(resolvedUsername, null);
             if (claims != null && claims.length > 0) {
-                Map<String, String> claimMap = Arrays.stream(claims)
+                Map<String, Object> claimMap = Arrays.stream(claims)
                         .filter(c -> c != null && c.getClaimUri() != null)
-                        .collect(Collectors.toMap(Claim::getClaimUri, Claim::getValue));
-                context.getFlowUser().addClaims(claimMap);
+                        .collect(Collectors.<Claim, String, Object>toMap(Claim::getClaimUri, Claim::getValue));
+                if (isNotifyUserAccountStatusEnabled(context)) {
+                    if (Boolean.parseBoolean((String) claimMap.get(FrameworkConstants.ACCOUNT_LOCKED_CLAIM_URI))) {
+                        String reason = (String) claimMap.get(FrameworkConstants.ACCOUNT_LOCKED_REASON_CLAIM_URI);
+                        IdentifierHandlerConstants.AccountLockedReason lockedReason =
+                                IdentifierHandlerConstants.AccountLockedReason.fromReason(reason);
+                        executorResponse.setResult(STATUS_RETRY);
+                        executorResponse.addMessage(MessageType.ERROR, lockedReason.getMessage(),
+                                lockedReason.getI18nKey());
+                        return executorResponse;
+                    }
+                    if (Boolean.parseBoolean((String) claimMap.get(FrameworkConstants.ACCOUNT_DISABLED_CLAIM_URI))) {
+                        executorResponse.setResult(STATUS_RETRY);
+                        executorResponse.addMessage(MessageType.ERROR, IdentifierHandlerConstants.ACCOUNT_DISABLED,
+                                IdentifierHandlerConstants.ACCOUNT_DISABLED_I18N_KEY);
+                        return executorResponse;
+                    }
+                }
+                executorResponse.setUpdatedUserClaims(claimMap);
             }
-            executorResponse = new ExecutorResponse(STATUS_COMPLETE);
-
+            executorResponse.setResult(STATUS_COMPLETE);
         } catch (UserStoreException e) {
             if (e.getMessage().startsWith(String.valueOf(30007))) {
                 if (log.isDebugEnabled()) {
                     log.debug("User '" + LoggerUtils.getMaskedContent(username) + "' does not exist in tenant '" +
                             tenantDomain + "'.");
                 }
-                executorResponse = new ExecutorResponse(STATUS_COMPLETE);
+                if (isNotifyUserExistenceEnabled(context)) {
+                    executorResponse.setResult(STATUS_RETRY);
+                    executorResponse.addMessage(MessageType.ERROR, IdentifierHandlerConstants.INVALID_IDENTIFIER,
+                            IdentifierHandlerConstants.INVALID_IDENTIFIER_I18N_KEY);
+                    return executorResponse;
+                }
+                executorResponse.setResult(STATUS_COMPLETE);
             } else {
-                executorResponse = new ExecutorResponse();
                 executorResponse.setResult(STATUS_ERROR);
                 executorResponse.setErrorMessage("Error while resolving user '" +
                         LoggerUtils.getMaskedContent(username) + "' in tenant '" + tenantDomain + "': " + e.getMessage());
@@ -253,5 +278,48 @@ public class UserResolveExecutor implements Executor {
             usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
         }
         return usernameClaim;
+    }
+
+    /**
+     * Checks whether the notifyUserExistence flag is enabled in the executor metadata.
+     *
+     * @param context Flow execution context.
+     * @return True if the flag is enabled, false otherwise.
+     */
+    private boolean isNotifyUserExistenceEnabled(FlowExecutionContext context) {
+
+        return isExecutorMetadataFlagEnabled(context, NOTIFY_USER_EXISTENCE);
+    }
+
+    /**
+     * Checks whether the notifyUserAccountStatus flag is enabled in the executor metadata.
+     *
+     * @param context Flow execution context.
+     * @return True if the flag is enabled, false otherwise.
+     */
+    private boolean isNotifyUserAccountStatusEnabled(FlowExecutionContext context) {
+
+        return isExecutorMetadataFlagEnabled(context, NOTIFY_USER_ACCOUNT_STATUS);
+    }
+
+    /**
+     * Reads a boolean flag from the current node's executor metadata.
+     * Returns false safely if the node, executor config, or metadata map is absent.
+     *
+     * @param context     Flow execution context.
+     * @param metadataKey Metadata key to look up.
+     * @return True if the metadata value parses to true, false if absent or unparseable.
+     */
+    private boolean isExecutorMetadataFlagEnabled(FlowExecutionContext context, String metadataKey) {
+
+        NodeConfig currentNode = context.getCurrentNode();
+        if (currentNode == null) {
+            return false;
+        }
+        ExecutorDTO executorConfig = currentNode.getExecutorConfig();
+        if (executorConfig == null || executorConfig.getMetadata() == null) {
+            return false;
+        }
+        return Boolean.parseBoolean(executorConfig.getMetadata().get(metadataKey));
     }
 }

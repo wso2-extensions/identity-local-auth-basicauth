@@ -14,6 +14,10 @@ import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowUser;
+import org.wso2.carbon.identity.flow.mgt.model.ExecutorDTO;
+import org.wso2.carbon.identity.flow.mgt.model.MessageDTO;
+import org.wso2.carbon.identity.flow.mgt.model.MessageDTO.MessageType;
+import org.wso2.carbon.identity.flow.mgt.model.NodeConfig;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
@@ -37,6 +41,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_ERROR;
+import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_RETRY;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 
 public class UserResolveExecutorTestCase {
@@ -73,6 +78,12 @@ public class UserResolveExecutorTestCase {
 
     @Mock
     private MultiAttributeLoginService mockMultiAttributeLoginService;
+
+    @Mock
+    private NodeConfig mockNodeConfig;
+
+    @Mock
+    private ExecutorDTO mockExecutorDTO;
 
     private UserResolveExecutor userResolveExecutor;
     private final Map<String, Object> userClaims = new HashMap<>();
@@ -168,7 +179,9 @@ public class UserResolveExecutorTestCase {
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
         Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
-        verify(mockFlowUser).addClaims(any());
+        Assert.assertNotNull(response.getUpdatedUserClaims());
+        Assert.assertEquals(response.getUpdatedUserClaims().get("http://wso2.org/claims/emailaddress"), "test@example.com");
+        Assert.assertEquals(response.getUpdatedUserClaims().get("http://wso2.org/claims/givenname"), "Test User");
     }
 
     @Test
@@ -287,5 +300,166 @@ public class UserResolveExecutorTestCase {
         Field field = IdentifierAuthenticatorServiceComponent.class.getDeclaredField("multiAttributeLogin");
         field.setAccessible(true);
         field.set(null, null);
+    }
+
+    // Tests for notifying user existence.
+
+    @Test
+    public void testUserNotFound_withNotifyUserExistenceEnabled() throws Exception {
+
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
+        when(mockUserStoreManager.isExistingUser(anyString()))
+                .thenThrow(new UserStoreException("30007 - User does not exist"));
+        setupExecutorMetadata("notifyUserExistence", "true");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        assertSingleErrorMessage(response, "The provided identifier is invalid.", "{{invalid.identifier}}");
+    }
+
+    @Test
+    public void testUserNotFound_withNotifyUserExistenceDisabled() throws Exception {
+
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
+        when(mockUserStoreManager.isExistingUser(anyString()))
+                .thenThrow(new UserStoreException("30007 - User does not exist"));
+        setupExecutorMetadata("notifyUserExistence", "false");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+    }
+
+    @Test
+    public void testUserNotFound_withNullCurrentNode() throws Exception {
+
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
+        when(mockUserStoreManager.isExistingUser(anyString()))
+                .thenThrow(new UserStoreException("30007 - User does not exist"));
+        when(mockContext.getCurrentNode()).thenReturn(null);
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+    }
+
+    // Tests for notifying user account status.
+
+    @Test
+    public void testAccountLocked_withNotifyAccountStatusEnabled() throws Exception {
+
+        setupUserWithClaims(buildClaim(FrameworkConstants.ACCOUNT_LOCKED_CLAIM_URI, "true"));
+        setupExecutorMetadata("notifyUserAccountStatus", "true");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        assertSingleErrorMessage(response, "The account is locked.", "{{account.locked}}");
+    }
+
+    @Test
+    public void testAccountLocked_withMaxAttemptsExceededReason() throws Exception {
+
+        setupUserWithClaims(
+                buildClaim(FrameworkConstants.ACCOUNT_LOCKED_CLAIM_URI, "true"),
+                buildClaim(FrameworkConstants.ACCOUNT_LOCKED_REASON_CLAIM_URI, "MAX_ATTEMPTS_EXCEEDED"));
+        setupExecutorMetadata("notifyUserAccountStatus", "true");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        assertSingleErrorMessage(response, "The account is locked due to maximum failed login attempts.",
+                "{{account.locked.max.attempts}}");
+    }
+
+    @Test
+    public void testAccountLocked_withAdminInitiatedReason() throws Exception {
+
+        setupUserWithClaims(
+                buildClaim(FrameworkConstants.ACCOUNT_LOCKED_CLAIM_URI, "true"),
+                buildClaim(FrameworkConstants.ACCOUNT_LOCKED_REASON_CLAIM_URI, "ADMIN_INITIATED"));
+        setupExecutorMetadata("notifyUserAccountStatus", "true");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        assertSingleErrorMessage(response, "The account has been locked by an administrator.",
+                "{{account.locked.admin.initiated}}");
+    }
+
+    @Test
+    public void testAccountDisabled_withNotifyAccountStatusEnabled() throws Exception {
+
+        setupUserWithClaims(buildClaim(FrameworkConstants.ACCOUNT_DISABLED_CLAIM_URI, "true"));
+        setupExecutorMetadata("notifyUserAccountStatus", "true");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        assertSingleErrorMessage(response, "The account is disabled.", "{{account.disabled}}");
+    }
+
+    @Test
+    public void testAccountLocked_withNotifyAccountStatusDisabled() throws Exception {
+
+        setupUserWithClaims(buildClaim(FrameworkConstants.ACCOUNT_LOCKED_CLAIM_URI, "true"));
+        setupExecutorMetadata("notifyUserAccountStatus", "false");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+    }
+
+    @Test
+    public void testAccountStatus_withNullCurrentNode() throws Exception {
+
+        setupUserWithClaims(buildClaim(FrameworkConstants.ACCOUNT_LOCKED_CLAIM_URI, "true"));
+        when(mockContext.getCurrentNode()).thenReturn(null);
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+    }
+
+    // Helper methods.
+
+    private void setupExecutorMetadata(String key, String value) {
+
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put(key, value);
+        when(mockContext.getCurrentNode()).thenReturn(mockNodeConfig);
+        when(mockNodeConfig.getExecutorConfig()).thenReturn(mockExecutorDTO);
+        when(mockExecutorDTO.getMetadata()).thenReturn(metadata);
+    }
+
+    private void setupUserWithClaims(Claim... additionalClaims) throws Exception {
+
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
+        when(mockUserStoreManager.isExistingUser(TEST_DOMAIN_QUALIFIED_USERNAME)).thenReturn(true);
+        Claim emailClaim = buildClaim("http://wso2.org/claims/emailaddress", "test@example.com");
+        Claim[] allClaims = new Claim[1 + additionalClaims.length];
+        allClaims[0] = emailClaim;
+        System.arraycopy(additionalClaims, 0, allClaims, 1, additionalClaims.length);
+        when(mockUserStoreManager.getUserClaimValues(TEST_DOMAIN_QUALIFIED_USERNAME, null))
+                .thenReturn(allClaims);
+    }
+
+    private void assertSingleErrorMessage(ExecutorResponse response, String expectedMessage, String expectedI18nKey) {
+
+        Assert.assertNotNull(response.getMessages());
+        Assert.assertEquals(response.getMessages().size(), 1);
+        MessageDTO message = response.getMessages().get(0);
+        Assert.assertEquals(message.getType(), MessageType.ERROR);
+        Assert.assertEquals(message.getMessage(), expectedMessage);
+        Assert.assertEquals(message.getI18nKey(), expectedI18nKey);
+    }
+
+    private Claim buildClaim(String uri, String value) {
+
+        Claim claim = new Claim();
+        claim.setClaimUri(uri);
+        claim.setValue(value);
+        return claim;
     }
 }
