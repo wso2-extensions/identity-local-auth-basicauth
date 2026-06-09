@@ -19,6 +19,7 @@ import org.wso2.carbon.identity.flow.mgt.model.MessageDTO;
 import org.wso2.carbon.identity.flow.mgt.model.MessageDTO.MessageType;
 import org.wso2.carbon.identity.flow.mgt.model.NodeConfig;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.ResolvedUserResult;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.core.UserStoreException;
@@ -87,6 +88,7 @@ public class UserResolveExecutorTestCase {
 
     private UserResolveExecutor userResolveExecutor;
     private final Map<String, Object> userClaims = new HashMap<>();
+    private final Map<String, String> userInputData = new HashMap<>();
     private AutoCloseable closeable;
     private MockedStatic<IdentityUtil> identityUtilMock;
 
@@ -108,6 +110,7 @@ public class UserResolveExecutorTestCase {
         // Mock context setup
         when(mockContext.getFlowUser()).thenReturn(mockFlowUser);
         when(mockContext.getTenantDomain()).thenReturn(TEST_TENANT_DOMAIN);
+        when(mockContext.getUserInputData()).thenReturn(userInputData);
         when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(userClaims.get(FrameworkConstants.USERNAME_CLAIM));
 
         // Mock realm service setup
@@ -133,6 +136,7 @@ public class UserResolveExecutorTestCase {
     public void tearDown() throws Exception {
 
         userClaims.clear();
+        userInputData.clear();
         if (identityUtilMock != null) {
             identityUtilMock.close();
         }
@@ -315,7 +319,7 @@ public class UserResolveExecutorTestCase {
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
         Assert.assertEquals(response.getResult(), STATUS_RETRY);
-        assertSingleErrorMessage(response, "The provided identifier is invalid.", "{{invalid.identifier}}");
+        assertSingleErrorMessage(response, "The user does not exist.", "{{user.not.found}}");
     }
 
     @Test
@@ -342,6 +346,53 @@ public class UserResolveExecutorTestCase {
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
         Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+    }
+
+    // Tests for resolving the user via a multi-attribute login identifier (e.g. mobile, email).
+
+    @Test
+    public void testMultiAttributeIdentifierNotFound_withNotifyUserExistenceEnabled() throws Exception {
+
+        // Multi-attribute login enabled, an identifier supplied, but no user resolves for it.
+        when(mockMultiAttributeLoginService.isEnabled(anyString())).thenReturn(true);
+        when(mockMultiAttributeLoginService.resolveUser(anyString(), anyString()))
+                .thenReturn(new ResolvedUserResult(ResolvedUserResult.UserResolvedStatus.FAIL));
+        userInputData.put(UserResolveExecutor.USER_IDENTIFIER, "0771234567");
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(null);
+        setupExecutorMetadata("notifyUserExistence", "true");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        assertSingleErrorMessage(response, "The user does not exist.", "{{user.not.found}}");
+    }
+
+    @Test
+    public void testMultiAttributeEnabledWithBlankIdentifier_returnsInputRequired() throws Exception {
+
+        // Multi-attribute login enabled but no identifier supplied yet, so input is requested.
+        when(mockMultiAttributeLoginService.isEnabled(anyString())).thenReturn(true);
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(null);
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_USER_INPUT_REQUIRED);
+        verify(mockMultiAttributeLoginService, never()).resolveUser(anyString(), anyString());
+    }
+
+    @Test
+    public void testMultiAttributeIdentifierNotFound_withNotifyUserExistenceDisabled() throws Exception {
+
+        when(mockMultiAttributeLoginService.isEnabled(anyString())).thenReturn(true);
+        when(mockMultiAttributeLoginService.resolveUser(anyString(), anyString()))
+                .thenReturn(new ResolvedUserResult(ResolvedUserResult.UserResolvedStatus.FAIL));
+        userInputData.put(UserResolveExecutor.USER_IDENTIFIER, "0771234567");
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(null);
+        setupExecutorMetadata("notifyUserExistence", "false");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_USER_INPUT_REQUIRED);
     }
 
     // Tests for notifying user account status.

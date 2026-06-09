@@ -39,8 +39,8 @@ public abstract class IdentifierHandlerConstants {
 
     public static final String ACCOUNT_DISABLED = "The account is disabled.";
     public static final String ACCOUNT_DISABLED_I18N_KEY = "{{account.disabled}}";
-    public static final String INVALID_IDENTIFIER = "The provided identifier is invalid.";
-    public static final String INVALID_IDENTIFIER_I18N_KEY = "{{invalid.identifier}}";
+    public static final String USER_NOT_FOUND = "The user does not exist.";
+    public static final String USER_NOT_FOUND_I18N_KEY = "{{user.not.found}}";
 
     private IdentifierHandlerConstants() {
     }
