@@ -392,7 +392,7 @@ public class UserResolveExecutorTestCase {
 
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
-        Assert.assertEquals(response.getResult(), STATUS_USER_INPUT_REQUIRED);
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
     }
 
     // Tests for notifying user account status.

@@ -111,7 +111,7 @@ public class UserResolveExecutor implements Executor {
             if (isNotifyUserExistenceEnabled(context)) {
                 return buildUserNotFoundResponse();
             }
-            return new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
+            return new ExecutorResponse(STATUS_COMPLETE);
         }
         return resolveUser(usernameClaim, context.getTenantDomain(), context);
     }
