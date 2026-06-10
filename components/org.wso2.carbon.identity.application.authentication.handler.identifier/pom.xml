@@ -22,7 +22,7 @@
     <parent>
         <groupId>org.wso2.carbon.identity.application.auth.basic</groupId>
         <artifactId>identity-application-auth-basicauth</artifactId>
-        <version>6.11.8-SNAPSHOT</version>
+        <version>6.11.9-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -169,7 +169,7 @@
                             org.wso2.carbon.identity.flow.execution.engine.exception;
                             version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.flow.mgt.model;
-                            version="${carbon.identity.framework.imp.pkg.version.range}",
+                            version="${carbon.identity.framework.imp.pkg.version.range}"
                         </Import-Package>
                         <Export-Package>
                             !org.wso2.carbon.identity.application.authentication.handler.identifier.internal,
