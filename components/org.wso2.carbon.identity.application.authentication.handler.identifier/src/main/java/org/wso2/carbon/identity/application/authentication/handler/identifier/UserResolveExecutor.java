@@ -293,13 +293,13 @@ public class UserResolveExecutor implements Executor {
      */
     private boolean isUserInputInvalid(FlowExecutionContext context) {
 
-        boolean usernameInputValueNotExist = StringUtils.isBlank((String)
+        boolean isUsernameClaimMissing = StringUtils.isBlank((String)
                 context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM));
         if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
-            boolean userIdentifierValueNotExist = StringUtils.isBlank(context.getUserInputData().get(USER_IDENTIFIER));
-            return userIdentifierValueNotExist && usernameInputValueNotExist;
+            boolean isUserIdentifierMissing = StringUtils.isBlank(context.getUserInputData().get(USER_IDENTIFIER));
+            return isUserIdentifierMissing && isUsernameClaimMissing;
         } else {
-            return usernameInputValueNotExist;
+            return isUsernameClaimMissing;
         }
     }
 
