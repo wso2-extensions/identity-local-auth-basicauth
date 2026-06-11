@@ -102,9 +102,16 @@ public class UserResolveExecutor implements Executor {
     @Override
     public ExecutorResponse execute(FlowExecutionContext context) {
 
+        if (isUserInputInvalid(context)) {
+            return new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
+        }
+
         String usernameClaim = resolveUsernameClaim(context);
         if (usernameClaim == null) {
-            return new ExecutorResponse(STATUS_USER_INPUT_REQUIRED);
+            if (isNotifyUserExistenceEnabled(context)) {
+                return buildUserNotFoundResponse();
+            }
+            return new ExecutorResponse(STATUS_COMPLETE);
         }
         return resolveUser(usernameClaim, context.getTenantDomain(), context);
     }
@@ -173,10 +180,7 @@ public class UserResolveExecutor implements Executor {
                             tenantDomain + "'.");
                 }
                 if (isNotifyUserExistenceEnabled(context)) {
-                    executorResponse.setResult(STATUS_RETRY);
-                    executorResponse.addMessage(MessageType.ERROR, IdentifierHandlerConstants.INVALID_IDENTIFIER,
-                            IdentifierHandlerConstants.INVALID_IDENTIFIER_I18N_KEY);
-                    return executorResponse;
+                    return buildUserNotFoundResponse();
                 }
                 executorResponse.setResult(STATUS_COMPLETE);
             } else {
@@ -278,6 +282,40 @@ public class UserResolveExecutor implements Executor {
             usernameClaim = (String) context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM);
         }
         return usernameClaim;
+    }
+
+    /**
+     * Determines whether user input is blank and required to resolve the user. When multi-attribute login is enabled,
+     * either a user identifier or the username claim must be present; otherwise only the username claim is required.
+     *
+     * @param context Flow execution context.
+     * @return True if neither a usable identifier nor the username claim is available.
+     */
+    private boolean isUserInputInvalid(FlowExecutionContext context) {
+
+        boolean isUsernameClaimMissing = StringUtils.isBlank((String)
+                context.getFlowUser().getClaim(FrameworkConstants.USERNAME_CLAIM));
+        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
+            boolean isUserIdentifierMissing = StringUtils.isBlank(context.getUserInputData().get(USER_IDENTIFIER));
+            return isUserIdentifierMissing && isUsernameClaimMissing;
+        } else {
+            return isUsernameClaimMissing;
+        }
+    }
+
+    /**
+     * Builds the "user does not exist" retry response. Callers should invoke this only when user existence
+     * notification is enabled.
+     *
+     * @return A retry {@link ExecutorResponse} carrying the user-not-found message.
+     */
+    private ExecutorResponse buildUserNotFoundResponse() {
+
+        ExecutorResponse executorResponse = new ExecutorResponse();
+        executorResponse.setResult(STATUS_RETRY);
+        executorResponse.addMessage(MessageType.ERROR, IdentifierHandlerConstants.USER_NOT_FOUND,
+                IdentifierHandlerConstants.USER_NOT_FOUND_I18N_KEY);
+        return executorResponse;
     }
 
     /**
