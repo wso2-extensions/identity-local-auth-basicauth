@@ -18,7 +18,6 @@
 
 package org.wso2.carbon.identity.application.authentication.handler.session;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -156,9 +155,9 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                     userSessions = getUserSessions(userId, tenantDomain);
                 }
 
-                if (userSessions != null && userSessions.size() >= maxSessionCount &&
-                        !isSingleSignOnAttempt(context, userSessions)) {
-                    prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
+                List<UserSession> sessionsToCheck = excludeCurrentSession(context, userSessions);
+                if (sessionsToCheck != null && sessionsToCheck.size() >= maxSessionCount) {
+                    prepareEndpointParams(context, maxSessionCountParamValue, sessionsToCheck);
                     return super.process(request, response, context);
                 } else {
                     this.publishAuthenticationStepAttempt(request, context, context.getSubject(), true);
@@ -218,10 +217,10 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
                 String tenantDomain = getUserTenantDomain(context);
                 userSessions = getUserSessions(userId, tenantDomain);
-                if (userSessions != null && userSessions.size() >= maxSessionCount &&
-                        !isSingleSignOnAttempt(context, userSessions)) {
-                    prepareEndpointParams(context, maxSessionCountParamValue, userSessions);
-                    throw new AuthenticationFailedException("Active session count: " + userSessions.size()
+                List<UserSession> sessionsToCheck = excludeCurrentSession(context, userSessions);
+                if (sessionsToCheck != null && sessionsToCheck.size() >= maxSessionCount) {
+                    prepareEndpointParams(context, maxSessionCountParamValue, sessionsToCheck);
+                    throw new AuthenticationFailedException("Active session count: " + sessionsToCheck.size()
                             + " exceeds the specified limit: " + maxSessionCountParamValue);
                 }
             } catch (UserSessionTerminationException e) {
@@ -495,19 +494,27 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
     }
 
     /**
-     * Check whether the current authentication attempt is a single sign-on attempt.
+     * Exclude the session currently being reused for this authentication attempt (e.g. an SSO
+     * request reusing an existing browser session) from the given session list. Without this
+     * exclusion, a session being legitimately reused for SSO would count against itself and
+     * always appear to meet/exceed the limit, and independently, any other concurrent session
+     * beyond the limit would go undetected as long as the current session matched itself.
      *
      * @param context      Authentication context.
-     * @param userSessions List of user sessions.
-     * @return True if the current authentication attempt is a single sign-on attempt.
+     * @param userSessions List of the user's active sessions.
+     * @return Sessions other than the one currently being used for this request, if any.
      */
-    private boolean isSingleSignOnAttempt(AuthenticationContext context, List<UserSession> userSessions) {
+    private List<UserSession> excludeCurrentSession(AuthenticationContext context, List<UserSession> userSessions) {
 
-        String sessionIdFromContext = context.getSessionIdentifier();
-        if (StringUtils.isNotBlank(sessionIdFromContext)) {
-            return userSessions.stream()
-                    .anyMatch(userSession -> sessionIdFromContext.equals(userSession.getSessionId()));
+        if (userSessions == null) {
+            return null;
         }
-        return false;
+        String currentSessionId = context.getSessionIdentifier();
+        if (StringUtils.isNotBlank(currentSessionId)) {
+            return userSessions.stream()
+                    .filter(userSession -> !currentSessionId.equals(userSession.getSessionId()))
+                    .collect(Collectors.toList());
+        }
+        return userSessions;
     }
 }
