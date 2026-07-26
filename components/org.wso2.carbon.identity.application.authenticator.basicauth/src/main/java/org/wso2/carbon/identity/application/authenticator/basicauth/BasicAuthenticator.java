@@ -121,6 +121,8 @@ import static org.wso2.carbon.identity.application.authenticator.basicauth.Basic
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_CONFIG;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.SHOW_PENDING_USER_INFORMATION_DEFAULT_VALUE;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USERNAME_USER_INPUT;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.CONF_SHOW_ONLY_SELF_AUTH_MESSAGE;
+import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.UNKNOWN_USER;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.USER_NAME;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.util.BasicAuthUtil.RESOLVE_TENANT_DOMAIN_FROM_USERNAME_CONFIG;
 import static org.wso2.carbon.identity.configuration.mgt.core.constant.ConfigurationConstants.ErrorMessages.ERROR_CODE_ATTRIBUTE_DOES_NOT_EXISTS;
@@ -405,7 +407,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 if (errorCode.equals(IdentityCoreConstants.USER_ACCOUNT_NOT_CONFIRMED_ERROR_CODE)) {
                     retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
                             BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "account.confirmation.pending";
-                    String username = request.getParameter(USER_NAME);
+                    String username = resolveUsername(request, context);
                     Object domain = IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN);
                     if (domain != null) {
                         username = IdentityUtil.addDomainToName(username, domain.toString());
@@ -424,7 +426,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
                                 BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "email.otp.verification.pending";
                     }
-                    String username = request.getParameter(USER_NAME);
+                    String username = resolveUsername(request, context);
                     Object domain = IdentityUtil.threadLocalProperties.get().get(RE_CAPTCHA_USER_DOMAIN);
                     if (domain != null) {
                         username = IdentityUtil.addDomainToName(username, domain.toString());
@@ -448,8 +450,8 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
                     }
                     redirectURL = loginPage + ("?" + queryParams) +
-                            BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(request.getParameter(
-                            USER_NAME), BasicAuthenticatorConstants.UTF_8) +
+                            BasicAuthenticatorConstants.FAILED_USERNAME + URLEncoder.encode(
+                            resolveUsername(request, context), BasicAuthenticatorConstants.UTF_8) +
                             BasicAuthenticatorConstants.ERROR_CODE + errorCode +
                             BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                             BasicAuthenticatorConstants.LOCAL + retryParam;
@@ -458,7 +460,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                             FORCED_PASSWORD_RESET_VIA_EMAIL), context);
                 } else if (errorCode.equals(
                         IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE)) {
-                    String username = request.getParameter(USER_NAME);
+                    String username = resolveUsername(request, context);
                     String tenantDomain = getTenantDomainFromUserName(context, username);
 
                     // Setting callback so that the user is prompted to login after a password reset.
@@ -486,7 +488,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     setAuthenticatorErrorMessage(getErrorMessage(errorCode, FORCED_PASSWORD_RESET_VIA_OTP),
                             context);
                 } else if (errorCode.equals(IdentityCoreConstants.ASK_PASSWORD_SET_PASSWORD_VIA_OTP_ERROR_CODE)) {
-                    String username = request.getParameter(USER_NAME);
+                    String username = resolveUsername(request, context);
                     String tenantDomain = getTenantDomainFromUserName(context, username);
 
                     // Setting callback so that the user is prompted to login after setting password.
@@ -519,7 +521,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         IdentityCoreConstants.USER_ACCOUNT_PENDING_APPROVAL_ERROR_CODE)) {
                     retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
                             BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + "account.pending.approval";
-                    String username = request.getParameter(USER_NAME);
+                    String username = resolveUsername(request, context);
 
                     redirectURL = loginPage + ("?" + queryParams) + BasicAuthenticatorConstants.FAILED_USERNAME
                             + URLEncoder.encode(username, BasicAuthenticatorConstants.UTF_8) +
@@ -555,7 +557,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
 
                     if (log.isDebugEnabled()) {
                         log.debug("errorCode : " + errorCode);
-                        log.debug("username : " + request.getParameter(USER_NAME));
+                        log.debug("username : " + resolveUsername(request, context));
                         log.debug("remainingAttempts : " + remainingAttempts);
                     }
 
@@ -563,7 +565,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         Map<String, String> paramMap = new HashMap<>();
                         paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
                         paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
-                                URLEncoder.encode(request.getParameter(USER_NAME),
+                                URLEncoder.encode(resolveUsername(request, context),
                                         BasicAuthenticatorConstants.UTF_8));
                         paramMap.put(BasicAuthenticatorConstants.REMAINING_ATTEMPTS, String.valueOf(remainingAttempts));
 
@@ -580,7 +582,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         Map<String, String> paramMap = new HashMap<>();
                         paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
                         paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
-                                URLEncoder.encode(request.getParameter(USER_NAME),
+                                URLEncoder.encode(resolveUsername(request, context),
                                         BasicAuthenticatorConstants.UTF_8));
 
                         if (StringUtils.isNotBlank(reason)) {
@@ -609,7 +611,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         Map<String, String> paramMap = new HashMap<>();
                         paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
                         paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
-                                URLEncoder.encode(request.getParameter(USER_NAME),
+                                URLEncoder.encode(resolveUsername(request, context),
                                         BasicAuthenticatorConstants.UTF_8));
 
                         retryParam = "&authFailure=true&authFailureMsg=login.fail.message";
@@ -623,11 +625,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     } else {
                         Map<String, String> paramMap = new HashMap<>();
                         paramMap.put(BasicAuthenticatorConstants.ERROR_CODE, errorCode);
-                        if (request.getParameter(USER_NAME) != null) {
-                            paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
-                                    URLEncoder.encode(request.getParameter(USER_NAME),
-                                            BasicAuthenticatorConstants.UTF_8));
-                        }
+                        paramMap.put(BasicAuthenticatorConstants.FAILED_USERNAME,
+                                URLEncoder.encode(resolveUsername(request, context),
+                                        BasicAuthenticatorConstants.UTF_8));
                         if (StringUtils.isNotBlank(reason)) {
                             retryParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
                                     BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + URLEncoder.encode(reason,
@@ -690,8 +690,9 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                         accountConfirmationPending, null);
     }
 
-    private static void setAuthenticatorErrorMessage(AuthenticatorMessage errorMessage, AuthenticationContext context) {
+    private void setAuthenticatorErrorMessage(AuthenticatorMessage errorMessage, AuthenticationContext context) {
 
+        errorMessage.setAuthenticatorName(getName());
         context.setProperty(AUTHENTICATOR_MESSAGE, errorMessage);
     }
 
@@ -1315,6 +1316,24 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         IdentityUtil.threadLocalProperties.get().remove(USER_EXIST_THREAD_LOCAL_PROPERTY);
     }
 
+    private String resolveUsername(HttpServletRequest request, AuthenticationContext context) {
+
+        String username = request.getParameter(USER_NAME);
+        if (StringUtils.isNotBlank(username)) {
+            return username;
+        }
+        AuthenticatedUser lastAuthenticatedUser = context.getLastAuthenticatedUser();
+        if (lastAuthenticatedUser != null && StringUtils.isNotBlank(lastAuthenticatedUser.getUserName())) {
+            return lastAuthenticatedUser.getUserName();
+        }
+
+        AuthenticatedUser subject = context.getSubject();
+        if (subject != null && StringUtils.isNotBlank(subject.getUserName())) {
+            return subject.getUserName();
+        }
+        return UNKNOWN_USER;
+    }
+
     private String getTenantDomainFromUserName(AuthenticationContext context, String username) {
 
         boolean isSaaSApp = context.getSequenceConfig().getApplicationConfig().isSaaSApp();
@@ -1386,11 +1405,17 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             idpName = context.getExternalIdP().getIdPName();
         }
 
+        Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
+        boolean showOnlySelfAuthMessage = parameterMap != null &&
+                Boolean.parseBoolean(parameterMap.get(CONF_SHOW_ONLY_SELF_AUTH_MESSAGE));
+
         AuthenticatorData authenticatorData = new AuthenticatorData();
         if (context.getProperty(AUTHENTICATOR_MESSAGE) != null) {
             AuthenticatorMessage authenticatorMessage = (AuthenticatorMessage) context.getProperty
                     (AUTHENTICATOR_MESSAGE);
-            authenticatorData.setMessage(authenticatorMessage);
+            if (!showOnlySelfAuthMessage || getName().equals(authenticatorMessage.getAuthenticatorName())) {
+                authenticatorData.setMessage(authenticatorMessage);
+            }
         }
 
         authenticatorData.setName(getName());
