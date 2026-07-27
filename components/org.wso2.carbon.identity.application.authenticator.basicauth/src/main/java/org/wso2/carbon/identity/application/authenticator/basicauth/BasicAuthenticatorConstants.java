@@ -84,6 +84,8 @@ public abstract class BasicAuthenticatorConstants {
             "reset password via Email.";
     public static final String ASK_PASSWORD_VIA_OTP = "User is requested to set the password via OTP.";
     public static final String INVITE = "invite";
+    public static final String UNKNOWN_USER = "UNKNOWN_USER";
+    public static final String CONF_SHOW_ONLY_SELF_AUTH_MESSAGE = "showOnlySelfAuthMessage";
 
     /**
      * Constants related to log management.
