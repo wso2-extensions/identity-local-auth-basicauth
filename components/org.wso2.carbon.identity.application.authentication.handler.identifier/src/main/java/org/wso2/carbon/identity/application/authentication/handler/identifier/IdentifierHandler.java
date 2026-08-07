@@ -555,11 +555,9 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
          This is going to be removed after the multi attribute user resolving logic is moved to each authenticator.
          Hence, don't rely on this logic for new authenticators.
          */
-        boolean malEnabled = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin()
-                .isEnabled(context.getTenantDomain());
-        // AUTHDIAG (temporary) - multi attribute login is one of two paths that can bind the user id here.
-        log.info("AUTHDIAG idf-mal enabled=" + malEnabled + " tenant=" + tenantDomain);
-        if (malEnabled) {
+        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
+            // AUTHDIAG (temporary) - multi attribute login is one of the paths that can bind the user id here.
+            log.info("AUTHDIAG idf-mal enabled=true tenant=" + tenantDomain);
             ResolvedUserResult resolvedUserResult = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().
                     resolveUser(tenantAwareUsername, tenantDomain);
             log.info("AUTHDIAG idf-mal-result null=" + (resolvedUserResult == null)
@@ -866,23 +864,21 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
 
             // If the userId is still not resolved and the username is not domain qualified, try to find
             // the user from secondary user stores.
-            boolean secondaryWalkRan = userId == null
-                    && StringUtils.equals(identifierFromRequest, tenantAwareUsername);
-            // AUTHDIAG (temporary) - the secondary store walk only runs when the primary missed.
-            log.info("AUTHDIAG idf-validate-walk willWalkSecondaries=" + secondaryWalkRan);
-            if (secondaryWalkRan) {
+            if (userId == null && StringUtils.equals(identifierFromRequest, tenantAwareUsername)) {
+                // AUTHDIAG (temporary) - the secondary store walk runs only when the primary missed.
+                log.info("AUTHDIAG idf-validate-walk started=true");
                 UserStoreManager secondaryUserStoreManager = userStoreManager.getSecondaryUserStoreManager();
                 while (secondaryUserStoreManager != null) {
                     String domain = secondaryUserStoreManager.getRealmConfiguration()
                             .getUserStoreProperties().get(PROPERTY_DOMAIN_NAME);
-                    boolean existsHere = userStoreManager.isExistingUser(domain + DOMAIN_SEPARATOR +
-                            tenantAwareUsername);
                     // AUTHDIAG (temporary) - each secondary store considered.
-                    log.info("AUTHDIAG idf-validate-try domain=" + domain + " exists=" + existsHere);
-                    if (existsHere) {
+                    log.info("AUTHDIAG idf-validate-try domain=" + domain);
+                    if (userStoreManager.isExistingUser(domain + DOMAIN_SEPARATOR +
+                            tenantAwareUsername)) {
                         userId = userStoreManager.getUserIDFromUserName(
                                 domain + DOMAIN_SEPARATOR + tenantAwareUsername);
                         userStoreDomain = domain;
+                        // AUTHDIAG (temporary) - the id bound from a secondary store.
                         log.info("AUTHDIAG idf-validate-secondary-set userId=" + userId
                                 + " domain=" + userStoreDomain);
                         break;
