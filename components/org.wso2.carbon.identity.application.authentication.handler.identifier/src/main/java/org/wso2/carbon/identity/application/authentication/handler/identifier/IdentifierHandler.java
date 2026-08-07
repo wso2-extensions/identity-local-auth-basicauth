@@ -673,6 +673,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             userStoreDomain = IdentityUtil.extractDomainFromName(username);
         }
 
+        // AUTHDIAG (temporary) - the diagnostic log below drops a null user id during JSON
+        // serialisation, so log it explicitly here. "null" means nothing bound the id at step 1.
+        log.info("AUTHDIAG idf-subject userId=" + userId + " domain=" + userStoreDomain
+                + " tenant=" + tenantDomain);
+
         AuthenticatedUser user = new AuthenticatedUser();
         user.setUserId(userId);
         user.setUserName(tenantAwareUsername);
