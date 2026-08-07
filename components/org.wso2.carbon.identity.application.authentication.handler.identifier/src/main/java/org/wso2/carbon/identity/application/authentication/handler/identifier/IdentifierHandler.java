@@ -555,15 +555,23 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
          This is going to be removed after the multi attribute user resolving logic is moved to each authenticator.
          Hence, don't rely on this logic for new authenticators.
          */
-        if (IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().isEnabled(context.getTenantDomain())) {
+        boolean malEnabled = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin()
+                .isEnabled(context.getTenantDomain());
+        // AUTHDIAG (temporary) - multi attribute login is one of two paths that can bind the user id here.
+        log.info("AUTHDIAG idf-mal enabled=" + malEnabled + " tenant=" + tenantDomain);
+        if (malEnabled) {
             ResolvedUserResult resolvedUserResult = IdentifierAuthenticatorServiceComponent.getMultiAttributeLogin().
                     resolveUser(tenantAwareUsername, tenantDomain);
+            log.info("AUTHDIAG idf-mal-result null=" + (resolvedUserResult == null)
+                    + " status=" + (resolvedUserResult == null ? null : resolvedUserResult.getResolvedStatus()));
             if (resolvedUserResult != null && ResolvedUserResult.UserResolvedStatus.SUCCESS.
                     equals(resolvedUserResult.getResolvedStatus())) {
                 tenantAwareUsername = resolvedUserResult.getUser().getUsername();
                 username = UserCoreUtil.addTenantDomainToEntry(tenantAwareUsername, tenantDomain);
                 userId = resolvedUserResult.getUser().getUserID();
                 userStoreDomain = resolvedUserResult.getUser().getUserStoreDomain();
+                // AUTHDIAG (temporary) - the id bound by multi attribute login.
+                log.info("AUTHDIAG idf-mal-set userId=" + userId + " domain=" + userStoreDomain);
                 // Set a property to the context to indicate that the user is resolved from this step.
                 setIsUserResolvedToContext(context);
             }
@@ -581,6 +589,15 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
           If the "ValidateUsername" adaptive parameter is set, it should be honoured regardless of the
           authenticator config.
          */
+        // AUTHDIAG (temporary) - which ValidateUsername source is in play. The adaptive script
+        // parameter takes precedence; only when it is unset does the authenticator config apply, and
+        // the two take different branches - the script parameter can reach the resident org resolver.
+        log.info("AUTHDIAG idf-validate-gate scriptParam=" + validateUsernameAdaptiveParam
+                + " authenticatorConfig=" + (getAuthenticatorConfig().getParameterMap() == null ? null
+                        : getAuthenticatorConfig().getParameterMap().get("ValidateUsername"))
+                + " callerPath=" + context.getCallerPath()
+                + " userIdSoFar=" + userId + " domainSoFar=" + userStoreDomain);
+
         if (StringUtils.isNotBlank(validateUsernameAdaptiveParam)) {
             if (Boolean.parseBoolean(validateUsernameAdaptiveParam)) {
                 boolean isUsernameValidationRequired = false;
@@ -592,6 +609,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                             int tenantId = IdentityTenantUtil.getTenantId(requestTenantDomain);
                             Tenant tenant = (Tenant) IdentifierAuthenticatorServiceComponent.getRealmService()
                                     .getTenantManager().getTenant(tenantId);
+                            // AUTHDIAG (temporary) - the resident organization resolver branch.
+                            log.info("AUTHDIAG idf-residentorg-gate tenantId=" + tenantId
+                                    + " tenantNull=" + (tenant == null)
+                                    + " associatedOrgUUID="
+                                    + (tenant == null ? null : tenant.getAssociatedOrganizationUUID()));
                             if (tenant != null && StringUtils.isNotBlank(tenant.getAssociatedOrganizationUUID())) {
                                 isUsernameValidationRequired = true;
                                 org.wso2.carbon.user.core.common.User user = IdentifierAuthenticatorServiceComponent
@@ -605,6 +627,9 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
                                         tenantAwareUsername, user.getTenantDomain());
                                 userId = user.getUserID();
                                 userStoreDomain = user.getUserStoreDomain();
+                                // AUTHDIAG (temporary) - the id bound by the resident organization resolver.
+                                log.info("AUTHDIAG idf-residentorg-set userId=" + userId
+                                        + " domain=" + userStoreDomain + " tenant=" + user.getTenantDomain());
                                 // Set a property to the context to indicate that the user is resolved from this step.
                                 setIsUserResolvedToContext(context);
                             }
@@ -832,20 +857,34 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             // or not.
             if (userId == null) {
                 userId = userStoreManager.getUserIDFromUserName(tenantAwareUsername);
+                // AUTHDIAG (temporary) - the primary store lookup. The username carries no domain here,
+                // so this only ever consults the primary store.
+                log.info("AUTHDIAG idf-validate-primary storeClass="
+                        + userStoreManager.getClass().getSimpleName()
+                        + " found=" + (userId != null) + " userId=" + userId);
             }
 
             // If the userId is still not resolved and the username is not domain qualified, try to find
             // the user from secondary user stores.
-            if (userId == null && StringUtils.equals(identifierFromRequest, tenantAwareUsername)) {
+            boolean secondaryWalkRan = userId == null
+                    && StringUtils.equals(identifierFromRequest, tenantAwareUsername);
+            // AUTHDIAG (temporary) - the secondary store walk only runs when the primary missed.
+            log.info("AUTHDIAG idf-validate-walk willWalkSecondaries=" + secondaryWalkRan);
+            if (secondaryWalkRan) {
                 UserStoreManager secondaryUserStoreManager = userStoreManager.getSecondaryUserStoreManager();
                 while (secondaryUserStoreManager != null) {
                     String domain = secondaryUserStoreManager.getRealmConfiguration()
                             .getUserStoreProperties().get(PROPERTY_DOMAIN_NAME);
-                    if (userStoreManager.isExistingUser(domain + DOMAIN_SEPARATOR +
-                            tenantAwareUsername)) {
+                    boolean existsHere = userStoreManager.isExistingUser(domain + DOMAIN_SEPARATOR +
+                            tenantAwareUsername);
+                    // AUTHDIAG (temporary) - each secondary store considered.
+                    log.info("AUTHDIAG idf-validate-try domain=" + domain + " exists=" + existsHere);
+                    if (existsHere) {
                         userId = userStoreManager.getUserIDFromUserName(
                                 domain + DOMAIN_SEPARATOR + tenantAwareUsername);
                         userStoreDomain = domain;
+                        log.info("AUTHDIAG idf-validate-secondary-set userId=" + userId
+                                + " domain=" + userStoreDomain);
                         break;
                     }
                     secondaryUserStoreManager = secondaryUserStoreManager.getSecondaryUserStoreManager();
