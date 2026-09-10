@@ -398,8 +398,9 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
             throws UserSessionRetrievalException {
 
         List<UserSession> userSessions;
-        int sessionsToRetrieve = Math.max(maxSessionCount + 1,
-                ActiveSessionsLimitHandlerConstants.MAX_SESSIONS_TO_PROMPT);
+        // Long arithmetic, so that a large MaxSessionCount does not overflow into a small or negative bound.
+        int sessionsToRetrieve = (int) Math.min(Integer.MAX_VALUE,
+                Math.max((long) maxSessionCount + 1, ActiveSessionsLimitHandlerConstants.MAX_SESSIONS_TO_PROMPT));
 
         try {
             userSessions = ActiveSessionsLimitHandlerServiceHolder.getInstance()
