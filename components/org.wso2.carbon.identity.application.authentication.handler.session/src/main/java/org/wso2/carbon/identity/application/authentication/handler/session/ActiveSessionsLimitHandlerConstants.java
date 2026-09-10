@@ -24,6 +24,13 @@ package org.wso2.carbon.identity.application.authentication.handler.session;
 public abstract class ActiveSessionsLimitHandlerConstants {
 
     public static final String HANDLER_NAME = "SessionExecutor";
+
+    /*
+     * Upper bound on the number of sessions read, and offered for termination, when a user is over the configured
+     * concurrent session limit. A user over the limit has to be shown more sessions than the limit itself to be able
+     * to terminate their way under it, so this is deliberately larger than any practical MaxSessionCount.
+     */
+    public static final int MAX_SESSIONS_TO_PROMPT = 20;
     public static final String HANDLER_FRIENDLY_NAME = "Active Sessions Limit";
     public static final String TERMINATE_SESSIONS_ACTION = "terminateActiveSessionsAction";
     public static final String ACTIVE_SESSIONS_LIMIT_ACTION = "ActiveSessionsLimitAction";
