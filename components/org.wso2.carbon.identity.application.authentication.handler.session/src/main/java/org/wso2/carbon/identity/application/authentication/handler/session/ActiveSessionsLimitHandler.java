@@ -152,7 +152,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                 String tenantDomain = getUserTenantDomain(context);
                 List<UserSession> userSessions = null;
                 if (userId != null) {
-                    userSessions = getUserSessions(userId, tenantDomain);
+                    userSessions = getUserSessions(userId, tenantDomain, maxSessionCount);
                 }
 
                 List<UserSession> sessionsToCheck = excludeCurrentSession(context, userSessions);
@@ -216,7 +216,7 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                 terminateSessions(userId, sessionIdsToTerminate);
                 maxSessionCount = Integer.parseInt(maxSessionCountParamValue);
                 String tenantDomain = getUserTenantDomain(context);
-                userSessions = getUserSessions(userId, tenantDomain);
+                userSessions = getUserSessions(userId, tenantDomain, maxSessionCount);
                 List<UserSession> sessionsToCheck = excludeCurrentSession(context, userSessions);
                 if (sessionsToCheck != null && sessionsToCheck.size() >= maxSessionCount) {
                     prepareEndpointParams(context, maxSessionCountParamValue, sessionsToCheck);
@@ -300,18 +300,21 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
 
     private AdditionalData getAdditionalData(AuthenticationContext context) throws AuthenticationFailedException {
 
+        String maxSessionCount =
+                getAuthenticatorParams(ActiveSessionsLimitHandlerConstants.MAX_SESSION_COUNT, DEFAULT_MAX_SESSION_COUNT,
+                        context);
+
         String userId;
         List<UserSession> userSessions;
         try {
             userId = getUserId(context);
-            userSessions = getUserSessions(userId, context.getTenantDomain());
+            userSessions = getUserSessions(userId, context.getTenantDomain(),
+                    Integer.parseInt(maxSessionCount));
+        } catch (NumberFormatException e) {
+            throw new AuthenticationFailedException("'MaxSessionCount' must be an integer value.", e);
         } catch (UserSessionRetrievalException e) {
             throw new AuthenticationFailedException("Error occurred while retrieving user sessions.", e);
         }
-
-        String maxSessionCount =
-                getAuthenticatorParams(ActiveSessionsLimitHandlerConstants.MAX_SESSION_COUNT, DEFAULT_MAX_SESSION_COUNT,
-                        context);
 
         AdditionalData additionalData = new AdditionalData();
         Map<String, String> additionalParams = new HashMap<>();
@@ -370,13 +373,37 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
                 .collect(Collectors.toList());
     }
 
-    private List<UserSession> getUserSessions(String userId, String tenantDomain) throws UserSessionRetrievalException {
+    /**
+     * Retrieves only as many sessions of the user as this handler can act on.
+     * <p>
+     * The decision this handler makes is whether the user has at least {@code maxSessionCount} sessions other than the
+     * one being created, so there is never a reason to read the user's whole session list: doing so reads the session
+     * store once per session, which makes every login of an account that has accumulated sessions progressively more
+     * expensive. {@code maxSessionCount + 1} sessions are enough for that decision, because the session being created
+     * is excluded from the count afterwards.
+     * <p>
+     * The same list is offered to the user for termination when the limit is reached, so at least
+     * {@link ActiveSessionsLimitHandlerConstants#MAX_SESSIONS_TO_PROMPT} sessions are read: a user who is over the
+     * limit needs to be shown more sessions than the limit itself to be able to terminate their way under it. A user
+     * holding more sessions than that terminates the sessions offered and retries, rather than the server reading an
+     * unbounded list.
+     *
+     * @param userId          ID of the user.
+     * @param tenantDomain    Tenant domain of the user.
+     * @param maxSessionCount Configured maximum number of concurrent sessions.
+     * @return Sessions of the user, bounded as described above.
+     * @throws UserSessionRetrievalException If the sessions could not be retrieved.
+     */
+    private List<UserSession> getUserSessions(String userId, String tenantDomain, int maxSessionCount)
+            throws UserSessionRetrievalException {
 
         List<UserSession> userSessions;
+        int sessionsToRetrieve = Math.max(maxSessionCount + 1,
+                ActiveSessionsLimitHandlerConstants.MAX_SESSIONS_TO_PROMPT);
 
         try {
             userSessions = ActiveSessionsLimitHandlerServiceHolder.getInstance()
-                    .getUserSessionManagementService().getSessionsByUserId(userId, tenantDomain);
+                    .getUserSessionManagementService().getSessionsByUserId(userId, tenantDomain, sessionsToRetrieve);
             if (log.isDebugEnabled()) {
                 log.debug("Retrieved " + userSessions.size() + " for userId: " + userId);
             }
