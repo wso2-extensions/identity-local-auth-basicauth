@@ -399,8 +399,8 @@ public class ActiveSessionsLimitHandler extends AbstractApplicationAuthenticator
 
         List<UserSession> userSessions;
         // Long arithmetic, so that a large MaxSessionCount does not overflow into a small or negative bound.
-        int sessionsToRetrieve = (int) Math.min(Integer.MAX_VALUE,
-                Math.max((long) maxSessionCount + 1, ActiveSessionsLimitHandlerConstants.MAX_SESSIONS_TO_PROMPT));
+        int sessionsToRetrieve = Math.clamp((long) maxSessionCount + 1,
+                ActiveSessionsLimitHandlerConstants.MAX_SESSIONS_TO_PROMPT, Integer.MAX_VALUE);
 
         try {
             userSessions = ActiveSessionsLimitHandlerServiceHolder.getInstance()
