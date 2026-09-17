@@ -344,8 +344,18 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             if (FrameworkConstants.INPUT_TYPE_IDENTIFIER_FIRST.equalsIgnoreCase(inputType)) {
                 queryParams += "&" + FrameworkConstants.RequestParams.INPUT_TYPE + "=" + inputType;
                 context.addEndpointParam(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, usernameFromContext);
-                context.addEndpointParam(FrameworkConstants.JSAttributes.JS_IDENTIFIER_FIRST_USER_INPUT,
-                        request.getParameter(USER_NAME));
+                /*
+                 * The identifier typed by the user is persisted by the identifier first step next to the resolved
+                 * username. It is not read from the request: only the request that completed the identifier first
+                 * step carries it, and the requests that re-initiate this step after a failed attempt carry the
+                 * hidden, tenant qualified username of the password form instead.
+                 */
+                String identifierFirstUserInput =
+                        runtimeParams.get(FrameworkConstants.JSAttributes.JS_IDENTIFIER_FIRST_USER_INPUT);
+                if (StringUtils.isNotBlank(identifierFirstUserInput)) {
+                    context.addEndpointParam(FrameworkConstants.JSAttributes.JS_IDENTIFIER_FIRST_USER_INPUT,
+                            identifierFirstUserInput);
+                }
             }
             String additionalParams = runtimeParams.get(ADDITIONAL_QUERY_PARAMS);
             if (StringUtils.isNotBlank(additionalParams)) {

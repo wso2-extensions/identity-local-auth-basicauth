@@ -108,6 +108,7 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -124,6 +125,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -1279,6 +1281,81 @@ public class BasicAuthenticatorTestCase {
                     + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME
                     + ":" + BasicAuthenticatorConstants.LOCAL
                     + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message");
+        }
+    }
+
+    @Test
+    public void initiateAuthenticationRequestPublishesIdentifierFirstUserInputFromRuntimeParams()
+            throws AuthenticationFailedException, IOException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade>
+                     configurationFacade = Mockito.mockStatic(ConfigurationFacade.class)) {
+
+            initiateAuthenticationRequest(fileBasedConfigurationBuilder, configurationFacade);
+
+            Map<String, Serializable> endpointParams = new HashMap<>();
+            when(mockAuthnCtxt.getEndpointParams()).thenReturn(endpointParams);
+            doAnswer((Answer<Object>) invocation -> {
+
+                endpointParams.put((String) invocation.getArguments()[0],
+                        (Serializable) invocation.getArguments()[1]);
+                return null;
+            }).when(mockAuthnCtxt).addEndpointParam(anyString(), any());
+
+            Map<String, String> commonParams = new HashMap<>();
+            commonParams.put(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, "alice@carbon.super");
+            commonParams.put(FrameworkConstants.JSAttributes.JS_IDENTIFIER_FIRST_USER_INPUT, "alice");
+            when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(commonParams);
+            when(mockAuthnCtxt.getAuthenticatorParams(BasicAuthenticatorConstants.AUTHENTICATOR_NAME))
+                    .thenReturn(null);
+
+            // The request carries the hidden, tenant qualified username, as on a retry after a failed attempt:
+            // the value shown to the user must still be the one persisted by the identifier first step.
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn("alice@carbon.super");
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+            assertEquals(endpointParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME),
+                    "alice@carbon.super");
+            assertEquals(endpointParams.get(FrameworkConstants.JSAttributes.JS_IDENTIFIER_FIRST_USER_INPUT),
+                    "alice");
+        }
+    }
+
+    @Test
+    public void initiateAuthenticationRequestPublishesNoIdentifierFirstUserInputWhenNoneIsPersisted()
+            throws AuthenticationFailedException, IOException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade>
+                     configurationFacade = Mockito.mockStatic(ConfigurationFacade.class)) {
+
+            initiateAuthenticationRequest(fileBasedConfigurationBuilder, configurationFacade);
+
+            Map<String, Serializable> endpointParams = new HashMap<>();
+            when(mockAuthnCtxt.getEndpointParams()).thenReturn(endpointParams);
+            doAnswer((Answer<Object>) invocation -> {
+
+                endpointParams.put((String) invocation.getArguments()[0],
+                        (Serializable) invocation.getArguments()[1]);
+                return null;
+            }).when(mockAuthnCtxt).addEndpointParam(anyString(), any());
+
+            // The identifier first step persisted the username only, as an identifier handler that does not
+            // persist the typed identifier does.
+            Map<String, String> commonParams = new HashMap<>();
+            commonParams.put(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, "alice@carbon.super");
+            when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(commonParams);
+            when(mockAuthnCtxt.getAuthenticatorParams(BasicAuthenticatorConstants.AUTHENTICATOR_NAME))
+                    .thenReturn(null);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn("alice");
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+            assertEquals(endpointParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME),
+                    "alice@carbon.super");
+            // The request parameter is not a fallback: the login page falls back to the username itself.
+            assertFalse(endpointParams.containsKey(FrameworkConstants.JSAttributes.JS_IDENTIFIER_FIRST_USER_INPUT));
         }
     }
 
