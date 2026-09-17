@@ -108,6 +108,7 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1279,6 +1280,44 @@ public class BasicAuthenticatorTestCase {
                     + BasicAuthenticatorConstants.AUTHENTICATORS + BasicAuthenticatorConstants.AUTHENTICATOR_NAME
                     + ":" + BasicAuthenticatorConstants.LOCAL
                     + "&authFailure=true&authFailureMsg=user.tenant.domain.mismatch.message");
+        }
+    }
+
+    @Test
+    public void initiateAuthenticationRequestPublishesIdentifierFirstUserInputFromRuntimeParams()
+            throws AuthenticationFailedException, IOException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade>
+                     configurationFacade = Mockito.mockStatic(ConfigurationFacade.class)) {
+
+            initiateAuthenticationRequest(fileBasedConfigurationBuilder, configurationFacade);
+
+            Map<String, Serializable> endpointParams = new HashMap<>();
+            when(mockAuthnCtxt.getEndpointParams()).thenReturn(endpointParams);
+            doAnswer((Answer<Object>) invocation -> {
+
+                endpointParams.put((String) invocation.getArguments()[0],
+                        (Serializable) invocation.getArguments()[1]);
+                return null;
+            }).when(mockAuthnCtxt).addEndpointParam(anyString(), any());
+
+            Map<String, String> commonParams = new HashMap<>();
+            commonParams.put(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, "alice@carbon.super");
+            commonParams.put(FrameworkConstants.JSAttributes.JS_IDENTIFIER_FIRST_USER_INPUT, "alice");
+            when(mockAuthnCtxt.getAuthenticatorParams("common")).thenReturn(commonParams);
+            when(mockAuthnCtxt.getAuthenticatorParams(BasicAuthenticatorConstants.AUTHENTICATOR_NAME))
+                    .thenReturn(null);
+
+            // The request carries the hidden, tenant qualified username, as on a retry after a failed attempt:
+            // the value shown to the user must still be the one persisted by the identifier first step.
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn("alice@carbon.super");
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+            assertEquals(endpointParams.get(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME),
+                    "alice@carbon.super");
+            assertEquals(endpointParams.get(FrameworkConstants.JSAttributes.JS_IDENTIFIER_FIRST_USER_INPUT),
+                    "alice");
         }
     }
 

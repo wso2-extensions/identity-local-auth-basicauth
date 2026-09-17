@@ -521,7 +521,7 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
             String skipPreProcessUsername = runtimeParams.get(SKIP_IDENTIFIER_PRE_PROCESS);
             validateUsernameAdaptiveParam = runtimeParams.get(VALIDATE_USERNAME_ADAPTIVE_SCRIPT_PARAM);
             if (Boolean.parseBoolean(skipPreProcessUsername)) {
-                persistUsername(context, identifierFromRequest);
+                persistUsername(context, identifierFromRequest, identifierFromRequest);
 
                 // Since the pre-processing is skipped, user id is not populated.
                 AuthenticatedUser user = new AuthenticatedUser();
@@ -662,11 +662,11 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         authProperties.put("username", username);
 
         if (Boolean.parseBoolean(IdentityUtil.getProperty(IdentityConstants.ServerConfig.IDENTIFIER_AS_USERNAME))) {
-            persistUsername(context, identifierFromRequest);
+            persistUsername(context, identifierFromRequest, identifierFromRequest);
         } else if (!BasicAuthUtil.usePreprocessedUsername(context)) {
-            persistUsername(context, tenantAwareUsername);
+            persistUsername(context, tenantAwareUsername, identifierFromRequest);
         } else {
-            persistUsername(context, username);
+            persistUsername(context, username, identifierFromRequest);
         }
 
         if (userStoreDomain == null) {
@@ -776,10 +776,23 @@ public class IdentifierHandler extends AbstractApplicationAuthenticator
         return IdentifierHandlerConstants.HANDLER_NAME;
     }
 
-    private void persistUsername(AuthenticationContext context, String username) {
+    /**
+     * Persist the username resolved by the identifier first step, together with the identifier the user typed,
+     * as runtime parameters for the following steps. The typed identifier is what the login page displays for
+     * the user; the resolved username is what the following authenticators authenticate.
+     *
+     * @param context                  Authentication context.
+     * @param username                 Username resolved for the identifier.
+     * @param identifierFirstUserInput Identifier as typed by the user.
+     */
+    private void persistUsername(AuthenticationContext context, String username, String identifierFirstUserInput) {
 
         Map<String, String> identifierParams = new HashMap<>();
         identifierParams.put(FrameworkConstants.JSAttributes.JS_OPTIONS_USERNAME, username);
+        if (StringUtils.isNotBlank(identifierFirstUserInput)) {
+            identifierParams.put(FrameworkConstants.JSAttributes.JS_IDENTIFIER_FIRST_USER_INPUT,
+                    identifierFirstUserInput);
+        }
         Map<String, Map<String, String>> contextParams = new HashMap<>();
         contextParams.put(FrameworkConstants.JSAttributes.JS_COMMON_OPTIONS, identifierParams);
         //Identifier first is the first authenticator.
