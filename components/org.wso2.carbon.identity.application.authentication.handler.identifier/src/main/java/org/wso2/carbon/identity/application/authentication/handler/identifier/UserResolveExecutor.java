@@ -150,9 +150,9 @@ public class UserResolveExecutor implements Executor {
             String resolvedUsername = resolveQualifiedUsername(username, userStoreManager, context);
             Claim[] claims = userStoreManager.getUserClaimValues(resolvedUsername, null);
             if (claims != null && claims.length > 0) {
-                Map<String, Object> claimMap = Arrays.stream(claims)
+                Map<String, String> claimMap = Arrays.stream(claims)
                         .filter(c -> c != null && c.getClaimUri() != null)
-                        .collect(Collectors.<Claim, String, Object>toMap(Claim::getClaimUri, Claim::getValue));
+                        .collect(Collectors.toMap(Claim::getClaimUri, Claim::getValue));
                 if (isNotifyUserAccountStatusEnabled(context)) {
                     if (Boolean.parseBoolean((String) claimMap.get(FrameworkConstants.ACCOUNT_LOCKED_CLAIM_URI))) {
                         String reason = (String) claimMap.get(FrameworkConstants.ACCOUNT_LOCKED_REASON_CLAIM_URI);
@@ -170,7 +170,7 @@ public class UserResolveExecutor implements Executor {
                         return executorResponse;
                     }
                 }
-                executorResponse.setUpdatedUserClaims(claimMap);
+                context.getFlowUser().addClaims(claimMap);
             }
             executorResponse.setResult(STATUS_COMPLETE);
         } catch (UserStoreException e) {
