@@ -474,13 +474,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     String tenantDomain = getTenantDomainFromUserName(context, username);
 
                     // Setting callback so that the user is prompted to login after a password reset.
-                    String callback;
-                    try {
-                        callback = ServiceURLBuilder.create().addPath(loginPage).build().getAbsolutePublicURL();
-                    } catch (URLBuilderException e) {
-                        throw new IdentityRuntimeException(
-                                "Error while building callback url for context: " + loginPage, e);
-                    }
+                    String callback = buildPasswordResetCallbackURL(loginPage);
                     callback = callback + ("?" + queryParams)
                             + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                             BasicAuthenticatorConstants.LOCAL;
@@ -502,13 +496,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                     String tenantDomain = getTenantDomainFromUserName(context, username);
 
                     // Setting callback so that the user is prompted to login after setting password.
-                    String callback;
-                    try {
-                        callback = ServiceURLBuilder.create().addPath(loginPage).build().getAbsolutePublicURL();
-                    } catch (URLBuilderException e) {
-                        throw new IdentityRuntimeException(
-                                "Error while building callback url for context: " + loginPage, e);
-                    }
+                    String callback = buildPasswordResetCallbackURL(loginPage);
                     callback = callback + ("?" + queryParams)
                             + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
                             BasicAuthenticatorConstants.LOCAL;
@@ -1342,6 +1330,36 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
             return subject.getUserName();
         }
         return UNKNOWN_USER;
+    }
+
+    /**
+     * Builds the absolute callback URL used to prompt the user to log in after a password reset.
+     * <p>
+     * {@link ConfigurationFacade#getAuthenticationEndpointURL()} returns an absolute URL when tenant qualified
+     * URLs are enabled. Passing such an absolute URL to {@link ServiceURLBuilder#addPath(String...)} makes the builder
+     * treat it as a path segment and prepend the server origin a second time, producing a malformed callback with
+     * the origin duplicated. Hence, when the login page is already an absolute URL it is used as is; otherwise it is
+     * built through {@link ServiceURLBuilder} (the login page is relative while tenant qualified URLs are disabled).
+     *
+     * @param loginPage the authentication endpoint URL resolved from {@link ConfigurationFacade}.
+     * @return the absolute callback URL.
+     */
+    private String buildPasswordResetCallbackURL(String loginPage) {
+
+        if (isAbsoluteURL(loginPage)) {
+            return loginPage;
+        }
+        try {
+            return ServiceURLBuilder.create().addPath(loginPage).build().getAbsolutePublicURL();
+        } catch (URLBuilderException e) {
+            throw new IdentityRuntimeException(
+                    "Error while building callback url for context: " + loginPage, e);
+        }
+    }
+
+    private boolean isAbsoluteURL(String url) {
+
+        return StringUtils.startsWithAny(url, new String[]{"http://", "https://"});
     }
 
     private String getTenantDomainFromUserName(AuthenticationContext context, String username) {
