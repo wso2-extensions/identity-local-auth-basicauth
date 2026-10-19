@@ -183,9 +183,11 @@ public class UserResolveExecutorTestCase {
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
         Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
-        Assert.assertNotNull(response.getUpdatedUserClaims());
-        Assert.assertEquals(response.getUpdatedUserClaims().get("http://wso2.org/claims/emailaddress"), "test@example.com");
-        Assert.assertEquals(response.getUpdatedUserClaims().get("http://wso2.org/claims/givenname"), "Test User");
+        Assert.assertNull(response.getUpdatedUserClaims());
+        Map<String, String> expectedClaims = new HashMap<>();
+        expectedClaims.put("http://wso2.org/claims/emailaddress", "test@example.com");
+        expectedClaims.put("http://wso2.org/claims/givenname", "Test User");
+        verify(mockFlowUser).addClaims(expectedClaims);
     }
 
     @Test
