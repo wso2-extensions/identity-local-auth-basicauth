@@ -128,6 +128,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_PASSWORD;
 import static org.wso2.carbon.identity.application.authenticator.basicauth.BasicAuthenticatorConstants.DISPLAY_USER_NAME;
@@ -1722,6 +1723,149 @@ public class BasicAuthenticatorTestCase {
             basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
             validateResponseParams(expected, redirect);
         }
+    }
+
+    @DataProvider(name = "passwordResetCallbackOriginProvider")
+    public Object[][] passwordResetCallbackOriginProvider() {
+
+        // errorCode, whether the login page resolved from ConfigurationFacade is an absolute URL,
+        // whether building the callback URL through ServiceURLBuilder fails.
+        return new Object[][]{
+                {IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE, true, false},
+                {IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE, false, false},
+                {IdentityCoreConstants.ADMIN_FORCED_USER_PASSWORD_RESET_VIA_OTP_ERROR_CODE, false, true},
+                {IdentityCoreConstants.ASK_PASSWORD_SET_PASSWORD_VIA_OTP_ERROR_CODE, true, false},
+                {IdentityCoreConstants.ASK_PASSWORD_SET_PASSWORD_VIA_OTP_ERROR_CODE, false, false},
+                {IdentityCoreConstants.ASK_PASSWORD_SET_PASSWORD_VIA_OTP_ERROR_CODE, false, true},
+        };
+    }
+
+    /**
+     * When tenant qualified URLs are enabled, {@code ConfigurationFacade#getAuthenticationEndpointURL()} returns an
+     * absolute login page URL. The old code always wrapped it through {@code ServiceURLBuilder.addPath(loginPage)},
+     * which treats the absolute value as a path segment and prepends the server origin a second time.
+     * An absolute login page is now used as is, while a relative login page (tenant qualified URLs disabled) is still
+     * built through {@code ServiceURLBuilder}. In both cases the callback carries the server origin exactly once.
+     * If building a relative login page fails, the error is surfaced as an {@link IdentityRuntimeException}.
+     */
+    @Test(dataProvider = "passwordResetCallbackOriginProvider")
+    public void testPasswordResetCallbackOriginDuplication(String errorCode, boolean isAbsoluteLoginPage,
+                                                           boolean isURLBuildFailure)
+            throws AuthenticationFailedException, IOException, URLBuilderException {
+
+        String serverOrigin = DUMMY_PROTOCOL + "://" + DUMMY_HOSTNAME + ":" + DUMMY_PORT;
+        String relativeLoginPage = "authenticationendpoint/login.do";
+        String absoluteLoginPage = serverOrigin + "/" + relativeLoginPage;
+
+        try (MockedStatic<FileBasedConfigurationBuilder> fileBasedConfigurationBuilder = Mockito.mockStatic(
+                FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class);
+             MockedStatic<CarbonUtils> carbonUtils = Mockito.mockStatic(CarbonUtils.class);
+             MockedStatic<PrivilegedCarbonContext> privilegedCarbonContext = Mockito.mockStatic(
+                     PrivilegedCarbonContext.class);
+             MockedStatic<ServerConfiguration> serverConfiguration = Mockito.mockStatic(ServerConfiguration.class);
+             MockedStatic<ServiceURLBuilder> serviceURLBuilder = Mockito.mockStatic(ServiceURLBuilder.class);
+             MockedStatic<FlowMgtConfigUtils> flowMgtConfigUtils = Mockito.mockStatic(FlowMgtConfigUtils.class)) {
+
+            carbonUtils.when(CarbonUtils::getManagementTransport).thenReturn(DUMMY_PROTOCOL);
+            serverConfiguration.when(ServerConfiguration::getInstance).thenReturn(mockServerConfiguration);
+            when(mockServerConfiguration.getFirstProperty(IdentityCoreConstants.HOST_NAME)).thenReturn(DUMMY_HOSTNAME);
+            mockIdentityTenantUtil.when(IdentityTenantUtil::isTenantQualifiedUrlsEnabled).thenReturn(true);
+            mockIdentityTenantUtil.when(IdentityTenantUtil::getTenantDomainFromContext).thenReturn(CARBON_SUPER);
+            privilegedCarbonContext.when(PrivilegedCarbonContext::getThreadLocalCarbonContext)
+                    .thenReturn(mockPrivilegedCarbonContext);
+            when(mockPrivilegedCarbonContext.getTenantDomain()).thenReturn(CARBON_SUPER);
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+
+            // Simulate DefaultServiceURLBuilder: addPath(path) followed by getAbsolutePublicURL() prepends the
+            // server origin to whatever path was supplied. Passing an already absolute URL therefore duplicates it.
+            ServiceURLBuilder mockServiceURLBuilderInstance = mock(ServiceURLBuilder.class);
+            ServiceURL mockServiceURL = mock(ServiceURL.class);
+            final String[] capturedPath = new String[1];
+            serviceURLBuilder.when(ServiceURLBuilder::create).thenReturn(mockServiceURLBuilderInstance);
+            when(mockServiceURLBuilderInstance.addPath(anyString())).thenAnswer((Answer<ServiceURLBuilder>) inv -> {
+                capturedPath[0] = inv.getArgument(0);
+                return mockServiceURLBuilderInstance;
+            });
+            if (isURLBuildFailure) {
+                when(mockServiceURLBuilderInstance.build()).thenThrow(new URLBuilderException("Build failure"));
+            } else {
+                when(mockServiceURLBuilderInstance.build()).thenReturn(mockServiceURL);
+            }
+            when(mockServiceURL.getAbsolutePublicURL()).thenAnswer(inv -> serverOrigin + "/" + capturedPath[0]);
+
+            FlowConfigDTO mockFlowConfigDTO = new FlowConfigDTO();
+            mockFlowConfigDTO.setIsEnabled(false);
+            flowMgtConfigUtils.when(() -> FlowMgtConfigUtils.getFlowConfig(anyString(), anyString()))
+                    .thenReturn(mockFlowConfigDTO);
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+
+            HashMap<String, String> paramMap = new HashMap<>();
+            paramMap.put("showAuthFailureReason", "true");
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("test", true, paramMap);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(DUMMY_PASSWORD);
+            SequenceConfig conf = new SequenceConfig();
+            conf.setApplicationConfig(applicationConfig);
+            when(applicationConfig.isSaaSApp()).thenReturn(false);
+            when(mockAuthnCtxt.getSequenceConfig()).thenReturn(conf);
+
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL())
+                    .thenReturn(isAbsoluteLoginPage ? absoluteLoginPage : relativeLoginPage);
+            when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+            when(mockConfigurationFacade.getAccountRecoveryEndpointPath()).thenReturn(DUMMY_RECOVERY_URL);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+
+            when(mockIdentityErrorMsgContext.getErrorCode()).thenReturn(errorCode);
+            when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(1);
+            when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(1);
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(mockIdentityErrorMsgContext);
+
+            redirect = null;
+            doAnswer((Answer<Object>) invocation -> {
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }).when(mockResponse).sendRedirect(anyString());
+
+            if (isURLBuildFailure) {
+                assertThrows(IdentityRuntimeException.class, () ->
+                        basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt));
+                return;
+            }
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+
+            assertNotNull(redirect, "No redirect URL was produced for error code: " + errorCode);
+            int callbackIndex = redirect.indexOf(BasicAuthenticatorConstants.CALLBACK_PARAM);
+            assertTrue(callbackIndex >= 0, "Redirect does not contain a callback parameter: " + redirect);
+            String encodedCallback = redirect.substring(callbackIndex +
+                    BasicAuthenticatorConstants.CALLBACK_PARAM.length());
+            int nextParam = encodedCallback.indexOf('&');
+            if (nextParam >= 0) {
+                encodedCallback = encodedCallback.substring(0, nextParam);
+            }
+            String callback = URLDecoder.decode(encodedCallback, BasicAuthenticatorConstants.UTF_8);
+
+            assertEquals(countOccurrences(callback, serverOrigin), 1,
+                    "Server origin should appear exactly once in the callback but was: " + callback);
+            assertTrue(callback.startsWith(absoluteLoginPage),
+                    "Callback should start with the absolute login page but was: " + callback);
+        }
+    }
+
+    private int countOccurrences(String text, String token) {
+
+        int count = 0;
+        int index = 0;
+        while ((index = text.indexOf(token, index)) >= 0) {
+            count++;
+            index += token.length();
+        }
+        return count;
     }
 
     private void validateResponseParams(String expected, String actual) throws URISyntaxException {
