@@ -25,6 +25,7 @@ import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.claim.Claim;
+import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.config.RealmConfiguration;
 import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.carbon.user.core.tenant.TenantManager;
@@ -69,7 +70,7 @@ public class UserResolveExecutorTestCase {
     private UserRealm mockUserRealm;
 
     @Mock
-    private UserStoreManager mockUserStoreManager;
+    private AbstractUserStoreManager mockUserStoreManager;
 
     @Mock
     private UserStoreManager mockSecondaryUserStoreManager;
@@ -188,6 +189,21 @@ public class UserResolveExecutorTestCase {
         expectedClaims.put("http://wso2.org/claims/emailaddress", "test@example.com");
         expectedClaims.put("http://wso2.org/claims/givenname", "Test User");
         verify(mockFlowUser).addClaims(expectedClaims);
+    }
+
+    @Test
+    public void testExecuteSetsUserId() throws Exception {
+
+        String userId = "4b4414e1-916b-4475-aaee-6b0751c29ff6";
+        when(mockFlowUser.getClaim(FrameworkConstants.USERNAME_CLAIM)).thenReturn(TEST_USERNAME);
+        when(mockUserStoreManager.isExistingUser(TEST_DOMAIN_QUALIFIED_USERNAME)).thenReturn(true);
+        when(mockUserStoreManager.getUserClaimValues(TEST_DOMAIN_QUALIFIED_USERNAME, null)).thenReturn(new Claim[0]);
+        when(mockUserStoreManager.getUserIDFromUserName(TEST_DOMAIN_QUALIFIED_USERNAME)).thenReturn(userId);
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+        verify(mockFlowUser).setUserId(userId);
     }
 
     @Test

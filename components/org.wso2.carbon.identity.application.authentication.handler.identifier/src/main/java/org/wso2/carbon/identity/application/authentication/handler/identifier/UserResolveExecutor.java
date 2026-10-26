@@ -38,6 +38,7 @@ import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.core.claim.Claim;
+import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
 import java.util.ArrayList;
@@ -172,6 +173,8 @@ public class UserResolveExecutor implements Executor {
                 }
                 context.getFlowUser().addClaims(claimMap);
             }
+            String userId = ((AbstractUserStoreManager) userStoreManager).getUserIDFromUserName(resolvedUsername);
+            context.getFlowUser().setUserId(userId);
             executorResponse.setResult(STATUS_COMPLETE);
         } catch (UserStoreException e) {
             if (e.getMessage().startsWith(String.valueOf(30007))) {
