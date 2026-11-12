@@ -8,6 +8,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
+import org.wso2.carbon.identity.application.authentication.handler.identifier.IdentifierHandlerConstants;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.UserResolveExecutor;
 import org.wso2.carbon.identity.application.authentication.handler.identifier.internal.IdentifierAuthenticatorServiceComponent;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
@@ -45,6 +46,8 @@ import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorS
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_ERROR;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_RETRY;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
+import static org.wso2.carbon.identity.flow.mgt.Constants.FlowTypes.PASSWORD_RECOVERY;
+import static org.wso2.carbon.identity.flow.mgt.Constants.FlowTypes.PROFILE_UPDATE;
 
 public class UserResolveExecutorTestCase {
 
@@ -489,6 +492,59 @@ public class UserResolveExecutorTestCase {
         ExecutorResponse response = userResolveExecutor.execute(mockContext);
 
         Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+    }
+
+    @Test
+    public void testSharedUserInProfileUpdate_withNotifyUserExistenceEnabled() throws Exception {
+
+        setupUserWithClaims(buildClaim(IdentifierHandlerConstants.MANAGED_ORG_CLAIM_URI, "test-org-id"));
+        when(mockContext.getFlowType()).thenReturn(PROFILE_UPDATE.getType());
+        setupExecutorMetadata("notifyUserExistence", "true");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_RETRY);
+        assertSingleErrorMessage(response, "The user does not exist.", "{{user.not.found}}");
+        verify(mockFlowUser, never()).addClaims(any());
+        verify(mockFlowUser, never()).setUserId(anyString());
+    }
+
+    @Test
+    public void testSharedUserInProfileUpdate_withNotifyUserExistenceDisabled() throws Exception {
+
+        setupUserWithClaims(buildClaim(IdentifierHandlerConstants.MANAGED_ORG_CLAIM_URI, "test-org-id"));
+        when(mockContext.getFlowType()).thenReturn(PROFILE_UPDATE.getType());
+        setupExecutorMetadata("notifyUserExistence", "false");
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+        verify(mockFlowUser, never()).addClaims(any());
+        verify(mockFlowUser, never()).setUserId(anyString());
+    }
+
+    @Test
+    public void testNonSharedUserInProfileUpdate_resolvesUser() throws Exception {
+
+        setupUserWithClaims();
+        when(mockContext.getFlowType()).thenReturn(PROFILE_UPDATE.getType());
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+        verify(mockFlowUser).addClaims(any());
+    }
+
+    @Test
+    public void testSharedUserInOtherFlow_resolvesUser() throws Exception {
+
+        setupUserWithClaims(buildClaim(IdentifierHandlerConstants.MANAGED_ORG_CLAIM_URI, "test-org-id"));
+        when(mockContext.getFlowType()).thenReturn(PASSWORD_RECOVERY.getType());
+
+        ExecutorResponse response = userResolveExecutor.execute(mockContext);
+
+        Assert.assertEquals(response.getResult(), STATUS_COMPLETE);
+        verify(mockFlowUser).addClaims(any());
     }
 
     // Helper methods.

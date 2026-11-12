@@ -52,6 +52,7 @@ import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorS
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_COMPLETE;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.ExecutorStatus.STATUS_RETRY;
 import static org.wso2.carbon.identity.flow.execution.engine.Constants.USERNAME_CLAIM_URI;
+import static org.wso2.carbon.identity.flow.mgt.Constants.FlowTypes.PROFILE_UPDATE;
 
 /**
  * This class is responsible for resolving user.
@@ -170,6 +171,14 @@ public class UserResolveExecutor implements Executor {
                                 IdentifierHandlerConstants.ACCOUNT_DISABLED_I18N_KEY);
                         return executorResponse;
                     }
+                }
+                if (PROFILE_UPDATE.getType().equalsIgnoreCase(context.getFlowType()) &&
+                        StringUtils.isNotBlank(claimMap.get(IdentifierHandlerConstants.MANAGED_ORG_CLAIM_URI))) {
+                    if (isNotifyUserExistenceEnabled(context)) {
+                        return buildUserNotFoundResponse();
+                    }
+                    executorResponse.setResult(STATUS_COMPLETE);
+                    return executorResponse;
                 }
                 context.getFlowUser().addClaims(claimMap);
             }
