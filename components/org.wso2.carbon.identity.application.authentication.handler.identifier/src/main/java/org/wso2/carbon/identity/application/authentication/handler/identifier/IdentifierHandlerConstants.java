@@ -41,6 +41,7 @@ public abstract class IdentifierHandlerConstants {
     public static final String ACCOUNT_DISABLED_I18N_KEY = "{{account.disabled}}";
     public static final String USER_NOT_FOUND = "The user does not exist.";
     public static final String USER_NOT_FOUND_I18N_KEY = "{{user.not.found}}";
+    public static final String MANAGED_ORG_CLAIM_URI = "http://wso2.org/claims/identity/managedOrg";
 
     private IdentifierHandlerConstants() {
     }
