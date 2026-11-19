@@ -42,12 +42,16 @@ public abstract class BasicAuthenticatorConstants {
     public static final String ACCOUNT_LOCKED_REASON = "lockedReason";
     public static final String CONF_SHOW_AUTH_FAILURE_REASON = "showAuthFailureReason";
     public static final String CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE = "showAuthFailureReasonOnLoginPage";
+    public static final String CONF_SHOW_REMAINING_LOGIN_ATTEMPTS = "showRemainingLoginAttempts";
     public static final String CONF_MASK_USER_NOT_EXISTS_ERROR_CODE = "maskUserNotExistsErrorCode";
     public static final String CONF_MASK_ADMIN_FORCED_PASSWORD_RESET_ERROR_CODE =
             "maskAdminForcedPasswordResetErrorCode";
     public static final String CONF_ERROR_PARAMS_TO_OMIT = "errorParamsToOmit";
     public static final String AUTH_FAILURE_PARAM = "&authFailure=";
     public static final String AUTH_FAILURE_MSG_PARAM = "&authFailureMsg=";
+    public static final String LOGIN_FAIL_MESSAGE = "login.fail.message";
+    public static final String LOGIN_FAIL_MESSAGE_WITH_REMAINING_ATTEMPTS =
+            "login.fail.message.with.remaining.attempts";
     public static final String RECAPTCHA_PARAM = "&reCaptcha=";
     public static final String RECAPTCHA_RESEND_CONFIRMATION_PARAM = "&reCaptchaResend=";
     public static final String RECAPTCHA_KEY_PARAM = "&reCaptchaKey=";

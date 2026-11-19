@@ -2005,6 +2005,85 @@ public class BasicAuthenticatorTestCase {
         }
     }
 
+    @DataProvider(name = "showRemainingLoginAttemptsProvider")
+    public Object[][] showRemainingLoginAttemptsProvider() {
+
+        String genericMessage = BasicAuthenticatorConstants.LOGIN_FAIL_MESSAGE;
+        String remainingAttemptsMessage = BasicAuthenticatorConstants.LOGIN_FAIL_MESSAGE_WITH_REMAINING_ATTEMPTS;
+        return new Object[][]{
+                // showRemainingLoginAttempts, max attempts, failed attempts, errorParamsToOmit, expected message.
+                {null, 3, 1, null, genericMessage},
+                {"false", 3, 1, null, genericMessage},
+                {"true", 3, 1, null, remainingAttemptsMessage},
+                {"true", 3, 2, null, remainingAttemptsMessage},
+                // Account lock bypassed users and disabled account lock produce non-positive remaining attempts.
+                {"true", 3, 3, null, genericMessage},
+                {"true", 3, 5, null, genericMessage},
+                {"true", 0, 0, null, genericMessage},
+                // Remaining attempts are omitted from the redirect URL, hence can't be shown.
+                {"true", 3, 1, "remainingAttempts", genericMessage},
+                {"true", 3, 1, "failedUsername", remainingAttemptsMessage}
+        };
+    }
+
+    @Test(dataProvider = "showRemainingLoginAttemptsProvider")
+    public void testInitiateAuthenticationRequestWithShowRemainingLoginAttempts(String showRemainingLoginAttempts,
+                                                                                 int maxAttempts, int failedAttempts,
+                                                                                 String omittedParams,
+                                                                                 String expectedMessage)
+            throws AuthenticationFailedException, IOException {
+
+        try (MockedStatic<FileBasedConfigurationBuilder>
+                     fileBasedConfigurationBuilder = Mockito.mockStatic(FileBasedConfigurationBuilder.class);
+             MockedStatic<ConfigurationFacade> configurationFacade = Mockito.mockStatic(ConfigurationFacade.class);
+             MockedStatic<IdentityUtil> identityUtil = Mockito.mockStatic(IdentityUtil.class)) {
+
+            when(mockRequest.getParameter(BasicAuthenticatorConstants.USER_NAME)).thenReturn(DUMMY_USER_NAME);
+            fileBasedConfigurationBuilder
+                    .when(FileBasedConfigurationBuilder::getInstance).thenReturn(mockFileBasedConfigurationBuilder);
+
+            HashMap<String, String> paramMap = new HashMap<>();
+            paramMap.put(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON, "true");
+            if (showRemainingLoginAttempts != null) {
+                paramMap.put(BasicAuthenticatorConstants.CONF_SHOW_REMAINING_LOGIN_ATTEMPTS,
+                        showRemainingLoginAttempts);
+            }
+            if (omittedParams != null) {
+                paramMap.put(BasicAuthenticatorConstants.CONF_ERROR_PARAMS_TO_OMIT, omittedParams);
+            }
+            AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig("test", true, paramMap);
+            when(mockFileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+
+            when(mockAuthnCtxt.getContextIdIncludedQueryParams()).thenReturn(DUMMY_QUERY_PARAMS);
+            when(mockAuthnCtxt.getProperty("PASSWORD_PROPERTY")).thenReturn(DUMMY_PASSWORD);
+            when(mockAuthnCtxt.isRetrying()).thenReturn(true);
+
+            configurationFacade.when(ConfigurationFacade::getInstance).thenReturn(mockConfigurationFacade);
+            when(mockConfigurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGEURL);
+            when(mockConfigurationFacade.getAuthenticationEndpointRetryURL()).thenReturn(DUMMY_RETRY_URL);
+
+            when(mockIdentityErrorMsgContext.getErrorCode()).thenReturn(UserCoreConstants.ErrorCode.INVALID_CREDENTIAL);
+            when(mockIdentityErrorMsgContext.getMaximumLoginAttempts()).thenReturn(maxAttempts);
+            when(mockIdentityErrorMsgContext.getFailedLoginAttempts()).thenReturn(failedAttempts);
+            identityUtil.when(IdentityUtil::getIdentityErrorMsg).thenReturn(mockIdentityErrorMsgContext);
+
+            doAnswer((Answer<Object>) invocation -> {
+                redirect = (String) invocation.getArguments()[0];
+                return null;
+            }).when(mockResponse).sendRedirect(anyString());
+
+            basicAuthenticator.initiateAuthenticationRequest(mockRequest, mockResponse, mockAuthnCtxt);
+
+            Assert.assertTrue(redirect.contains(BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                            BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + expectedMessage + "&"),
+                    "Unexpected login failure message in the redirect URL: " + redirect);
+            if (omittedParams == null || !omittedParams.contains("remainingAttempts")) {
+                Assert.assertTrue(redirect.contains(BasicAuthenticatorConstants.REMAINING_ATTEMPTS +
+                        (maxAttempts - failedAttempts)), "Remaining attempts missing in the redirect URL: " + redirect);
+            }
+        }
+    }
+
     @Test
     public void initiateAuthenticationRequestTestcaseWithPasswordResetErrorOmitted()
             throws AuthenticationFailedException, IOException, URISyntaxException {

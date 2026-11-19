@@ -286,6 +286,7 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
         Map<String, String> parameterMap = getAuthenticatorConfig().getParameterMap();
         String showAuthFailureReason = null;
         String showAuthFailureReasonOnLoginPage = null;
+        boolean showRemainingLoginAttempts = false;
         String maskUserNotExistsErrorCode = null;
         String maskAdminForcedPasswordResetErrorCode = null;
         List<String> omittingErrorParams = null;
@@ -307,6 +308,12 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                 if (log.isDebugEnabled()) {
                     log.debug(BasicAuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON_ON_LOGIN_PAGE +
                             " has been set as : " + showAuthFailureReasonOnLoginPage);
+                }
+                showRemainingLoginAttempts = Boolean.parseBoolean(
+                        parameterMap.get(BasicAuthenticatorConstants.CONF_SHOW_REMAINING_LOGIN_ATTEMPTS));
+                if (log.isDebugEnabled()) {
+                    log.debug(BasicAuthenticatorConstants.CONF_SHOW_REMAINING_LOGIN_ATTEMPTS +
+                            " has been set as : " + showRemainingLoginAttempts);
                 }
                 String errorParamsToOmit = parameterMap.get(BasicAuthenticatorConstants.CONF_ERROR_PARAMS_TO_OMIT);
                 if (log.isDebugEnabled()) {
@@ -567,6 +574,10 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
                                         BasicAuthenticatorConstants.UTF_8));
                         paramMap.put(BasicAuthenticatorConstants.REMAINING_ATTEMPTS, String.valueOf(remainingAttempts));
 
+                        if (showRemainingLoginAttempts) {
+                            retryParam = resolveRetryParamWithRemainingAttempts(retryParam, remainingAttempts,
+                                    omittingErrorParams);
+                        }
                         retryParam = retryParam + buildErrorParamString(paramMap, omittingErrorParams);
                         redirectURL = loginPage + ("?" + queryParams)
                                 + BasicAuthenticatorConstants.AUTHENTICATORS + getName() + ":" +
@@ -1029,6 +1040,34 @@ public class BasicAuthenticator extends AbstractApplicationAuthenticator
     public String getName() {
 
         return BasicAuthenticatorConstants.AUTHENTICATOR_NAME;
+    }
+
+    /**
+     * Swap the generic login failure message with the one that carries the remaining login attempts, so that the
+     * login page can show how many attempts are left before the account is locked.
+     * The message is swapped only when the generic login failure message is in place, the remaining attempts value
+     * is positive, and the remaining attempts param is not omitted from the redirect URL.
+     *
+     * @param retryParam          Retry param built for the failed login attempt.
+     * @param remainingAttempts   Number of login attempts left before the account is locked.
+     * @param omittingErrorParams Error params omitted from the redirect URL.
+     * @return Retry param with the login failure message to show on the login page.
+     */
+    private String resolveRetryParamWithRemainingAttempts(String retryParam, int remainingAttempts,
+                                                          List<String> omittingErrorParams) {
+
+        String genericLoginFailureParam = BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM + BasicAuthenticatorConstants.LOGIN_FAIL_MESSAGE;
+        String remainingAttemptsParamName = BasicAuthenticatorConstants.REMAINING_ATTEMPTS
+                .replaceAll("&", "").replaceAll("=", "");
+        if (!genericLoginFailureParam.equals(retryParam) || remainingAttempts <= 0 ||
+                (CollectionUtils.isNotEmpty(omittingErrorParams) &&
+                        omittingErrorParams.contains(remainingAttemptsParamName))) {
+            return retryParam;
+        }
+        return BasicAuthenticatorConstants.AUTH_FAILURE_PARAM + "true" +
+                BasicAuthenticatorConstants.AUTH_FAILURE_MSG_PARAM +
+                BasicAuthenticatorConstants.LOGIN_FAIL_MESSAGE_WITH_REMAINING_ATTEMPTS;
     }
 
     private String buildErrorParamString(Map<String, String> paramMap, List<String> omittingErrorParams) {
